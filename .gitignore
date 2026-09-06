@@ -1,0 +1,22 @@
+# Java / Gradle
+backend/build/
+backend/.gradle/
+*.class
+*.jar
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# 환경변수 - 절대 커밋 금지
+.env
+.env.local
+application-local.yml
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
