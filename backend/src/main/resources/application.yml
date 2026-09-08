@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: cherry
+
+  datasource:
+    url: jdbc:mysql://localhost:3307/cherry?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: cherry
+    password: ${DB_PASSWORD:cherrypw1234}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: Asia/Seoul
+    open-in-view: false
+
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+
+server:
+  port: 8080
+
+logging:
+  level:
+    org.hibernate.SQL: debug
