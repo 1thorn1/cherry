@@ -2,6 +2,10 @@ spring:
   application:
     name: cherry
 
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
   datasource:
     url: jdbc:mysql://localhost:3307/cherry?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     username: cherry
