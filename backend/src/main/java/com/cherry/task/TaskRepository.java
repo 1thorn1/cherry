@@ -8,7 +8,10 @@ import java.util.Optional;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
-    List<Task> findByUserIdAndTaskDateAndDeletedAtIsNullOrderBySortOrderAsc(
+    List<Task> findByUserIdAndTaskDateAndCompletedAtIsNullAndDeletedAtIsNullOrderBySortOrderAsc(
+            Long userId, LocalDate taskDate);
+
+    List<Task> findByUserIdAndTaskDateAndCompletedAtIsNotNullAndDeletedAtIsNullOrderByCompletedAtDesc(
             Long userId, LocalDate taskDate);
 
     Optional<Task> findByIdAndUserIdAndDeletedAtIsNull(Long id, Long userId);

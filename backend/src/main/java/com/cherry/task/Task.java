@@ -51,10 +51,14 @@ public class Task {
     @Column(insertable = false, updatable = false)
     private LocalDateTime updatedAt;
 
-    public static Task create(Long userId, String title) {
+    public static Task create(Long userId, String title, LocalDate taskDate) {
         Task task = new Task();
         task.userId = userId;
         task.title = title;
+        task.taskDate = taskDate;
+        if (taskDate != null) {
+            task.horizon = "THIS_WEEK";
+        }
         return task;
     }
 
