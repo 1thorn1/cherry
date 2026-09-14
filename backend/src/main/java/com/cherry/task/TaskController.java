@@ -9,6 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.cherry.task.dto.TaskScheduleRequest;
+
 @RestController
 @RequestMapping("/api/tasks")
 @RequiredArgsConstructor
@@ -38,6 +40,12 @@ public class TaskController {
     public TaskResponse changeMemo(@PathVariable Long id,
                                    @Valid @RequestBody TaskMemoRequest request) {
         return taskService.changeMemo(DEV_USER_ID, id, request);
+    }
+
+    @PatchMapping("/{id}/schedule")
+    public TaskResponse schedule(@PathVariable Long id,
+                                 @RequestBody TaskScheduleRequest request) {
+        return taskService.schedule(DEV_USER_ID, id, request);
     }
 
     @DeleteMapping("/{id}")

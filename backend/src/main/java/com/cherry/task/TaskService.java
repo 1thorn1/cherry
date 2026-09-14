@@ -13,6 +13,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.cherry.task.dto.TaskScheduleRequest;
+
 @Service
 @RequiredArgsConstructor
 public class TaskService {
@@ -56,6 +58,13 @@ public class TaskService {
     public TaskResponse changeMemo(Long userId, Long taskId, TaskMemoRequest request) {
         Task task = findOwned(userId, taskId);
         task.changeMemo(request.memo());
+        return TaskResponse.from(task);
+    }
+
+    @Transactional
+    public TaskResponse schedule(Long userId, Long taskId, TaskScheduleRequest request) {
+        Task task = findOwned(userId, taskId);
+        task.schedule(request.scheduledStart(), request.scheduledEnd());
         return TaskResponse.from(task);
     }
 

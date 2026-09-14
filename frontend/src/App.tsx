@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { Task } from './types/task'
-import { getToday, createTask, completeTask, uncompleteTask, deleteTask } from './api/tasks'
+import Timetable from './components/Timetable'
+import TimeSelect from './components/TimeSelect'
+import { getToday, createTask, completeTask, uncompleteTask, deleteTask, scheduleTask } from './api/tasks'
 
 const today = new Date().toISOString().slice(0, 10)
 
@@ -47,6 +49,17 @@ export default function App() {
 
   async function handleDelete(id: number) {
     await deleteTask(id)
+    load()
+  }
+
+  async function handleSchedule(task: Task, hour: number | null) {
+    if (hour === null) {
+      await scheduleTask(task.id, null, null)
+    } else {
+      const start = `${today}T${String(hour).padStart(2, '0')}:00:00`
+      const end = `${today}T${String(hour + 1).padStart(2, '0')}:00:00`
+      await scheduleTask(task.id, start, end)
+    }
     load()
   }
 
@@ -99,7 +112,7 @@ export default function App() {
           </button>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-2">
+        <div className="grid gap-8 lg:grid-cols-3">
 
           <section className={tab === 'todo' ? '' : 'hidden lg:block'}>
             <p className="mb-3 hidden text-xs text-neutral-500 lg:block">할 일 {todo.length}</p>
@@ -114,6 +127,14 @@ export default function App() {
                   aria-label="완료"
                 />
                 <span className="flex-1 text-sm">{task.title}</span>
+                <TimeSelect
+                    value={task.scheduled_start}
+                    onChange={(hour) => handleSchedule(task, hour)}
+                />
+                <section className="hidden lg:block">
+                  <p className="mb-3 text-xs text-neutral-500">시간표</p>
+                  <Timetable tasks={[...todo, ...done]} onUnschedule={(t) => handleSchedule(t, null)} />
+                </section>
                 <button
                   onClick={() => handleDelete(task.id)}
                   className="text-xs text-neutral-300 opacity-0 transition group-hover:opacity-100"
