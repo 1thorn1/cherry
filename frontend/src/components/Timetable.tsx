@@ -1,7 +1,7 @@
+import { useDroppable } from '@dnd-kit/core'
 import type { Task } from '../types/task'
+import { START_HOUR, END_HOUR, hourDroppableId } from '../lib/timetable'
 
-const START_HOUR = 8
-const END_HOUR = 20
 const ROW_HEIGHT = 40
 
 function toMinutes(iso: string) {
@@ -18,6 +18,21 @@ function position(task: Task) {
   return { top, height }
 }
 
+function HourRow({ hour }: { hour: number }) {
+  const { setNodeRef, isOver } = useDroppable({ id: hourDroppableId(hour) })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`relative border-t border-neutral-100 ${isOver ? 'bg-[var(--cherry-bg)]' : ''}`}
+      style={{ height: ROW_HEIGHT }}
+    >
+      <span className="absolute -top-2 left-0 bg-white pr-2 text-[10px] text-neutral-400">
+        {hour}
+      </span>
+    </div>
+  )
+}
+
 interface Props {
   tasks: Task[]
   onUnschedule: (task: Task) => void
@@ -30,11 +45,7 @@ export default function Timetable({ tasks, onUnschedule }: Props) {
   return (
     <div className="relative">
       {hours.map((h) => (
-        <div key={h} className="relative border-t border-neutral-100" style={{ height: ROW_HEIGHT }}>
-          <span className="absolute -top-2 left-0 bg-white pr-2 text-[10px] text-neutral-400">
-            {h}
-          </span>
-        </div>
+        <HourRow key={h} hour={h} />
       ))}
 
       {scheduled.map((task) => {
