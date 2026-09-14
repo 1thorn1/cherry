@@ -80,4 +80,9 @@ public class Task {
     public void softDelete(LocalDateTime now) {
         this.deletedAt = now;
     }
+
+    public void schedule(LocalDateTime start, LocalDateTime end) {
+        this.scheduledStart = start;
+        this.scheduledEnd = end;
+    }
 }
