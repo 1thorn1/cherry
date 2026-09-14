@@ -60,7 +60,7 @@ export default function App() {
   const [done, setDone] = useState<Task[]>([])
   const [input, setInput] = useState('')
   const [error, setError] = useState('')
-  const [tab, setTab] = useState<'todo' | 'done'>('todo')
+  const [tab, setTab] = useState<'todo' | 'done' | 'timetable'>('todo')
   const [saving, setSaving] = useState(false)
 
   async function load() {
@@ -170,6 +170,12 @@ export default function App() {
           >
             완료 {done.length}
           </button>
+          <button
+            onClick={() => setTab('timetable')}
+            className={`flex-1 rounded-md py-2 text-xs font-medium ${tab === 'timetable' ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
+          >
+            시간표
+          </button>
         </div>
 
         <DndContext onDragEnd={handleDragEnd}>
@@ -212,8 +218,8 @@ export default function App() {
               ))}
             </section>
 
-            <section className="hidden lg:block">
-              <p className="mb-3 text-xs text-neutral-500">시간표</p>
+            <section className={tab === 'timetable' ? '' : 'hidden lg:block'}>
+              <p className="mb-3 hidden text-xs text-neutral-500 lg:block">시간표</p>
               <Timetable tasks={[...todo, ...done]} onUnschedule={(t) => handleSchedule(t, null)} />
             </section>
 
