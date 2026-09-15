@@ -4,7 +4,7 @@ import type { Task } from './types/task'
 import Timetable from './components/Timetable'
 import TimeSelect from './components/TimeSelect'
 import { getToday, createTask, completeTask, uncompleteTask, deleteTask, scheduleTask } from './api/tasks'
-import { START_HOUR, END_HOUR, hourDroppableId } from './lib/timetable'
+import { START_HOUR, END_HOUR, hourDroppableId, type TimetableView } from './lib/timetable'
 
 const today = new Date().toISOString().slice(0, 10)
 
@@ -61,6 +61,7 @@ export default function App() {
   const [input, setInput] = useState('')
   const [error, setError] = useState('')
   const [tab, setTab] = useState<'todo' | 'done' | 'timetable'>('todo')
+  const [view, setView] = useState<TimetableView>('scheduled')
   const [saving, setSaving] = useState(false)
 
   async function load() {
@@ -219,8 +220,24 @@ export default function App() {
             </section>
 
             <section className={tab === 'timetable' ? '' : 'hidden lg:block'}>
-              <p className="mb-3 hidden text-xs text-neutral-500 lg:block">시간표</p>
-              <Timetable tasks={[...todo, ...done]} onUnschedule={(t) => handleSchedule(t, null)} />
+              <div className="mb-3 flex items-center justify-between">
+                <p className="hidden text-xs text-neutral-500 lg:block">시간표</p>
+                <div className="flex gap-1 rounded-lg bg-neutral-100 p-1 text-xs">
+                  <button
+                    onClick={() => setView('scheduled')}
+                    className={`rounded-md px-3 py-1 font-medium ${view === 'scheduled' ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
+                  >
+                    예정
+                  </button>
+                  <button
+                    onClick={() => setView('actual')}
+                    className={`rounded-md px-3 py-1 font-medium ${view === 'actual' ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
+                  >
+                    실제
+                  </button>
+                </div>
+              </div>
+              <Timetable tasks={[...todo, ...done]} view={view} onUnschedule={(t) => handleSchedule(t, null)} />
             </section>
 
           </div>
