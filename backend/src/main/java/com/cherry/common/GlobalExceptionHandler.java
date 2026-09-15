@@ -33,6 +33,12 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("MILESTONE_NOT_FOUND", e.getMessage()));
     }
 
+    @ExceptionHandler(InvalidNoteException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidNote(InvalidNoteException e) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("INVALID_REQUEST", e.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException e) {
         String message = e.getBindingResult().getFieldErrors().stream()
