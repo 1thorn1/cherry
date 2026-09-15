@@ -1,6 +1,7 @@
 package com.cherry.task;
 
 import com.cherry.common.TaskNotFoundException;
+import com.cherry.routine.RoutineService;
 import com.cherry.task.dto.TaskCreateRequest;
 import com.cherry.task.dto.TaskMemoRequest;
 import com.cherry.task.dto.TaskResponse;
@@ -20,6 +21,7 @@ import com.cherry.task.dto.TaskScheduleRequest;
 public class TaskService {
 
     private final TaskRepository taskRepository;
+    private final RoutineService routineService;
 
     @Transactional
     public TaskResponse create(Long userId, TaskCreateRequest request) {
@@ -27,8 +29,12 @@ public class TaskService {
         return TaskResponse.from(taskRepository.save(task));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public TodayResponse getToday(Long userId, LocalDate date) {
+        if (date.equals(LocalDate.now())) {
+            routineService.generateDueTasksForUser(userId, date);
+        }
+
         List<TaskResponse> todo = taskRepository
                 .findByUserIdAndTaskDateAndCompletedAtIsNullAndDeletedAtIsNullOrderBySortOrderAsc(userId, date)
                 .stream().map(TaskResponse::from).toList();

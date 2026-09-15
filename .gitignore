@@ -20,3 +20,6 @@ application-local.yml
 
 # OS
 .DS_Store
+
+# 개인 학습 노트 - 레포에 올리지 않음
+docs/learning-notes.md

@@ -15,4 +15,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             Long userId, LocalDate taskDate);
 
     Optional<Task> findByIdAndUserIdAndDeletedAtIsNull(Long id, Long userId);
+
+    boolean existsByRoutineIdAndTaskDate(Long routineId, LocalDate taskDate);
 }
