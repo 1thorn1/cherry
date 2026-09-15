@@ -1,9 +1,12 @@
 package com.cherry.task;
 
 import com.cherry.common.TaskNotFoundException;
+import com.cherry.project.Milestone;
+import com.cherry.project.MilestoneRepository;
 import com.cherry.routine.RoutineService;
 import com.cherry.task.dto.TaskCreateRequest;
 import com.cherry.task.dto.TaskMemoRequest;
+import com.cherry.task.dto.TaskProjectRequest;
 import com.cherry.task.dto.TaskResponse;
 import com.cherry.task.dto.TodayResponse;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +25,7 @@ public class TaskService {
 
     private final TaskRepository taskRepository;
     private final RoutineService routineService;
+    private final MilestoneRepository milestoneRepository;
 
     @Transactional
     public TaskResponse create(Long userId, TaskCreateRequest request) {
@@ -49,7 +53,18 @@ public class TaskService {
     @Transactional
     public TaskResponse complete(Long userId, Long taskId) {
         Task task = findOwned(userId, taskId);
-        task.complete(LocalDateTime.now());
+        Long currentMilestoneId = task.getProjectId() == null ? null
+                : milestoneRepository.findFirstByProjectIdAndCompletedAtIsNullOrderBySeqAsc(task.getProjectId())
+                        .map(Milestone::getId)
+                        .orElse(null);
+        task.complete(LocalDateTime.now(), currentMilestoneId);
+        return TaskResponse.from(task);
+    }
+
+    @Transactional
+    public TaskResponse assignProject(Long userId, Long taskId, TaskProjectRequest request) {
+        Task task = findOwned(userId, taskId);
+        task.assignProject(request.projectId());
         return TaskResponse.from(task);
     }
 

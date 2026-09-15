@@ -41,6 +41,12 @@ public class Task {
     @Column(name = "routine_id")
     private Long routineId;
 
+    @Column(name = "project_id")
+    private Long projectId;
+
+    @Column(name = "milestone_id")
+    private Long milestoneId;
+
     @Column(length = 500)
     private String memo;
 
@@ -79,15 +85,21 @@ public class Task {
         return task;
     }
 
-    public void complete(LocalDateTime now) {
+    public void complete(LocalDateTime now, Long currentMilestoneId) {
         if (this.completedAt != null) return;
         this.completedAt = now;
         this.effectiveAt = now;
+        this.milestoneId = currentMilestoneId;
     }
 
     public void uncomplete() {
         this.completedAt = null;
         this.effectiveAt = null;
+        this.milestoneId = null;
+    }
+
+    public void assignProject(Long projectId) {
+        this.projectId = projectId;
     }
 
     public void changeMemo(String memo) {
