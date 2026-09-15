@@ -1,5 +1,7 @@
 package com.cherry.project;
 
+import com.cherry.project.dto.NoteCreateRequest;
+import com.cherry.project.dto.NoteResponse;
 import com.cherry.project.dto.ProjectCreateRequest;
 import com.cherry.project.dto.ProjectDetailResponse;
 import com.cherry.project.dto.ProjectResponse;
@@ -40,5 +42,12 @@ public class ProjectController {
     @GetMapping("/{id}/timeline")
     public List<TimelineEntryResponse> timeline(@PathVariable Long id) {
         return projectService.timeline(DEV_USER_ID, id);
+    }
+
+    @PostMapping("/{id}/notes")
+    public ResponseEntity<NoteResponse> addNote(@PathVariable Long id,
+                                                @Valid @RequestBody NoteCreateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(projectService.addNote(DEV_USER_ID, id, request));
     }
 }

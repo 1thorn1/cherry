@@ -1,8 +1,11 @@
 package com.cherry.project;
 
+import com.cherry.common.InvalidNoteException;
 import com.cherry.common.MilestoneNotFoundException;
 import com.cherry.common.ProjectNotFoundException;
 import com.cherry.project.dto.MilestoneResponse;
+import com.cherry.project.dto.NoteCreateRequest;
+import com.cherry.project.dto.NoteResponse;
 import com.cherry.project.dto.ProjectCreateRequest;
 import com.cherry.project.dto.ProjectDetailResponse;
 import com.cherry.project.dto.ProjectResponse;
@@ -18,7 +21,9 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.IsoFields;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +32,7 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final MilestoneRepository milestoneRepository;
     private final TaskRepository taskRepository;
+    private final ProjectNoteRepository projectNoteRepository;
 
     @Transactional
     public ProjectResponse create(Long userId, ProjectCreateRequest request) {
@@ -62,9 +68,50 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public List<TimelineEntryResponse> timeline(Long userId, Long projectId) {
         findOwned(userId, projectId);
-        return taskRepository
+
+        Stream<TimelineEntryResponse> autoLogs = taskRepository
                 .findByProjectIdAndCompletedAtIsNotNullAndDeletedAtIsNullOrderByCompletedAtDesc(projectId)
-                .stream().map(TimelineEntryResponse::fromTask).toList();
+                .stream().map(TimelineEntryResponse::fromTask);
+
+        Stream<TimelineEntryResponse> notes = projectNoteRepository
+                .findByProjectIdAndDeletedAtIsNullOrderByCreatedAtDesc(projectId)
+                .stream().map(TimelineEntryResponse::fromNote);
+
+        return Stream.concat(autoLogs, notes)
+                .sorted(Comparator.comparing(TimelineEntryResponse::at).reversed())
+                .toList();
+    }
+
+    @Transactional
+    public NoteResponse addNote(Long userId, Long projectId, NoteCreateRequest request) {
+        Project project = findOwned(userId, projectId);
+        validateNote(request);
+
+        Long currentMilestoneId = milestoneRepository
+                .findFirstByProjectIdAndCompletedAtIsNullOrderBySeqAsc(projectId)
+                .map(Milestone::getId)
+                .orElse(null);
+
+        ProjectNote note = ProjectNote.create(userId, project.getId(), currentMilestoneId,
+                request.kind(), request.body(), request.url());
+        projectNoteRepository.save(note);
+        return NoteResponse.from(note);
+    }
+
+    private void validateNote(NoteCreateRequest request) {
+        switch (request.kind()) {
+            case "LINK" -> {
+                if (request.url() == null || request.url().isBlank()) {
+                    throw new InvalidNoteException("링크는 URL을 입력해주세요");
+                }
+            }
+            case "NOTE", "RETRO" -> {
+                if (request.body() == null || request.body().isBlank()) {
+                    throw new InvalidNoteException("내용을 입력해주세요");
+                }
+            }
+            default -> throw new InvalidNoteException("알 수 없는 기록 종류입니다");
+        }
     }
 
     @Transactional
