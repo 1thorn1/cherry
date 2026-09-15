@@ -15,6 +15,12 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("TASK_NOT_FOUND", e.getMessage()));
     }
 
+    @ExceptionHandler(RoutineNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleRoutineNotFound(RoutineNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("ROUTINE_NOT_FOUND", e.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException e) {
         String message = e.getBindingResult().getFieldErrors().stream()

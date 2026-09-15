@@ -1,5 +1,6 @@
 package com.cherry.task;
 
+import com.cherry.routine.Routine;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -37,6 +38,9 @@ public class Task {
 
     private LocalDateTime effectiveAt;
 
+    @Column(name = "routine_id")
+    private Long routineId;
+
     @Column(length = 500)
     private String memo;
 
@@ -58,6 +62,19 @@ public class Task {
         task.taskDate = taskDate;
         if (taskDate != null) {
             task.horizon = "THIS_WEEK";
+        }
+        return task;
+    }
+
+    public static Task createFromRoutine(Routine routine, LocalDate taskDate) {
+        Task task = new Task();
+        task.userId = routine.getUserId();
+        task.title = routine.getTitle();
+        task.taskDate = taskDate;
+        task.horizon = "THIS_WEEK";
+        task.routineId = routine.getId();
+        if (routine.getDefaultTime() != null) {
+            task.scheduledStart = LocalDateTime.of(taskDate, routine.getDefaultTime());
         }
         return task;
     }
