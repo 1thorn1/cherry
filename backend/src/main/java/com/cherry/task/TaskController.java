@@ -2,6 +2,7 @@ package com.cherry.task;
 
 import com.cherry.task.dto.TaskCreateRequest;
 import com.cherry.task.dto.TaskMemoRequest;
+import com.cherry.task.dto.TaskProjectRequest;
 import com.cherry.task.dto.TaskResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +47,12 @@ public class TaskController {
     public TaskResponse schedule(@PathVariable Long id,
                                  @RequestBody TaskScheduleRequest request) {
         return taskService.schedule(DEV_USER_ID, id, request);
+    }
+
+    @PatchMapping("/{id}/project")
+    public TaskResponse assignProject(@PathVariable Long id,
+                                      @RequestBody TaskProjectRequest request) {
+        return taskService.assignProject(DEV_USER_ID, id, request);
     }
 
     @DeleteMapping("/{id}")

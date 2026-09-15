@@ -14,6 +14,8 @@ public record TaskResponse(
         LocalDateTime scheduledEnd,
         LocalDateTime completedAt,
         LocalDateTime effectiveAt,
+        Long projectId,
+        Long milestoneId,
         String memo,
         int sortOrder
 ) {
@@ -27,6 +29,8 @@ public record TaskResponse(
                 task.getScheduledEnd(),
                 task.getCompletedAt(),
                 task.getEffectiveAt(),
+                task.getProjectId(),
+                task.getMilestoneId(),
                 task.getMemo(),
                 task.getSortOrder()
         );

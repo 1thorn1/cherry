@@ -21,6 +21,18 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("ROUTINE_NOT_FOUND", e.getMessage()));
     }
 
+    @ExceptionHandler(ProjectNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleProjectNotFound(ProjectNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("PROJECT_NOT_FOUND", e.getMessage()));
+    }
+
+    @ExceptionHandler(MilestoneNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleMilestoneNotFound(MilestoneNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("MILESTONE_NOT_FOUND", e.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException e) {
         String message = e.getBindingResult().getFieldErrors().stream()
