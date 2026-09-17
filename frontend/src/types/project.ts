@@ -22,3 +22,14 @@ export interface ProjectDetail {
   project: Project
   milestones: Milestone[]
 }
+
+export type NoteKind = 'NOTE' | 'LINK' | 'RETRO'
+
+export interface TimelineEntry {
+  kind: 'AUTO_LOG' | NoteKind
+  ref_id: number
+  title: string | null
+  body: string | null
+  url: string | null
+  at: string
+}
