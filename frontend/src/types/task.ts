@@ -7,6 +7,7 @@ export interface Task {
   scheduled_end: string | null
   completed_at: string | null
   effective_at: string | null
+  routine_id: number | null
   memo: string | null
   sort_order: number
 }
