@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { Milestone, Project, ProjectDetail } from '../types/project'
+import type { Milestone, NoteKind, Project, ProjectDetail, TimelineEntry } from '../types/project'
 
 export function getProjects() {
   return request<Project[]>('/api/projects')
@@ -25,4 +25,15 @@ export function createProject(input: CreateProjectInput) {
 
 export function completeMilestone(id: number) {
   return request<Milestone>(`/api/milestones/${id}/complete`, { method: 'PATCH' })
+}
+
+export function getTimeline(projectId: number) {
+  return request<TimelineEntry[]>(`/api/projects/${projectId}/timeline`)
+}
+
+export function addNote(projectId: number, kind: NoteKind, body: string | null, url: string | null) {
+  return request<void>(`/api/projects/${projectId}/notes`, {
+    method: 'POST',
+    body: JSON.stringify({ kind, body, url }),
+  })
 }

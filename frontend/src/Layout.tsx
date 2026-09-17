@@ -9,10 +9,10 @@ const tabs = [
 
 export default function Layout() {
   return (
-    <div className="min-h-screen pb-20 lg:pb-0">
+    <div className="min-h-screen pb-20">
       <Outlet />
 
-      <nav className="fixed bottom-0 left-0 right-0 flex border-t border-neutral-100 bg-white lg:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 flex border-t border-neutral-100 bg-white">
         {tabs.map((tab) => (
           <NavLink
             key={tab.to}

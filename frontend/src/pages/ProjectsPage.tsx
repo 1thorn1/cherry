@@ -61,7 +61,10 @@ export default function ProjectsPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
-      <h1 className="mb-6 text-xl font-medium tracking-tight">공사 중인 것들</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-xl font-medium tracking-tight">공사 중인 것들</h1>
+        <Link to="/search" className="text-xs text-neutral-400">검색</Link>
+      </div>
 
       <div className="mb-8 rounded-lg border border-neutral-200 p-4">
         <input
