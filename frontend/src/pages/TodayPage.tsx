@@ -1,20 +1,26 @@
 import { useEffect, useState } from 'react'
 import { DndContext, useDraggable, type DragEndEvent } from '@dnd-kit/core'
 import type { Task } from '../types/task'
+import type { Routine, RoutineFreq } from '../types/routine'
 import Timetable from '../components/Timetable'
 import TimeSelect from '../components/TimeSelect'
 import { getToday, createTask, completeTask, uncompleteTask, deleteTask, scheduleTask } from '../api/tasks'
+import { getRoutines, createRoutine } from '../api/routines'
 import { START_HOUR, END_HOUR, hourDroppableId, type TimetableView } from '../lib/timetable'
+import { routineRuleLabel } from '../lib/routine'
 
 const today = new Date().toISOString().slice(0, 10)
+const WEEKDAY_LABELS = ['월', '화', '수', '목', '금', '토', '일']
 
 function TaskRow({
   task,
+  routineLabel,
   onToggle,
   onSchedule,
   onDelete,
 }: {
   task: Task
+  routineLabel: string | null
   onToggle: (task: Task) => void
   onSchedule: (task: Task, hour: number | null) => void
   onDelete: (id: number) => void
@@ -43,7 +49,12 @@ function TaskRow({
       >
         ⠿
       </span>
-      <span className="flex-1 text-sm">{task.title}</span>
+      <span className="flex-1 text-sm">
+        {task.title}
+        {routineLabel && (
+          <span className="ml-2 text-[11px] text-neutral-400">🔁 {routineLabel}</span>
+        )}
+      </span>
       <TimeSelect value={task.scheduled_start} onChange={(hour) => onSchedule(task, hour)} />
       <button
         onClick={() => onDelete(task.id)}
@@ -64,6 +75,14 @@ export default function TodayPage() {
   const [view, setView] = useState<TimetableView>('scheduled')
   const [saving, setSaving] = useState(false)
 
+  const [routines, setRoutines] = useState<Routine[]>([])
+  const [showRoutineForm, setShowRoutineForm] = useState(false)
+  const [routineTitle, setRoutineTitle] = useState('')
+  const [routineFreq, setRoutineFreq] = useState<RoutineFreq>('DAILY')
+  const [routineWeekdays, setRoutineWeekdays] = useState<Set<number>>(new Set())
+  const [routineMonthDay, setRoutineMonthDay] = useState('')
+  const [routineSaving, setRoutineSaving] = useState(false)
+
   async function load() {
     try {
       const data = await getToday(today)
@@ -75,7 +94,61 @@ export default function TodayPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  async function loadRoutines() {
+    try {
+      setRoutines(await getRoutines())
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '불러오지 못했습니다')
+    }
+  }
+
+  useEffect(() => { load(); loadRoutines() }, [])
+
+  function toggleWeekday(index: number) {
+    setRoutineWeekdays((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) {
+        next.delete(index)
+      } else {
+        next.add(index)
+      }
+      return next
+    })
+  }
+
+  async function handleCreateRoutine() {
+    const title = routineTitle.trim()
+    if (!title || routineSaving) return
+    if (routineFreq === 'WEEKLY' && routineWeekdays.size === 0) return
+    if (routineFreq === 'MONTHLY' && !routineMonthDay) return
+
+    setRoutineSaving(true)
+    try {
+      const weekdaysMask = [...routineWeekdays].reduce((acc, i) => acc | (1 << i), 0)
+      await createRoutine({
+        title,
+        freq: routineFreq,
+        weekdays: routineFreq === 'WEEKLY' ? weekdaysMask : undefined,
+        month_day: routineFreq === 'MONTHLY' ? Number(routineMonthDay) : undefined,
+        started_on: today,
+      })
+      setRoutineTitle('')
+      setRoutineWeekdays(new Set())
+      setRoutineMonthDay('')
+      setShowRoutineForm(false)
+      await Promise.all([load(), loadRoutines()])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '반복을 만들지 못했습니다')
+    } finally {
+      setRoutineSaving(false)
+    }
+  }
+
+  function routineLabelFor(task: Task) {
+    if (!task.routine_id) return null
+    const routine = routines.find((r) => r.id === task.routine_id)
+    return routine ? routineRuleLabel(routine) : null
+  }
 
   async function handleAdd() {
     const title = input.trim()
@@ -153,6 +226,76 @@ export default function TodayPage() {
         </button>
       </div>
 
+      <button
+        onClick={() => setShowRoutineForm((v) => !v)}
+        className="mb-4 text-xs text-neutral-400"
+      >
+        {showRoutineForm ? '반복 만들기 닫기' : '+ 반복 만들기'}
+      </button>
+
+      {showRoutineForm && (
+        <div className="mb-6 rounded-lg border border-neutral-200 p-4">
+          <input
+            value={routineTitle}
+            onChange={(e) => setRoutineTitle(e.target.value)}
+            placeholder="반복할 일 (예: 스트레칭)"
+            className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+          />
+
+          <div className="mb-3 flex gap-1 rounded-lg bg-neutral-100 p-1">
+            {(['DAILY', 'WEEKLY', 'MONTHLY'] as RoutineFreq[]).map((freq) => (
+              <button
+                key={freq}
+                onClick={() => setRoutineFreq(freq)}
+                className={`flex-1 rounded-md py-2 text-xs font-medium ${routineFreq === freq ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
+              >
+                {freq === 'DAILY' ? '매일' : freq === 'WEEKLY' ? '요일' : '매월'}
+              </button>
+            ))}
+          </div>
+
+          {routineFreq === 'WEEKLY' && (
+            <div className="mb-3 flex gap-1">
+              {WEEKDAY_LABELS.map((label, i) => (
+                <button
+                  key={label}
+                  onClick={() => toggleWeekday(i)}
+                  className="h-8 flex-1 rounded-lg text-xs font-medium"
+                  style={
+                    routineWeekdays.has(i)
+                      ? { background: 'var(--cherry-bg)', color: 'var(--cherry)' }
+                      : { background: '#F5F5F4', color: '#a3a3a3' }
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {routineFreq === 'MONTHLY' && (
+            <input
+              type="number"
+              min={1}
+              max={31}
+              value={routineMonthDay}
+              onChange={(e) => setRoutineMonthDay(e.target.value)}
+              placeholder="매월 며칠 (1~31)"
+              className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+            />
+          )}
+
+          <button
+            onClick={handleCreateRoutine}
+            disabled={routineSaving}
+            className="w-full rounded-lg py-2.5 text-sm font-medium text-white disabled:opacity-50"
+            style={{ background: 'var(--cherry)' }}
+          >
+            반복 만들기
+          </button>
+        </div>
+      )}
+
       {error && (
         <p className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-xs text-red-600">{error}</p>
       )}
@@ -190,6 +333,7 @@ export default function TodayPage() {
               <TaskRow
                 key={task.id}
                 task={task}
+                routineLabel={routineLabelFor(task)}
                 onToggle={handleToggle}
                 onSchedule={handleSchedule}
                 onDelete={handleDelete}
@@ -212,7 +356,12 @@ export default function TodayPage() {
                 >
                   ✓
                 </button>
-                <span className="flex-1 text-sm text-neutral-400 line-through">{task.title}</span>
+                <span className="flex-1 text-sm text-neutral-400 line-through">
+                  {task.title}
+                  {routineLabelFor(task) && (
+                    <span className="ml-2 text-[11px] text-neutral-300">🔁 {routineLabelFor(task)}</span>
+                  )}
+                </span>
                 <span className="text-[11px] text-neutral-300">{task.completed_at?.slice(11, 16)}</span>
               </div>
             ))}
