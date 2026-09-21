@@ -1,5 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import { startOfWeek, addDays, addWeeks, addMonths, format, isWeekend } from 'date-fns'
+import {
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  addDays,
+  addWeeks,
+  addMonths,
+  format,
+  isWeekend,
+  isSameMonth,
+  isAfter,
+} from 'date-fns'
 import { ko } from 'date-fns/locale'
 import type { CalendarDay, MonthSummary } from '../types/calendar'
 import { getWeek, getMonth } from '../api/calendar'
@@ -38,6 +50,11 @@ export default function CalendarPage() {
   const [view, setView] = useState<TimetableView>('scheduled')
   const [error, setError] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  function handleSelectDate(date: Date) {
+    setWeekStart(startOfWeek(date, { weekStartsOn: 1 }))
+    setPeriod('week')
+  }
 
   async function loadWeek() {
     try {
@@ -276,17 +293,33 @@ export default function CalendarPage() {
           </div>
         </div>
       ) : (
-        <MonthSummaryView summary={summary} />
+        <MonthSummaryView summary={summary} monthCursor={monthCursor} onSelectDate={handleSelectDate} />
       )}
     </div>
   )
 }
 
-function MonthSummaryView({ summary }: { summary: MonthSummary | null }) {
+const WEEKDAY_LABELS = ['월', '화', '수', '목', '금', '토', '일']
+
+function MonthSummaryView({
+  summary,
+  monthCursor,
+  onSelectDate,
+}: {
+  summary: MonthSummary | null
+  monthCursor: Date
+  onSelectDate: (date: Date) => void
+}) {
   if (!summary) return null
 
   const total = summary.daily_counts.reduce((sum, d) => sum + d.count, 0)
-  const max = Math.max(1, ...summary.daily_counts.map((d) => d.count))
+  const countsByDate = new Map(summary.daily_counts.map((d) => [d.date, d.count]))
+  const todayStr = format(new Date(), 'yyyy-MM-dd')
+
+  const gridStart = startOfWeek(startOfMonth(monthCursor), { weekStartsOn: 1 })
+  const gridEnd = endOfWeek(endOfMonth(monthCursor), { weekStartsOn: 1 })
+  const gridDays: Date[] = []
+  for (let d = gridStart; !isAfter(d, gridEnd); d = addDays(d, 1)) gridDays.push(d)
 
   return (
     <div className="space-y-8">
@@ -296,25 +329,40 @@ function MonthSummaryView({ summary }: { summary: MonthSummary | null }) {
       </div>
 
       <div>
-        <p className="mb-3 text-xs text-neutral-500">날짜별 완료 개수</p>
-        <div className="flex h-32 items-end gap-[3px] overflow-x-auto">
-          {summary.daily_counts.map((d) => (
-            <div key={d.date} className="flex flex-1 min-w-[6px] flex-col items-center gap-1" title={`${d.date}: ${d.count}개`}>
-              <div
-                className="w-full rounded-sm"
-                style={{
-                  height: `${(d.count / max) * 100}%`,
-                  minHeight: d.count > 0 ? 3 : 1,
-                  background: d.count > 0 ? 'var(--cherry-bg)' : '#F1EFE8',
-                }}
-              />
-            </div>
+        <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] text-neutral-400">
+          {WEEKDAY_LABELS.map((label) => (
+            <div key={label}>{label}</div>
           ))}
         </div>
-        <div className="mt-1 flex justify-between text-[10px] text-neutral-300">
-          <span>{summary.daily_counts[0]?.date.slice(8)}일</span>
-          <span>{summary.daily_counts[summary.daily_counts.length - 1]?.date.slice(8)}일</span>
+        <div className="grid grid-cols-7 gap-1">
+          {gridDays.map((d) => {
+            const dateStr = format(d, 'yyyy-MM-dd')
+            const inMonth = isSameMonth(d, monthCursor)
+            const count = countsByDate.get(dateStr) ?? 0
+            const isToday = dateStr === todayStr
+            return (
+              <button
+                key={dateStr}
+                onClick={() => onSelectDate(d)}
+                className="aspect-square rounded-lg border p-1 text-left transition-colors hover:bg-neutral-50"
+                style={{ borderColor: isToday ? 'var(--cherry)' : 'transparent' }}
+              >
+                <div className={`text-[11px] ${inMonth ? 'text-neutral-600' : 'text-neutral-300'}`}>
+                  {format(d, 'd')}
+                </div>
+                {count > 0 && (
+                  <div
+                    className="mt-1 inline-block rounded px-1 text-[10px] font-medium"
+                    style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
+                  >
+                    {count}
+                  </div>
+                )}
+              </button>
+            )
+          })}
         </div>
+        <p className="mt-2 text-[10px] text-neutral-300">날짜를 누르면 그 주의 시간표로 이동해요</p>
       </div>
 
       <div>
