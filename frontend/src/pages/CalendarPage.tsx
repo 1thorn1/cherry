@@ -313,7 +313,7 @@ function MonthSummaryView({
   if (!summary) return null
 
   const total = summary.daily_counts.reduce((sum, d) => sum + d.count, 0)
-  const countsByDate = new Map(summary.daily_counts.map((d) => [d.date, d.count]))
+  const dailyByDate = new Map(summary.daily_counts.map((d) => [d.date, d]))
   const todayStr = format(new Date(), 'yyyy-MM-dd')
 
   const gridStart = startOfWeek(startOfMonth(monthCursor), { weekStartsOn: 1 })
@@ -338,25 +338,40 @@ function MonthSummaryView({
           {gridDays.map((d) => {
             const dateStr = format(d, 'yyyy-MM-dd')
             const inMonth = isSameMonth(d, monthCursor)
-            const count = countsByDate.get(dateStr) ?? 0
+            const daily = dailyByDate.get(dateStr)
+            const count = daily?.count ?? 0
+            const titles = daily?.titles ?? []
             const isToday = dateStr === todayStr
             return (
               <button
                 key={dateStr}
                 onClick={() => onSelectDate(d)}
-                className="aspect-square rounded-lg border p-1 text-left transition-colors hover:bg-neutral-50"
+                className="aspect-square overflow-hidden rounded-lg border p-1 text-left transition-colors hover:bg-neutral-50 lg:aspect-auto lg:min-h-[104px] lg:p-2"
                 style={{ borderColor: isToday ? 'var(--cherry)' : 'transparent' }}
               >
                 <div className={`text-[11px] ${inMonth ? 'text-neutral-600' : 'text-neutral-300'}`}>
                   {format(d, 'd')}
                 </div>
+
+                {/* 모바일: 칸이 작아서 완료 개수 배지만 */}
                 {count > 0 && (
                   <div
-                    className="mt-1 inline-block rounded px-1 text-[10px] font-medium"
+                    className="mt-1 inline-block rounded px-1 text-[10px] font-medium lg:hidden"
                     style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
                   >
                     {count}
                   </div>
+                )}
+
+                {/* 데스크탑: 칸이 커서 완료한 일정 제목을 그대로 나열 */}
+                {titles.length > 0 && (
+                  <ul className="mt-1 hidden space-y-0.5 lg:block">
+                    {titles.map((title, i) => (
+                      <li key={i} className="truncate rounded px-1 text-[10px] leading-tight" style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}>
+                        {title}
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </button>
             )

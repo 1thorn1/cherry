@@ -72,15 +72,16 @@ public class CalendarService {
         LocalDate start = month.atDay(1);
         LocalDate end = month.atEndOfMonth();
 
-        Map<LocalDate, Long> countsByDate = taskRepository
+        Map<LocalDate, List<String>> titlesByDate = taskRepository
                 .findByUserIdAndTaskDateBetweenAndDeletedAtIsNull(userId, start, end)
                 .stream()
                 .filter(t -> t.getCompletedAt() != null)
-                .collect(Collectors.groupingBy(this::effectiveDate, Collectors.counting()));
+                .collect(Collectors.groupingBy(this::effectiveDate, Collectors.mapping(Task::getTitle, Collectors.toList())));
 
         List<MonthSummaryResponse.DailyCount> dailyCounts = new ArrayList<>();
         for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
-            dailyCounts.add(new MonthSummaryResponse.DailyCount(d, countsByDate.getOrDefault(d, 0L).intValue()));
+            List<String> titles = titlesByDate.getOrDefault(d, List.of());
+            dailyCounts.add(new MonthSummaryResponse.DailyCount(d, titles.size(), titles));
         }
 
         List<MonthSummaryResponse.ProjectProgress> projects = projectRepository

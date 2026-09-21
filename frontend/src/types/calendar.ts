@@ -15,6 +15,7 @@ export interface CalendarDay {
 export interface DailyCount {
   date: string
   count: number
+  titles: string[]
 }
 
 export interface ProjectProgress {
