@@ -8,7 +8,7 @@ public record MonthSummaryResponse(
         List<DailyCount> dailyCounts,
         List<ProjectProgress> projects
 ) {
-    public record DailyCount(LocalDate date, int count) {
+    public record DailyCount(LocalDate date, int count, List<String> titles) {
     }
 
     public record ProjectProgress(
