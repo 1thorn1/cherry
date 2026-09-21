@@ -1,4 +1,7 @@
+import { useEffect } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import { getCatalog } from './api/shop'
+import { applyEquippedTheme } from './lib/theme'
 
 const tabs = [
   { to: '/', label: '오늘', end: true },
@@ -8,6 +11,10 @@ const tabs = [
 ]
 
 export default function Layout() {
+  useEffect(() => {
+    getCatalog().then(applyEquippedTheme).catch(() => {})
+  }, [])
+
   return (
     <div className="min-h-screen pb-20">
       <Outlet />

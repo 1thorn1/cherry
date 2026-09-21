@@ -27,6 +27,10 @@ public class User {
         this.pointBalance += amount;
     }
 
+    public void spendPoints(int amount) {
+        this.pointBalance -= amount;
+    }
+
     public void growPopulation(int amount) {
         this.population += amount;
     }
