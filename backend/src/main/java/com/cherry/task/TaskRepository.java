@@ -22,6 +22,8 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     List<Task> findByProjectIdAndCompletedAtIsNotNullAndDeletedAtIsNullOrderByCompletedAtDesc(Long projectId);
 
+    List<Task> findByUserIdAndTaskDateBetweenAndDeletedAtIsNull(Long userId, LocalDate start, LocalDate end);
+
     @Query("SELECT t FROM Task t WHERE t.userId = :userId AND t.deletedAt IS NULL " +
             "AND (t.title LIKE CONCAT('%', :keyword, '%') OR t.memo LIKE CONCAT('%', :keyword, '%')) " +
             "ORDER BY t.createdAt DESC")
