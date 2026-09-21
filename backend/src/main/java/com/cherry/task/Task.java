@@ -47,6 +47,9 @@ public class Task {
     @Column(name = "milestone_id")
     private Long milestoneId;
 
+    @Column(name = "notify_offset_min")
+    private Integer notifyOffsetMin;
+
     @Column(length = 500)
     private String memo;
 
@@ -113,5 +116,9 @@ public class Task {
     public void schedule(LocalDateTime start, LocalDateTime end) {
         this.scheduledStart = start;
         this.scheduledEnd = end;
+    }
+
+    public void changeNotifyOffset(Integer notifyOffsetMin) {
+        this.notifyOffsetMin = notifyOffsetMin;
     }
 }

@@ -17,6 +17,7 @@ public record TaskResponse(
         Long routineId,
         Long projectId,
         Long milestoneId,
+        Integer notifyOffsetMin,
         String memo,
         int sortOrder
 ) {
@@ -33,6 +34,7 @@ public record TaskResponse(
                 task.getRoutineId(),
                 task.getProjectId(),
                 task.getMilestoneId(),
+                task.getNotifyOffsetMin(),
                 task.getMemo(),
                 task.getSortOrder()
         );

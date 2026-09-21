@@ -4,10 +4,12 @@ import com.cherry.common.TaskNotFoundException;
 import com.cherry.park.ParkService;
 import com.cherry.project.Milestone;
 import com.cherry.project.MilestoneRepository;
+import com.cherry.push.ReminderService;
 import com.cherry.routine.RoutineService;
 import com.cherry.task.dto.TaskCreateRequest;
 import com.cherry.task.dto.TaskMemoRequest;
 import com.cherry.task.dto.TaskProjectRequest;
+import com.cherry.task.dto.TaskReminderRequest;
 import com.cherry.task.dto.TaskResponse;
 import com.cherry.task.dto.TodayResponse;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ public class TaskService {
     private final RoutineService routineService;
     private final MilestoneRepository milestoneRepository;
     private final ParkService parkService;
+    private final ReminderService reminderService;
 
     @Transactional
     public TaskResponse create(Long userId, TaskCreateRequest request) {
@@ -92,6 +95,15 @@ public class TaskService {
     public TaskResponse schedule(Long userId, Long taskId, TaskScheduleRequest request) {
         Task task = findOwned(userId, taskId);
         task.schedule(request.scheduledStart(), request.scheduledEnd());
+        reminderService.syncReminder(task);
+        return TaskResponse.from(task);
+    }
+
+    @Transactional
+    public TaskResponse setReminder(Long userId, Long taskId, TaskReminderRequest request) {
+        Task task = findOwned(userId, taskId);
+        task.changeNotifyOffset(request.notifyOffsetMin());
+        reminderService.syncReminder(task);
         return TaskResponse.from(task);
     }
 
@@ -99,6 +111,7 @@ public class TaskService {
     public void delete(Long userId, Long taskId) {
         Task task = findOwned(userId, taskId);
         task.softDelete(LocalDateTime.now());
+        reminderService.cancelReminder(taskId);
     }
 
     private Task findOwned(Long userId, Long taskId) {

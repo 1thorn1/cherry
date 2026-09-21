@@ -30,3 +30,10 @@ export function scheduleTask(id: number, start: string | null, end: string | nul
     body: JSON.stringify({ scheduled_start: start, scheduled_end: end }),
   })
 }
+
+export function setTaskReminder(id: number, notifyOffsetMin: number | null) {
+  return request<Task>(`/api/tasks/${id}/reminder`, {
+    method: 'PATCH',
+    body: JSON.stringify({ notify_offset_min: notifyOffsetMin }),
+  })
+}
