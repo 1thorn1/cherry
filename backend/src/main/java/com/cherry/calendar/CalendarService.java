@@ -1,7 +1,12 @@
 package com.cherry.calendar;
 
 import com.cherry.calendar.dto.CalendarDayResponse;
+import com.cherry.calendar.dto.MonthSummaryResponse;
 import com.cherry.calendar.dto.RoutinePreviewResponse;
+import com.cherry.project.Milestone;
+import com.cherry.project.MilestoneRepository;
+import com.cherry.project.Project;
+import com.cherry.project.ProjectRepository;
 import com.cherry.routine.Routine;
 import com.cherry.routine.RoutineRepository;
 import com.cherry.routine.RoutineService;
@@ -13,6 +18,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +32,8 @@ public class CalendarService {
     private final TaskRepository taskRepository;
     private final RoutineRepository routineRepository;
     private final RoutineService routineService;
+    private final ProjectRepository projectRepository;
+    private final MilestoneRepository milestoneRepository;
 
     @Transactional
     public List<CalendarDayResponse> getWeek(Long userId, LocalDate start) {
@@ -56,6 +65,46 @@ public class CalendarService {
             days.add(new CalendarDayResponse(date, tasks, previews));
         }
         return days;
+    }
+
+    @Transactional
+    public MonthSummaryResponse getMonth(Long userId, YearMonth month) {
+        LocalDate start = month.atDay(1);
+        LocalDate end = month.atEndOfMonth();
+
+        Map<LocalDate, Long> countsByDate = taskRepository
+                .findByUserIdAndTaskDateBetweenAndDeletedAtIsNull(userId, start, end)
+                .stream()
+                .filter(t -> t.getCompletedAt() != null)
+                .collect(Collectors.groupingBy(this::effectiveDate, Collectors.counting()));
+
+        List<MonthSummaryResponse.DailyCount> dailyCounts = new ArrayList<>();
+        for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
+            dailyCounts.add(new MonthSummaryResponse.DailyCount(d, countsByDate.getOrDefault(d, 0L).intValue()));
+        }
+
+        List<MonthSummaryResponse.ProjectProgress> projects = projectRepository
+                .findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(userId)
+                .stream()
+                .filter(p -> "ACTIVE".equals(p.getStatus()))
+                .map(this::toProjectProgress)
+                .filter(p -> p.totalMilestones() > 0)
+                .toList();
+
+        return new MonthSummaryResponse(month.toString(), dailyCounts, projects);
+    }
+
+    private LocalDate effectiveDate(Task task) {
+        LocalDateTime anchor = task.getEffectiveAt() != null ? task.getEffectiveAt() : task.getCompletedAt();
+        return anchor.toLocalDate();
+    }
+
+    private MonthSummaryResponse.ProjectProgress toProjectProgress(Project project) {
+        List<Milestone> milestones = milestoneRepository.findByProjectIdOrderBySeqAsc(project.getId());
+        int total = milestones.size();
+        int completed = (int) milestones.stream().filter(m -> m.getCompletedAt() != null).count();
+        return new MonthSummaryResponse.ProjectProgress(
+                project.getId(), project.getName(), project.getColor(), project.getType(), completed, total);
     }
 
     private List<RoutinePreviewResponse> previewsFor(List<Routine> routines, LocalDate date) {

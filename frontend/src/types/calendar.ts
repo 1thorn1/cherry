@@ -11,3 +11,23 @@ export interface CalendarDay {
   tasks: Task[]
   previews: RoutinePreview[]
 }
+
+export interface DailyCount {
+  date: string
+  count: number
+}
+
+export interface ProjectProgress {
+  project_id: number
+  name: string
+  color: string
+  type: string
+  completed_milestones: number
+  total_milestones: number
+}
+
+export interface MonthSummary {
+  month: string
+  daily_counts: DailyCount[]
+  projects: ProjectProgress[]
+}
