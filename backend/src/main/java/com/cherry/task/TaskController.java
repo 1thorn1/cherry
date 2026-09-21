@@ -3,6 +3,7 @@ package com.cherry.task;
 import com.cherry.task.dto.TaskCreateRequest;
 import com.cherry.task.dto.TaskMemoRequest;
 import com.cherry.task.dto.TaskProjectRequest;
+import com.cherry.task.dto.TaskReminderRequest;
 import com.cherry.task.dto.TaskResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +54,12 @@ public class TaskController {
     public TaskResponse assignProject(@PathVariable Long id,
                                       @RequestBody TaskProjectRequest request) {
         return taskService.assignProject(DEV_USER_ID, id, request);
+    }
+
+    @PatchMapping("/{id}/reminder")
+    public TaskResponse setReminder(@PathVariable Long id,
+                                    @RequestBody TaskReminderRequest request) {
+        return taskService.setReminder(DEV_USER_ID, id, request);
     }
 
     @DeleteMapping("/{id}")

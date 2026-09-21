@@ -5,11 +5,13 @@ import type { Routine, RoutineFreq } from '../types/routine'
 import type { Park } from '../types/park'
 import Timetable from '../components/Timetable'
 import TimeSelect from '../components/TimeSelect'
-import { getToday, createTask, completeTask, uncompleteTask, deleteTask, scheduleTask } from '../api/tasks'
+import NotifySelect from '../components/NotifySelect'
+import { getToday, createTask, completeTask, uncompleteTask, deleteTask, scheduleTask, setTaskReminder } from '../api/tasks'
 import { getRoutines, createRoutine } from '../api/routines'
 import { getPark } from '../api/park'
 import { START_HOUR, END_HOUR, hourDroppableId, type TimetableView } from '../lib/timetable'
 import { routineRuleLabel } from '../lib/routine'
+import { ensurePushSubscription } from '../lib/push'
 
 const today = new Date().toISOString().slice(0, 10)
 const WEEKDAY_LABELS = ['월', '화', '수', '목', '금', '토', '일']
@@ -19,12 +21,14 @@ function TaskRow({
   routineLabel,
   onToggle,
   onSchedule,
+  onSetReminder,
   onDelete,
 }: {
   task: Task
   routineLabel: string | null
   onToggle: (task: Task) => void
   onSchedule: (task: Task, hour: number | null) => void
+  onSetReminder: (task: Task, offset: number | null) => void
   onDelete: (id: number) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id })
@@ -56,8 +60,14 @@ function TaskRow({
         {routineLabel && (
           <span className="ml-2 text-[11px] text-neutral-400">🔁 {routineLabel}</span>
         )}
+        {task.notify_offset_min !== null && (
+          <span className="ml-2" aria-label="알림 켜짐">🔔</span>
+        )}
       </span>
       <TimeSelect value={task.scheduled_start} onChange={(hour) => onSchedule(task, hour)} />
+      {task.scheduled_start && (
+        <NotifySelect value={task.notify_offset_min} onChange={(offset) => onSetReminder(task, offset)} />
+      )}
       <button
         onClick={() => onDelete(task.id)}
         className="text-xs text-neutral-300 opacity-0 transition group-hover:opacity-100"
@@ -196,6 +206,18 @@ export default function TodayPage() {
       const end = `${today}T${String(hour + 1).padStart(2, '0')}:00:00`
       await scheduleTask(task.id, start, end)
     }
+    load()
+  }
+
+  async function handleSetReminder(task: Task, offset: number | null) {
+    if (offset !== null) {
+      const ok = await ensurePushSubscription()
+      if (!ok) {
+        setError('알림 권한이 필요해요')
+        return
+      }
+    }
+    await setTaskReminder(task.id, offset)
     load()
   }
 
@@ -354,6 +376,7 @@ export default function TodayPage() {
                 routineLabel={routineLabelFor(task)}
                 onToggle={handleToggle}
                 onSchedule={handleSchedule}
+                onSetReminder={handleSetReminder}
                 onDelete={handleDelete}
               />
             ))}
