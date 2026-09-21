@@ -39,6 +39,24 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("INVALID_REQUEST", e.getMessage()));
     }
 
+    @ExceptionHandler(CosmeticItemNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleCosmeticItemNotFound(CosmeticItemNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("ITEM_NOT_FOUND", e.getMessage()));
+    }
+
+    @ExceptionHandler(InsufficientPointsException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientPoints(InsufficientPointsException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse("INSUFFICIENT_POINTS", e.getMessage()));
+    }
+
+    @ExceptionHandler(ItemNotOwnedException.class)
+    public ResponseEntity<ErrorResponse> handleItemNotOwned(ItemNotOwnedException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse("ITEM_NOT_OWNED", e.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException e) {
         String message = e.getBindingResult().getFieldErrors().stream()
