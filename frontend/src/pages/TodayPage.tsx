@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { DndContext, useDraggable, type DragEndEvent } from '@dnd-kit/core'
 import type { Task } from '../types/task'
 import type { Routine, RoutineFreq } from '../types/routine'
+import type { Park } from '../types/park'
 import Timetable from '../components/Timetable'
 import TimeSelect from '../components/TimeSelect'
 import { getToday, createTask, completeTask, uncompleteTask, deleteTask, scheduleTask } from '../api/tasks'
 import { getRoutines, createRoutine } from '../api/routines'
+import { getPark } from '../api/park'
 import { START_HOUR, END_HOUR, hourDroppableId, type TimetableView } from '../lib/timetable'
 import { routineRuleLabel } from '../lib/routine'
 
@@ -83,6 +85,8 @@ export default function TodayPage() {
   const [routineMonthDay, setRoutineMonthDay] = useState('')
   const [routineSaving, setRoutineSaving] = useState(false)
 
+  const [park, setPark] = useState<Park | null>(null)
+
   async function load() {
     try {
       const data = await getToday(today)
@@ -102,7 +106,15 @@ export default function TodayPage() {
     }
   }
 
-  useEffect(() => { load(); loadRoutines() }, [])
+  async function loadPark() {
+    try {
+      setPark(await getPark())
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '불러오지 못했습니다')
+    }
+  }
+
+  useEffect(() => { load(); loadRoutines(); loadPark() }, [])
 
   function toggleWeekday(index: number) {
     setRoutineWeekdays((prev) => {
@@ -168,6 +180,7 @@ export default function TodayPage() {
   async function handleToggle(task: Task) {
     task.completed_at ? await uncompleteTask(task.id) : await completeTask(task.id)
     load()
+    loadPark()
   }
 
   async function handleDelete(id: number) {
@@ -203,6 +216,11 @@ export default function TodayPage() {
       <header className="mb-6">
         <h1 className="text-xl font-medium tracking-tight">체리</h1>
         <p className="mt-1 text-xs text-neutral-500">{today}</p>
+        {park && (
+          <p className="mt-1 text-xs text-neutral-400">
+            오늘 방문객 {park.today_visitors} · 체리 {park.point_balance}
+          </p>
+        )}
       </header>
 
       <div className="mb-6 flex gap-2">

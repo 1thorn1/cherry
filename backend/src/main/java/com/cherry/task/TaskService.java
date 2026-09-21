@@ -1,6 +1,7 @@
 package com.cherry.task;
 
 import com.cherry.common.TaskNotFoundException;
+import com.cherry.park.ParkService;
 import com.cherry.project.Milestone;
 import com.cherry.project.MilestoneRepository;
 import com.cherry.routine.RoutineService;
@@ -26,6 +27,7 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final RoutineService routineService;
     private final MilestoneRepository milestoneRepository;
+    private final ParkService parkService;
 
     @Transactional
     public TaskResponse create(Long userId, TaskCreateRequest request) {
@@ -53,11 +55,15 @@ public class TaskService {
     @Transactional
     public TaskResponse complete(Long userId, Long taskId) {
         Task task = findOwned(userId, taskId);
+        boolean alreadyCompleted = task.getCompletedAt() != null;
         Long currentMilestoneId = task.getProjectId() == null ? null
                 : milestoneRepository.findFirstByProjectIdAndCompletedAtIsNullOrderBySeqAsc(task.getProjectId())
                         .map(Milestone::getId)
                         .orElse(null);
         task.complete(LocalDateTime.now(), currentMilestoneId);
+        if (!alreadyCompleted) {
+            parkService.awardForTaskCompletion(userId, taskId, LocalDate.now());
+        }
         return TaskResponse.from(task);
     }
 

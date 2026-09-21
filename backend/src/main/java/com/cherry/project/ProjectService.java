@@ -3,6 +3,7 @@ package com.cherry.project;
 import com.cherry.common.InvalidNoteException;
 import com.cherry.common.MilestoneNotFoundException;
 import com.cherry.common.ProjectNotFoundException;
+import com.cherry.park.ParkService;
 import com.cherry.project.dto.MilestoneResponse;
 import com.cherry.project.dto.NoteCreateRequest;
 import com.cherry.project.dto.NoteResponse;
@@ -33,6 +34,7 @@ public class ProjectService {
     private final MilestoneRepository milestoneRepository;
     private final TaskRepository taskRepository;
     private final ProjectNoteRepository projectNoteRepository;
+    private final ParkService parkService;
 
     @Transactional
     public ProjectResponse create(Long userId, ProjectCreateRequest request) {
@@ -119,7 +121,11 @@ public class ProjectService {
         Milestone milestone = milestoneRepository.findById(milestoneId)
                 .orElseThrow(MilestoneNotFoundException::new);
         findOwned(userId, milestone.getProjectId());
+        boolean alreadyCompleted = milestone.getCompletedAt() != null;
         milestone.complete(LocalDateTime.now());
+        if (!alreadyCompleted) {
+            parkService.awardForMilestoneCompletion(userId, milestoneId);
+        }
         return MilestoneResponse.from(milestone);
     }
 
