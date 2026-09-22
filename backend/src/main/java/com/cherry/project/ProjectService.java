@@ -4,11 +4,16 @@ import com.cherry.common.InvalidNoteException;
 import com.cherry.common.MilestoneNotFoundException;
 import com.cherry.common.ProjectNotFoundException;
 import com.cherry.park.ParkService;
+import com.cherry.project.dto.FocusProjectResponse;
 import com.cherry.project.dto.MilestoneResponse;
+import com.cherry.project.dto.MilestoneTrackResponse;
 import com.cherry.project.dto.NoteCreateRequest;
 import com.cherry.project.dto.NoteResponse;
+import com.cherry.project.dto.OtherProjectResponse;
 import com.cherry.project.dto.ProjectCreateRequest;
 import com.cherry.project.dto.ProjectDetailResponse;
+import com.cherry.project.dto.ProjectLaneResponse;
+import com.cherry.project.dto.ProjectOverviewResponse;
 import com.cherry.project.dto.ProjectResponse;
 import com.cherry.project.dto.ProjectSharedRequest;
 import com.cherry.project.dto.TimelineEntryResponse;
@@ -20,11 +25,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.IsoFields;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
@@ -64,6 +73,98 @@ public class ProjectService {
     public List<ProjectResponse> list(Long userId) {
         return projectRepository.findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(userId)
                 .stream().map(ProjectResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ProjectOverviewResponse getOverview(Long userId) {
+        List<Project> projects = projectRepository.findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(userId);
+
+        LocalDate thisMonday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        List<LocalDate> weeks = new ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            weeks.add(thisMonday.plusWeeks(i));
+        }
+
+        List<ProjectLaneResponse> lanes = projects.stream()
+                .map(p -> new ProjectLaneResponse(
+                        p.getId(), p.getName(), p.getColor(),
+                        p.getCreatedAt().toLocalDate(),
+                        "EXAM".equals(p.getType()) ? p.getExamDate() : null,
+                        !"EXAM".equals(p.getType())
+                ))
+                .toList();
+
+        Project focusProject = selectFocusProject(projects);
+        FocusProjectResponse focus = focusProject == null ? null : buildFocus(focusProject);
+        List<OtherProjectResponse> others = projects.stream()
+                .filter(p -> focusProject == null || !p.getId().equals(focusProject.getId()))
+                .map(this::buildOther)
+                .toList();
+
+        return new ProjectOverviewResponse(buildOverlapWarning(projects), weeks, lanes, focus, others);
+    }
+
+    private String buildOverlapWarning(List<Project> projects) {
+        Map<String, List<Project>> byWeek = projects.stream()
+                .filter(p -> "EXAM".equals(p.getType()) && p.getExamDate() != null)
+                .collect(Collectors.groupingBy(p -> weekLabel(p.getExamDate())));
+
+        return byWeek.entrySet().stream()
+                .filter(e -> e.getValue().size() >= 2)
+                .min(Comparator.comparing(e -> e.getValue().get(0).getExamDate()))
+                .map(e -> String.format("%s에 %d개가 같이 끝나요. 하나를 당기거나 미루는 게 좋아요",
+                        e.getKey(), e.getValue().size()))
+                .orElse(null);
+    }
+
+    private String weekLabel(LocalDate date) {
+        int weekOfMonth = (int) Math.ceil(date.getDayOfMonth() / 7.0);
+        return date.getMonthValue() + "월 " + weekOfMonth + "주";
+    }
+
+    private Project selectFocusProject(List<Project> projects) {
+        if (projects.isEmpty()) return null;
+
+        LocalDateTime start = LocalDate.now().minusDays(6).atStartOfDay();
+        LocalDateTime end = LocalDate.now().atTime(LocalTime.MAX);
+
+        Project best = null;
+        int bestCount = -1;
+        for (Project p : projects) {
+            int count = taskRepository
+                    .findByProjectIdAndCompletedAtBetweenAndDeletedAtIsNull(p.getId(), start, end)
+                    .size();
+            if (count > bestCount) {
+                bestCount = count;
+                best = p;
+            }
+        }
+        return best;
+    }
+
+    private FocusProjectResponse buildFocus(Project project) {
+        List<Milestone> milestones = milestoneRepository.findByProjectIdOrderBySeqAsc(project.getId());
+        List<MilestoneTrackResponse> track = milestones.stream()
+                .map(m -> new MilestoneTrackResponse(m.getSeq(), m.getTitle(), m.getCompletedAt() != null))
+                .toList();
+        int cartIndex = (int) milestones.stream().filter(m -> m.getCompletedAt() != null).count();
+        return new FocusProjectResponse(project.getId(), project.getName(), project.getType(), track, cartIndex);
+    }
+
+    private OtherProjectResponse buildOther(Project project) {
+        List<Milestone> milestones = milestoneRepository.findByProjectIdOrderBySeqAsc(project.getId());
+        int total = milestones.size();
+        int completed = (int) milestones.stream().filter(m -> m.getCompletedAt() != null).count();
+        String keyMetric = "EXAM".equals(project.getType()) && project.getExamDate() != null
+                ? "D" + formatDday(project.getExamDate())
+                : completed + "/" + total;
+        return new OtherProjectResponse(project.getId(), project.getName(), project.getType(), project.getColor(),
+                completed, total, keyMetric);
+    }
+
+    private String formatDday(LocalDate examDate) {
+        long days = ChronoUnit.DAYS.between(LocalDate.now(), examDate);
+        return days >= 0 ? "-" + days : "+" + Math.abs(days);
     }
 
     @Transactional(readOnly = true)
