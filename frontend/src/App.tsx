@@ -6,6 +6,7 @@ import ProjectsPage from './pages/ProjectsPage'
 import ProjectDetailPage from './pages/ProjectDetailPage'
 import SearchPage from './pages/SearchPage'
 import ParkPage from './pages/ParkPage'
+import FriendPage from './pages/FriendPage'
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="projects/:id" element={<ProjectDetailPage />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="park" element={<ParkPage />} />
+        <Route path="friends" element={<FriendPage />} />
       </Route>
     </Routes>
   )

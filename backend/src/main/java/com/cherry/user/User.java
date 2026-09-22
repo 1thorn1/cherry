@@ -17,6 +17,9 @@ public class User {
     @Column(nullable = false, length = 50)
     private String nickname;
 
+    @Column(name = "friend_code", nullable = false, length = 8)
+    private String friendCode;
+
     @Column(name = "point_balance", nullable = false)
     private int pointBalance;
 

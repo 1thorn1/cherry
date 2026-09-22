@@ -8,6 +8,7 @@ const tabs = [
   { to: '/calendar', label: '캘린더', end: false },
   { to: '/projects', label: '프로젝트', end: false },
   { to: '/park', label: '공원', end: false },
+  { to: '/friends', label: '친구', end: false },
 ]
 
 export default function Layout() {

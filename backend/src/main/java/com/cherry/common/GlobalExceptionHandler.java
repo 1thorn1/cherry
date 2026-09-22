@@ -57,6 +57,30 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("ITEM_NOT_OWNED", e.getMessage()));
     }
 
+    @ExceptionHandler(FriendCodeNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleFriendCodeNotFound(FriendCodeNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("FRIEND_CODE_NOT_FOUND", e.getMessage()));
+    }
+
+    @ExceptionHandler(SelfFriendRequestException.class)
+    public ResponseEntity<ErrorResponse> handleSelfFriendRequest(SelfFriendRequestException e) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("SELF_FRIEND_REQUEST", e.getMessage()));
+    }
+
+    @ExceptionHandler(DuplicateFriendRequestException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateFriendRequest(DuplicateFriendRequestException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse("DUPLICATE_FRIEND_REQUEST", e.getMessage()));
+    }
+
+    @ExceptionHandler(FriendshipNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleFriendshipNotFound(FriendshipNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("FRIENDSHIP_NOT_FOUND", e.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException e) {
         String message = e.getBindingResult().getFieldErrors().stream()
