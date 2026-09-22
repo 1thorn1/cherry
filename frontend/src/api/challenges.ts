@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { Challenge, ChallengeDetail, ChallengeType } from '../types/challenge'
+import type { Challenge, ChallengeDetail, ChallengeProjectLink, ChallengeType } from '../types/challenge'
 
 export interface CreateChallengeInput {
   title: string
@@ -10,6 +10,10 @@ export interface CreateChallengeInput {
 
 export function getChallenges() {
   return request<Challenge[]>('/api/challenges')
+}
+
+export function getChallengeProjectLinks() {
+  return request<ChallengeProjectLink[]>('/api/challenges/project-links')
 }
 
 export function createChallenge(input: CreateChallengeInput) {

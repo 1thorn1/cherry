@@ -3,6 +3,7 @@ package com.cherry.challenge;
 import com.cherry.challenge.dto.ChallengeCreateRequest;
 import com.cherry.challenge.dto.ChallengeDetailResponse;
 import com.cherry.challenge.dto.ChallengeJoinRequest;
+import com.cherry.challenge.dto.ChallengeProjectLinkResponse;
 import com.cherry.challenge.dto.ChallengeResponse;
 import com.cherry.challenge.dto.PauseRequest;
 import jakarta.validation.Valid;
@@ -35,6 +36,11 @@ public class ChallengeController {
     @GetMapping
     public List<ChallengeResponse> listMine() {
         return challengeService.listMine(DEV_USER_ID);
+    }
+
+    @GetMapping("/project-links")
+    public List<ChallengeProjectLinkResponse> myProjectLinks() {
+        return challengeService.myProjectLinks(DEV_USER_ID);
     }
 
     @GetMapping("/{id}")

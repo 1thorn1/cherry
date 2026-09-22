@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { IconCarouselHorizontal, IconRollercoaster } from '@tabler/icons-react'
 import type { Friend, FriendCode, FriendPark, PendingRequest, SharingSettings } from '../types/friend'
 import {
   acceptFriendRequest,
@@ -19,7 +20,7 @@ const settingLabels: { key: keyof SharingSettings; label: string; hint: string }
   { key: 'share_task_titles', label: '일정 제목 공개', hint: '공유로 설정한 프로젝트만' },
 ]
 
-export default function FriendPage() {
+export default function SettingsPage() {
   const [myCode, setMyCode] = useState<FriendCode | null>(null)
   const [requests, setRequests] = useState<PendingRequest[]>([])
   const [friends, setFriends] = useState<Friend[]>([])
@@ -153,7 +154,7 @@ export default function FriendPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
-      <h1 className="mb-6 text-xl font-medium tracking-tight">친구</h1>
+      <h1 className="mb-6 text-xl font-medium tracking-tight">설정</h1>
 
       <div className="mb-6 rounded-lg border border-neutral-200 p-4">
         <p className="mb-2 text-xs text-neutral-400">내 친구 코드</p>
@@ -300,7 +301,11 @@ export default function FriendPage() {
                               className="flex aspect-square flex-col items-center justify-center rounded-md"
                               style={{ background: 'var(--cherry-bg)' }}
                             >
-                              <span className="text-base">{slot.indoor ? '🎡' : '🎢'}</span>
+                              {slot.indoor ? (
+                                <IconCarouselHorizontal size={18} stroke={1.5} color="var(--cherry)" />
+                              ) : (
+                                <IconRollercoaster size={18} stroke={1.5} color="var(--cherry)" />
+                              )}
                             </div>
                           ))}
                         </div>

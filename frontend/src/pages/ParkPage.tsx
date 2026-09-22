@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { IconCarouselHorizontal, IconRollercoaster } from '@tabler/icons-react'
 import type { Park } from '../types/park'
 import type { CosmeticItem, CosmeticCategory } from '../types/shop'
 import { getPark } from '../api/park'
@@ -104,7 +105,11 @@ export default function ParkPage() {
             className="flex aspect-square flex-col items-center justify-center rounded-lg"
             style={{ background: 'var(--cherry-bg)' }}
           >
-            <span className="text-2xl">{slot.indoor ? '🎡' : '🎢'}</span>
+            {slot.indoor ? (
+              <IconCarouselHorizontal size={28} stroke={1.5} color="var(--cherry)" />
+            ) : (
+              <IconRollercoaster size={28} stroke={1.5} color="var(--cherry)" />
+            )}
             <span className="mt-1 text-[10px] text-neutral-400">#{slot.slot_index}</span>
           </div>
         ))}
