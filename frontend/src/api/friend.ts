@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { Friend, FriendCode, FriendPark, PendingRequest } from '../types/friend'
+import type { Friend, FriendCode, FriendPark, PendingRequest, SharingSettings } from '../types/friend'
 
 export function getMyFriendCode() {
   return request<FriendCode>('/api/friends/code')
@@ -34,4 +34,15 @@ export function getFriendPark(friendshipId: number) {
 
 export function visitFriendPark(friendshipId: number) {
   return request<void>(`/api/friends/${friendshipId}/visit`, { method: 'POST' })
+}
+
+export function getSharingSettings() {
+  return request<SharingSettings>('/api/friends/settings')
+}
+
+export function updateSharingSettings(settings: SharingSettings) {
+  return request<SharingSettings>('/api/friends/settings', {
+    method: 'PUT',
+    body: JSON.stringify(settings),
+  })
 }

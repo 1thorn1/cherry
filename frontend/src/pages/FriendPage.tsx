@@ -1,15 +1,23 @@
 import { useEffect, useState } from 'react'
-import type { Friend, FriendCode, FriendPark, PendingRequest } from '../types/friend'
+import type { Friend, FriendCode, FriendPark, PendingRequest, SharingSettings } from '../types/friend'
 import {
   acceptFriendRequest,
   getFriendPark,
   getFriends,
   getMyFriendCode,
   getPendingRequests,
+  getSharingSettings,
   removeFriendship,
   sendFriendRequest,
+  updateSharingSettings,
   visitFriendPark,
 } from '../api/friend'
+
+const settingLabels: { key: keyof SharingSettings; label: string; hint: string }[] = [
+  { key: 'share_park', label: '공원 보여주기', hint: '기구, 인구' },
+  { key: 'share_activity_count', label: '오늘 활동량 공개', hint: '개수만. 내용은 안 보여요' },
+  { key: 'share_task_titles', label: '일정 제목 공개', hint: '공유로 설정한 프로젝트만' },
+]
 
 export default function FriendPage() {
   const [myCode, setMyCode] = useState<FriendCode | null>(null)
@@ -23,17 +31,21 @@ export default function FriendPage() {
   const [openParkId, setOpenParkId] = useState<number | null>(null)
   const [parks, setParks] = useState<Record<number, FriendPark>>({})
   const [visitedIds, setVisitedIds] = useState<Set<number>>(new Set())
+  const [settings, setSettings] = useState<SharingSettings | null>(null)
+  const [savingSettings, setSavingSettings] = useState(false)
 
   async function loadAll() {
     try {
-      const [code, pending, friendList] = await Promise.all([
+      const [code, pending, friendList, sharingSettings] = await Promise.all([
         getMyFriendCode(),
         getPendingRequests(),
         getFriends(),
+        getSharingSettings(),
       ])
       setMyCode(code)
       setRequests(pending)
       setFriends(friendList)
+      setSettings(sharingSettings)
     } catch (e) {
       setError(e instanceof Error ? e.message : '불러오지 못했습니다')
     }
@@ -106,7 +118,23 @@ export default function FriendPage() {
         setParks((prev) => ({ ...prev, [friendshipId]: park }))
       } catch (e) {
         setError(e instanceof Error ? e.message : '공원을 불러오지 못했습니다')
+        setOpenParkId(null)
       }
+    }
+  }
+
+  async function handleToggleSetting(key: keyof SharingSettings) {
+    if (!settings || savingSettings) return
+    const next = { ...settings, [key]: !settings[key] }
+    setSettings(next)
+    setSavingSettings(true)
+    try {
+      await updateSharingSettings(next)
+    } catch (e) {
+      setSettings(settings)
+      setError(e instanceof Error ? e.message : '설정을 저장하지 못했습니다')
+    } finally {
+      setSavingSettings(false)
     }
   }
 
@@ -157,6 +185,35 @@ export default function FriendPage() {
         </button>
       </form>
 
+      {settings && (
+        <div className="mb-8 rounded-lg border border-neutral-200 p-4">
+          <p className="mb-3 text-xs text-neutral-400">공개 설정</p>
+          <div className="space-y-3">
+            {settingLabels.map(({ key, label, hint }) => (
+              <div key={key} className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm">{label}</p>
+                  <p className="text-[11px] text-neutral-400">{hint}</p>
+                </div>
+                <button
+                  onClick={() => handleToggleSetting(key)}
+                  disabled={savingSettings}
+                  className="relative h-6 w-11 flex-none rounded-full transition-colors disabled:opacity-50"
+                  style={{ background: settings[key] ? 'var(--cherry)' : '#E5E5E5' }}
+                  aria-pressed={settings[key]}
+                  aria-label={label}
+                >
+                  <span
+                    className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
+                    style={{ transform: settings[key] ? 'translateX(22px)' : 'translateX(2px)' }}
+                  />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {error && (
         <p className="mb-6 rounded-lg bg-red-50 px-4 py-2.5 text-xs text-red-600">{error}</p>
       )}
@@ -199,7 +256,14 @@ export default function FriendPage() {
           {friends.map((f) => (
             <div key={f.friendship_id} className="rounded-lg border border-neutral-200 p-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm">{f.nickname}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">{f.nickname}</span>
+                  {f.today_activity_count !== null && (
+                    <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-500">
+                      오늘 {f.today_activity_count}개
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => handleTogglePark(f.friendship_id)}

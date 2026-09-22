@@ -1,5 +1,6 @@
 package com.cherry.park;
 
+import com.cherry.common.ParkNotSharedException;
 import com.cherry.park.dto.FriendParkResponse;
 import com.cherry.park.dto.ParkResponse;
 import com.cherry.park.dto.ParkSlotResponse;
@@ -79,6 +80,9 @@ public class ParkService {
     @Transactional(readOnly = true)
     public FriendParkResponse getFriendView(Long hostId) {
         User host = userRepository.findById(hostId).orElseThrow();
+        if (!host.isSharePark()) {
+            throw new ParkNotSharedException();
+        }
         var slots = parkSlotRepository.findByUserIdOrderBySlotIndexAsc(hostId)
                 .stream().map(ParkSlotResponse::from).toList();
 
@@ -87,6 +91,11 @@ public class ParkService {
 
     @Transactional
     public void visit(Long visitorId, Long hostId) {
+        User host = userRepository.findById(hostId).orElseThrow();
+        if (!host.isSharePark()) {
+            throw new ParkNotSharedException();
+        }
+
         LocalDate today = LocalDate.now();
         if (parkVisitRepository.existsByVisitorIdAndHostIdAndVisitedOn(visitorId, hostId, today)) {
             return; // 오늘 이미 다녀감 — 조용히 무시

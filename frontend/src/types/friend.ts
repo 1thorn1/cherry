@@ -12,6 +12,13 @@ export interface Friend {
   friendship_id: number
   nickname: string
   since: string
+  today_activity_count: number | null
+}
+
+export interface SharingSettings {
+  share_park: boolean
+  share_activity_count: boolean
+  share_task_titles: boolean
 }
 
 export interface FriendParkSlot {

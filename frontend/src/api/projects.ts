@@ -23,6 +23,13 @@ export function createProject(input: CreateProjectInput) {
   })
 }
 
+export function updateProjectShared(id: number, shared: boolean) {
+  return request<Project>(`/api/projects/${id}/shared`, {
+    method: 'PATCH',
+    body: JSON.stringify({ shared }),
+  })
+}
+
 export function completeMilestone(id: number) {
   return request<Milestone>(`/api/milestones/${id}/complete`, { method: 'PATCH' })
 }

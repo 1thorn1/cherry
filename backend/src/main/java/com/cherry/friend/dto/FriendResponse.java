@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 public record FriendResponse(
         Long friendshipId,
         String nickname,
-        LocalDateTime since
+        LocalDateTime since,
+        Integer todayActivityCount
 ) {
 }

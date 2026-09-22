@@ -43,6 +43,9 @@ public class Project {
     @Column(nullable = false, length = 20)
     private String status = "ACTIVE";
 
+    @Column(name = "is_shared", nullable = false)
+    private boolean shared = false;
+
     private LocalDateTime archivedAt;
 
     private LocalDateTime deletedAt;
@@ -64,5 +67,9 @@ public class Project {
         project.totalUnits = totalUnits;
         project.examDate = examDate;
         return project;
+    }
+
+    public void updateShared(boolean shared) {
+        this.shared = shared;
     }
 }

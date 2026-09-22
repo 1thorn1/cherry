@@ -1,0 +1,7 @@
+ALTER TABLE user
+  ADD COLUMN share_park           BOOLEAN NOT NULL DEFAULT 1,
+  ADD COLUMN share_activity_count BOOLEAN NOT NULL DEFAULT 0,
+  ADD COLUMN share_task_titles    BOOLEAN NOT NULL DEFAULT 0;
+
+ALTER TABLE project
+  ADD COLUMN is_shared BOOLEAN NOT NULL DEFAULT 0;

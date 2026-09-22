@@ -11,7 +11,8 @@ public record ProjectResponse(
         String color,
         Integer totalUnits,
         LocalDate examDate,
-        String status
+        String status,
+        boolean shared
 ) {
     public static ProjectResponse from(Project project) {
         return new ProjectResponse(
@@ -21,7 +22,8 @@ public record ProjectResponse(
                 project.getColor(),
                 project.getTotalUnits(),
                 project.getExamDate(),
-                project.getStatus()
+                project.getStatus(),
+                project.isShared()
         );
     }
 }

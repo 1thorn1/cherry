@@ -10,6 +10,7 @@ import com.cherry.project.dto.NoteResponse;
 import com.cherry.project.dto.ProjectCreateRequest;
 import com.cherry.project.dto.ProjectDetailResponse;
 import com.cherry.project.dto.ProjectResponse;
+import com.cherry.project.dto.ProjectSharedRequest;
 import com.cherry.project.dto.TimelineEntryResponse;
 import com.cherry.task.TaskRepository;
 import lombok.RequiredArgsConstructor;
@@ -114,6 +115,13 @@ public class ProjectService {
             }
             default -> throw new InvalidNoteException("알 수 없는 기록 종류입니다");
         }
+    }
+
+    @Transactional
+    public ProjectResponse updateShared(Long userId, Long projectId, ProjectSharedRequest request) {
+        Project project = findOwned(userId, projectId);
+        project.updateShared(request.shared());
+        return ProjectResponse.from(project);
     }
 
     @Transactional

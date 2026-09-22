@@ -8,6 +8,7 @@ export interface Project {
   total_units: number | null
   exam_date: string | null
   status: string
+  shared: boolean
 }
 
 export interface Milestone {

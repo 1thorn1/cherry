@@ -26,6 +26,21 @@ public class User {
     @Column(nullable = false)
     private int population;
 
+    @Column(name = "share_park", nullable = false)
+    private boolean sharePark = true;
+
+    @Column(name = "share_activity_count", nullable = false)
+    private boolean shareActivityCount = false;
+
+    @Column(name = "share_task_titles", nullable = false)
+    private boolean shareTaskTitles = false;
+
+    public void updateSharingSettings(boolean sharePark, boolean shareActivityCount, boolean shareTaskTitles) {
+        this.sharePark = sharePark;
+        this.shareActivityCount = shareActivityCount;
+        this.shareTaskTitles = shareTaskTitles;
+    }
+
     public void earnPoints(int amount) {
         this.pointBalance += amount;
     }

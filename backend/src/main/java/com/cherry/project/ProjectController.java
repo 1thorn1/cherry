@@ -5,6 +5,7 @@ import com.cherry.project.dto.NoteResponse;
 import com.cherry.project.dto.ProjectCreateRequest;
 import com.cherry.project.dto.ProjectDetailResponse;
 import com.cherry.project.dto.ProjectResponse;
+import com.cherry.project.dto.ProjectSharedRequest;
 import com.cherry.project.dto.TimelineEntryResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +43,11 @@ public class ProjectController {
     @GetMapping("/{id}/timeline")
     public List<TimelineEntryResponse> timeline(@PathVariable Long id) {
         return projectService.timeline(DEV_USER_ID, id);
+    }
+
+    @PatchMapping("/{id}/shared")
+    public ProjectResponse updateShared(@PathVariable Long id, @RequestBody ProjectSharedRequest request) {
+        return projectService.updateShared(DEV_USER_ID, id, request);
     }
 
     @PostMapping("/{id}/notes")
