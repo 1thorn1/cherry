@@ -331,6 +331,13 @@ export default function TodayPage() {
     return routine ? routineRuleLabel(routine) : null
   }
 
+  // 완료 영역의 반복 항목은 규칙이 아니라 누적 표기를 보여준다 (A-6-1). 끊긴 일수는 세지 않는다.
+  function routineMonthLabelFor(task: Task) {
+    if (!task.routine_id) return null
+    const routine = routines.find((r) => r.id === task.routine_id)
+    return routine ? `이번 달 ${routine.month_completed_count}일` : null
+  }
+
   function projectNameFor(task: Task) {
     if (!task.project_id) return null
     return projects.find((p) => p.id === task.project_id)?.name ?? null
@@ -724,9 +731,9 @@ export default function TodayPage() {
                         #{projectNameFor(task)}
                       </span>
                     )}
-                    {routineLabelFor(task) && (
+                    {routineMonthLabelFor(task) && (
                       <span className="ml-2 inline-flex items-center gap-0.5 text-[11px] text-neutral-300">
-                        <IconRepeat size={11} stroke={1.75} />{routineLabelFor(task)}
+                        <IconRepeat size={11} stroke={1.75} />{routineMonthLabelFor(task)}
                       </span>
                     )}
                   </span>

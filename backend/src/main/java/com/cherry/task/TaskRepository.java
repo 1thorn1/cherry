@@ -28,6 +28,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     List<Task> findByUserIdAndTaskDateBetweenAndDeletedAtIsNull(Long userId, LocalDate start, LocalDate end);
 
+    // 반복 항목 누적 표기(A-6-1): 이번 달에 완료한 횟수. 끊긴 일수는 세지 않으므로 스트릭이 아니라 단순 카운트.
+    long countByRoutineIdAndCompletedAtIsNotNullAndTaskDateBetween(Long routineId, LocalDate start, LocalDate end);
+
     @Query("SELECT t FROM Task t WHERE t.userId = :userId AND t.deletedAt IS NULL " +
             "AND (t.title LIKE CONCAT('%', :keyword, '%') OR t.memo LIKE CONCAT('%', :keyword, '%')) " +
             "ORDER BY t.createdAt DESC")

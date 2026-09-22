@@ -15,9 +15,14 @@ public record RoutineResponse(
         String timeBasis,
         LocalDate startedOn,
         LocalDate endedOn,
-        boolean paused
+        boolean paused,
+        long monthCompletedCount
 ) {
     public static RoutineResponse from(Routine routine) {
+        return from(routine, 0);
+    }
+
+    public static RoutineResponse from(Routine routine, long monthCompletedCount) {
         return new RoutineResponse(
                 routine.getId(),
                 routine.getTitle(),
@@ -28,7 +33,8 @@ public record RoutineResponse(
                 routine.getTimeBasis(),
                 routine.getStartedOn(),
                 routine.getEndedOn(),
-                routine.isPaused()
+                routine.isPaused(),
+                monthCompletedCount
         );
     }
 }

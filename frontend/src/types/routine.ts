@@ -11,4 +11,5 @@ export interface Routine {
   started_on: string
   ended_on: string | null
   paused: boolean
+  month_completed_count: number
 }
