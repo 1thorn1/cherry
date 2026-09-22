@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { DndContext, useDraggable, type DragEndEvent } from '@dnd-kit/core'
-import { IconBell, IconCheck, IconGripVertical, IconRepeat, IconX } from '@tabler/icons-react'
+import { IconBell, IconCheck, IconClock, IconGripVertical, IconRepeat } from '@tabler/icons-react'
 import type { Task } from '../types/task'
 import type { Routine, RoutineFreq } from '../types/routine'
 import type { Park } from '../types/park'
@@ -287,8 +287,7 @@ export default function TodayPage() {
       await uncompleteTask(task.id)
       if (openChipTaskId === task.id) setOpenChipTaskId(null)
     } else {
-      const updated = await completeTask(task.id)
-      if (updated.scheduled_start) setOpenChipTaskId(updated.id)
+      await completeTask(task.id)
     }
     load()
     loadPark()
@@ -547,6 +546,15 @@ export default function TodayPage() {
                   <span className="text-[11px] text-neutral-300">
                     {(task.effective_at ?? task.completed_at)?.slice(11, 16)}
                   </span>
+                  {task.scheduled_start && (
+                    <button
+                      onClick={() => setOpenChipTaskId(openChipTaskId === task.id ? null : task.id)}
+                      className="flex text-neutral-300"
+                      aria-label="완료 시각 수정"
+                    >
+                      <IconClock size={13} stroke={1.75} />
+                    </button>
+                  )}
                 </div>
 
                 {openChipTaskId === task.id && task.scheduled_start && (
@@ -579,13 +587,6 @@ export default function TodayPage() {
                         직접입력
                       </button>
                     )}
-                    <button
-                      onClick={() => setOpenChipTaskId(null)}
-                      className="ml-auto flex text-neutral-300"
-                      aria-label="닫기"
-                    >
-                      <IconX size={13} stroke={1.75} />
-                    </button>
                   </div>
                 )}
               </div>
