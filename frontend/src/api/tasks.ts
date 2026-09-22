@@ -36,6 +36,13 @@ export function scheduleTask(id: number, start: string | null, end: string | nul
   })
 }
 
+export function setTaskEffectiveTime(id: number, effectiveAt: string) {
+  return request<Task>(`/api/tasks/${id}/effective-time`, {
+    method: 'PATCH',
+    body: JSON.stringify({ effective_at: effectiveAt }),
+  })
+}
+
 export function setTaskReminder(id: number, notifyOffsetMin: number | null) {
   return request<Task>(`/api/tasks/${id}/reminder`, {
     method: 'PATCH',

@@ -5,8 +5,10 @@ import com.cherry.park.ParkService;
 import com.cherry.project.Milestone;
 import com.cherry.project.MilestoneRepository;
 import com.cherry.push.ReminderService;
+import com.cherry.routine.RoutineRepository;
 import com.cherry.routine.RoutineService;
 import com.cherry.task.dto.TaskCreateRequest;
+import com.cherry.task.dto.TaskEffectiveTimeRequest;
 import com.cherry.task.dto.TaskMemoRequest;
 import com.cherry.task.dto.TaskProjectRequest;
 import com.cherry.task.dto.TaskReminderRequest;
@@ -28,6 +30,7 @@ public class TaskService {
 
     private final TaskRepository taskRepository;
     private final RoutineService routineService;
+    private final RoutineRepository routineRepository;
     private final MilestoneRepository milestoneRepository;
     private final ParkService parkService;
     private final ReminderService reminderService;
@@ -70,7 +73,8 @@ public class TaskService {
                         .map(Milestone::getId)
                         .orElse(null);
 
-        task.complete(LocalDateTime.now(), milestoneIdToTag);
+        LocalDateTime now = LocalDateTime.now();
+        task.complete(now, computeEffectiveAt(task, now), milestoneIdToTag);
 
         if (!alreadyCompleted) {
             parkService.awardForTaskCompletion(userId, taskId, LocalDate.now());
@@ -83,6 +87,25 @@ public class TaskService {
                         });
             }
         }
+        return TaskResponse.from(task);
+    }
+
+    // completed_at은 체크한 물리적 시각으로 불변, effective_at이 기록·시간표·통계의 기준이 된다 (A-6-8).
+    // 반복의 time_basis가 SCHEDULED고 예정 시각이 있으면 그 시각을, 아니면 지금을 기본값으로 삼는다.
+    private LocalDateTime computeEffectiveAt(Task task, LocalDateTime now) {
+        if (task.getRoutineId() == null || task.getScheduledStart() == null) {
+            return now;
+        }
+        return routineRepository.findById(task.getRoutineId())
+                .filter(r -> "SCHEDULED".equals(r.getTimeBasis()))
+                .map(r -> task.getScheduledStart())
+                .orElse(now);
+    }
+
+    @Transactional
+    public TaskResponse setEffectiveTime(Long userId, Long taskId, LocalDateTime effectiveAt) {
+        Task task = findOwned(userId, taskId);
+        task.changeEffectiveTime(effectiveAt);
         return TaskResponse.from(task);
     }
 
