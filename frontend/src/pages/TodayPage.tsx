@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { DndContext, useDraggable, type DragEndEvent } from '@dnd-kit/core'
-import { IconBell, IconCheck, IconClock, IconGripVertical, IconNote, IconRepeat } from '@tabler/icons-react'
+import { IconBell, IconCalendar, IconCheck, IconClock, IconGripVertical, IconNote, IconRepeat } from '@tabler/icons-react'
 import type { Task } from '../types/task'
 import type { Routine, RoutineFreq } from '../types/routine'
 import type { Park } from '../types/park'
@@ -8,7 +8,7 @@ import type { TaskParseResult } from '../types/parse'
 import Timetable from '../components/Timetable'
 import TimeSelect from '../components/TimeSelect'
 import NotifySelect from '../components/NotifySelect'
-import { getToday, createTask, completeTask, uncompleteTask, deleteTask, scheduleTask, setTaskReminder, setTaskEffectiveTime, setTaskMemo } from '../api/tasks'
+import { getToday, createTask, completeTask, uncompleteTask, deleteTask, scheduleTask, postponeTask, setTaskReminder, setTaskEffectiveTime, setTaskMemo } from '../api/tasks'
 import { getRoutines, createRoutine } from '../api/routines'
 import { getPark } from '../api/park'
 import { parseTask } from '../api/parse'
@@ -18,6 +18,26 @@ import { ensurePushSubscription } from '../lib/push'
 
 const today = new Date().toISOString().slice(0, 10)
 const WEEKDAY_LABELS = ['월', '화', '수', '목', '금', '토', '일']
+
+// 로컬 타임존을 거치는 new Date()/toISOString() 왕복은 UTC+9에서 자정 근처 하루가 밀리므로
+// 날짜 문자열을 UTC 기준으로만 계산한다 (달력 날짜 그 자체를 다루는 것이지 시각이 아니기 때문).
+function addDays(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const date = new Date(Date.UTC(y, m - 1, d))
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+function tomorrowDate(): string {
+  return addDays(today, 1)
+}
+
+function thisWeekendDate(): string {
+  const [y, m, d] = today.split('-').map(Number)
+  const day = new Date(Date.UTC(y, m - 1, d)).getUTCDay()
+  const diff = day === 0 ? 0 : (6 - day) % 7
+  return addDays(today, diff)
+}
 
 function formatSuggestion(s: TaskParseResult): string {
   const parts: string[] = []
@@ -42,22 +62,28 @@ function TaskRow({
   task,
   routineLabel,
   suggestion,
+  postponeOpen,
   onToggle,
   onSchedule,
   onSetReminder,
   onDelete,
   onApplySuggestion,
   onDismissSuggestion,
+  onTogglePostpone,
+  onPostpone,
 }: {
   task: Task
   routineLabel: string | null
   suggestion: TaskParseResult | null
+  postponeOpen: boolean
   onToggle: (task: Task) => void
   onSchedule: (task: Task, hour: number | null) => void
   onSetReminder: (task: Task, offset: number | null) => void
   onDelete: (id: number) => void
   onApplySuggestion: (task: Task) => void
   onDismissSuggestion: (id: number) => void
+  onTogglePostpone: (id: number) => void
+  onPostpone: (task: Task, taskDate: string | null) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id })
 
@@ -102,12 +128,48 @@ function TaskRow({
           <NotifySelect value={task.notify_offset_min} onChange={(offset) => onSetReminder(task, offset)} />
         )}
         <button
+          onClick={() => onTogglePostpone(task.id)}
+          className="text-neutral-300 opacity-0 transition group-hover:opacity-100"
+          aria-label="미루기"
+        >
+          <IconCalendar size={14} stroke={1.75} />
+        </button>
+        <button
           onClick={() => onDelete(task.id)}
           className="text-xs text-neutral-300 opacity-0 transition group-hover:opacity-100"
         >
           삭제
         </button>
       </div>
+
+      {postponeOpen && (
+        <div className="ml-7 mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="mr-0.5 text-[11px] text-neutral-400">언제로 미룰까요?</span>
+          <button
+            onClick={() => onPostpone(task, tomorrowDate())}
+            className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
+          >
+            내일
+          </button>
+          <button
+            onClick={() => onPostpone(task, thisWeekendDate())}
+            className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
+          >
+            이번 주말
+          </button>
+          <input
+            type="date"
+            onChange={(e) => e.target.value && onPostpone(task, e.target.value)}
+            className="rounded-md border border-neutral-200 px-1.5 py-1 text-[11px]"
+          />
+          <button
+            onClick={() => onPostpone(task, null)}
+            className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
+          >
+            이번주로
+          </button>
+        </div>
+      )}
 
       {suggestion && (
         <div className="ml-7 mt-2 flex items-center gap-2 text-[11px]">
@@ -134,6 +196,9 @@ function TaskRow({
 export default function TodayPage() {
   const [todo, setTodo] = useState<Task[]>([])
   const [done, setDone] = useState<Task[]>([])
+  const [backlog, setBacklog] = useState<Task[]>([])
+  const [showBacklog, setShowBacklog] = useState(false)
+  const [postponeMenuTaskId, setPostponeMenuTaskId] = useState<number | null>(null)
   const [input, setInput] = useState('')
   const [error, setError] = useState('')
   const [tab, setTab] = useState<'todo' | 'done' | 'timetable'>('todo')
@@ -162,6 +227,7 @@ export default function TodayPage() {
       const data = await getToday(today)
       setTodo(data.todo)
       setDone(data.done)
+      setBacklog(data.backlog)
       setError('')
     } catch (e) {
       setError(e instanceof Error ? e.message : '불러오지 못했습니다')
@@ -327,6 +393,21 @@ export default function TodayPage() {
     load()
   }
 
+  function togglePostponeMenu(id: number) {
+    setPostponeMenuTaskId((prev) => (prev === id ? null : id))
+  }
+
+  async function handlePostpone(task: Task, taskDate: string | null) {
+    await postponeTask(task.id, taskDate)
+    setPostponeMenuTaskId(null)
+    load()
+  }
+
+  async function handlePullIn(task: Task) {
+    await postponeTask(task.id, today)
+    load()
+  }
+
   async function handleSchedule(task: Task, hour: number | null) {
     if (hour === null) {
       await scheduleTask(task.id, null, null)
@@ -371,6 +452,46 @@ export default function TodayPage() {
           <p className="mt-1 text-xs text-neutral-400">
             오늘 방문객 {park.today_visitors} · 체리 {park.point_balance}
           </p>
+        )}
+        {backlog.length > 0 && (
+          <div className="mt-3">
+            <button
+              onClick={() => setShowBacklog((v) => !v)}
+              className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-600"
+            >
+              이번주에서 당겨오기
+              <span
+                className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold text-white"
+                style={{ background: 'var(--cherry)' }}
+              >
+                {backlog.length}
+              </span>
+            </button>
+            {showBacklog && (
+              <div className="mt-2 rounded-lg border border-neutral-200 p-3">
+                {backlog.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-center justify-between gap-2 border-b border-neutral-100 py-2 last:border-0"
+                  >
+                    <span className="flex-1 text-sm">
+                      {task.title}
+                      <span className="ml-2 text-[11px] text-neutral-400">
+                        {task.task_date ? task.task_date.slice(5).replace('-', '/') : '이번주'}
+                      </span>
+                    </span>
+                    <button
+                      onClick={() => handlePullIn(task)}
+                      className="rounded-full px-2.5 py-1 text-[11px] font-medium text-white"
+                      style={{ background: 'var(--cherry)' }}
+                    >
+                      오늘로
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </header>
 
@@ -531,12 +652,15 @@ export default function TodayPage() {
                 task={task}
                 routineLabel={routineLabelFor(task)}
                 suggestion={suggestions[task.id] ?? null}
+                postponeOpen={postponeMenuTaskId === task.id}
                 onToggle={handleToggle}
                 onSchedule={handleSchedule}
                 onSetReminder={handleSetReminder}
                 onDelete={handleDelete}
                 onApplySuggestion={handleApplySuggestion}
                 onDismissSuggestion={handleDismissSuggestion}
+                onTogglePostpone={togglePostponeMenu}
+                onPostpone={handlePostpone}
               />
             ))}
           </section>

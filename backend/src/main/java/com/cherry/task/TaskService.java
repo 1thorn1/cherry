@@ -56,7 +56,12 @@ public class TaskService {
                 .findByUserIdAndTaskDateAndCompletedAtIsNotNullAndDeletedAtIsNullOrderByCompletedAtDesc(userId, date)
                 .stream().map(TaskResponse::from).toList();
 
-        return new TodayResponse(date, todo, done);
+        // "당겨오기" 대상 풀은 오늘 화면에서만 의미가 있다 (A-11 미완료 이월 상세).
+        List<TaskResponse> backlog = date.equals(LocalDate.now())
+                ? taskRepository.findBacklog(userId, date).stream().map(TaskResponse::from).toList()
+                : List.of();
+
+        return new TodayResponse(date, todo, done, backlog);
     }
 
     @Transactional
@@ -137,6 +142,14 @@ public class TaskService {
             task.moveTo(request.taskDate());
         }
         task.schedule(request.scheduledStart(), request.scheduledEnd());
+        reminderService.syncReminder(task);
+        return TaskResponse.from(task);
+    }
+
+    @Transactional
+    public TaskResponse postpone(Long userId, Long taskId, LocalDate taskDate) {
+        Task task = findOwned(userId, taskId);
+        task.postpone(taskDate);
         reminderService.syncReminder(task);
         return TaskResponse.from(task);
     }

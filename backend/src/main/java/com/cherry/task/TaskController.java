@@ -3,6 +3,7 @@ package com.cherry.task;
 import com.cherry.task.dto.TaskCreateRequest;
 import com.cherry.task.dto.TaskEffectiveTimeRequest;
 import com.cherry.task.dto.TaskMemoRequest;
+import com.cherry.task.dto.TaskPostponeRequest;
 import com.cherry.task.dto.TaskProjectRequest;
 import com.cherry.task.dto.TaskReminderRequest;
 import com.cherry.task.dto.TaskResponse;
@@ -49,6 +50,12 @@ public class TaskController {
     public TaskResponse changeMemo(@PathVariable Long id,
                                    @Valid @RequestBody TaskMemoRequest request) {
         return taskService.changeMemo(DEV_USER_ID, id, request);
+    }
+
+    @PatchMapping("/{id}/postpone")
+    public TaskResponse postpone(@PathVariable Long id,
+                                 @RequestBody TaskPostponeRequest request) {
+        return taskService.postpone(DEV_USER_ID, id, request.taskDate());
     }
 
     @PatchMapping("/{id}/schedule")
