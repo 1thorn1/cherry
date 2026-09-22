@@ -14,7 +14,7 @@ export default function TimeSelect({ value, onChange }: Props) {
       className="rounded border border-neutral-200 px-1.5 py-0.5 text-[11px] text-neutral-500"
     >
       <option value="">시간</option>
-      {Array.from({ length: 13 }, (_, i) => i + 8).map((h) => (
+      {Array.from({ length: 24 }, (_, i) => i).map((h) => (
         <option key={h} value={h}>{h}시</option>
       ))}
     </select>

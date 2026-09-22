@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { DndContext, useDraggable, type DragEndEvent } from '@dnd-kit/core'
-import { IconBell, IconCheck, IconGripVertical, IconRepeat } from '@tabler/icons-react'
+import { IconBell, IconCheck, IconGripVertical, IconRepeat, IconX } from '@tabler/icons-react'
 import type { Task } from '../types/task'
 import type { Routine, RoutineFreq } from '../types/routine'
 import type { Park } from '../types/park'
@@ -550,18 +550,19 @@ export default function TodayPage() {
                 </div>
 
                 {openChipTaskId === task.id && task.scheduled_start && (
-                  <div className="ml-7 mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <div className="ml-7 mt-2 flex flex-wrap items-center gap-1.5">
+                    <span className="mr-0.5 text-[11px] text-neutral-400">언제로 기록할까요?</span>
                     <button
                       onClick={() => applyEffectiveTime(task, task.scheduled_start!)}
-                      className="rounded-full bg-neutral-100 px-2 py-1 font-medium"
+                      className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
                     >
-                      예정대로 {task.scheduled_start.slice(11, 16)}
+                      예정대로
                     </button>
                     <button
                       onClick={() => applyEffectiveTime(task, task.completed_at!)}
-                      className="rounded-full bg-neutral-100 px-2 py-1 font-medium"
+                      className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
                     >
-                      지금 {task.completed_at?.slice(11, 16)}
+                      지금
                     </button>
                     {editingTimeTaskId === task.id ? (
                       <input
@@ -573,12 +574,18 @@ export default function TodayPage() {
                     ) : (
                       <button
                         onClick={() => setEditingTimeTaskId(task.id)}
-                        className="rounded-full bg-neutral-100 px-2 py-1 font-medium"
+                        className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
                       >
                         직접입력
                       </button>
                     )}
-                    <button onClick={() => setOpenChipTaskId(null)} className="ml-auto text-neutral-300">닫기</button>
+                    <button
+                      onClick={() => setOpenChipTaskId(null)}
+                      className="ml-auto flex text-neutral-300"
+                      aria-label="닫기"
+                    >
+                      <IconX size={13} stroke={1.75} />
+                    </button>
                   </div>
                 )}
               </div>
