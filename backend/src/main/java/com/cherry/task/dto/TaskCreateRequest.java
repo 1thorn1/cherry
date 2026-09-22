@@ -10,6 +10,8 @@ public record TaskCreateRequest(
         @Size(max = 255, message = "제목은 255자를 넘을 수 없습니다")
         String title,
 
-        LocalDate taskDate
+        LocalDate taskDate,
+        Long projectId,
+        Long milestoneId
 ) {
 }
