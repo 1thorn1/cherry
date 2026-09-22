@@ -24,10 +24,10 @@ export function deleteTask(id: number) {
   return request<void>(`/api/tasks/${id}`, { method: 'DELETE' })
 }
 
-export function scheduleTask(id: number, start: string | null, end: string | null) {
+export function scheduleTask(id: number, start: string | null, end: string | null, taskDate?: string) {
   return request<Task>(`/api/tasks/${id}/schedule`, {
     method: 'PATCH',
-    body: JSON.stringify({ scheduled_start: start, scheduled_end: end }),
+    body: JSON.stringify({ scheduled_start: start, scheduled_end: end, task_date: taskDate ?? null }),
   })
 }
 

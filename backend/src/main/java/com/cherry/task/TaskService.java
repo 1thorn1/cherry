@@ -94,6 +94,9 @@ public class TaskService {
     @Transactional
     public TaskResponse schedule(Long userId, Long taskId, TaskScheduleRequest request) {
         Task task = findOwned(userId, taskId);
+        if (request.taskDate() != null) {
+            task.moveTo(request.taskDate());
+        }
         task.schedule(request.scheduledStart(), request.scheduledEnd());
         reminderService.syncReminder(task);
         return TaskResponse.from(task);

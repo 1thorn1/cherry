@@ -118,6 +118,10 @@ public class Task {
         this.scheduledEnd = end;
     }
 
+    public void moveTo(LocalDate taskDate) {
+        this.taskDate = taskDate;
+    }
+
     public void changeNotifyOffset(Integer notifyOffsetMin) {
         this.notifyOffsetMin = notifyOffsetMin;
     }
