@@ -7,12 +7,17 @@ import com.cherry.common.SelfFriendRequestException;
 import com.cherry.friend.dto.FriendCodeResponse;
 import com.cherry.friend.dto.FriendResponse;
 import com.cherry.friend.dto.PendingRequestResponse;
+import com.cherry.friend.dto.SharingSettingsRequest;
+import com.cherry.friend.dto.SharingSettingsResponse;
+import com.cherry.park.DailyStat;
+import com.cherry.park.DailyStatRepository;
 import com.cherry.user.User;
 import com.cherry.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -22,6 +27,7 @@ public class FriendshipService {
 
     private final FriendshipRepository friendshipRepository;
     private final UserRepository userRepository;
+    private final DailyStatRepository dailyStatRepository;
 
     @Transactional(readOnly = true)
     public FriendCodeResponse getMyCode(Long userId) {
@@ -82,9 +88,28 @@ public class FriendshipService {
     public List<FriendResponse> getFriends(Long userId) {
         return friendshipRepository.findAllByUserIdAndStatus(userId, "ACCEPTED").stream()
                 .map(f -> {
-                    User friend = userRepository.findById(f.partnerId(userId)).orElseThrow();
-                    return new FriendResponse(f.getId(), friend.getNickname(), f.getAcceptedAt());
+                    Long partnerId = f.partnerId(userId);
+                    User friend = userRepository.findById(partnerId).orElseThrow();
+                    Integer activityCount = friend.isShareActivityCount()
+                            ? dailyStatRepository.findByUserIdAndStatDate(partnerId, LocalDate.now())
+                                    .map(DailyStat::getCompletedCount)
+                                    .orElse(0)
+                            : null;
+                    return new FriendResponse(f.getId(), friend.getNickname(), f.getAcceptedAt(), activityCount);
                 })
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public SharingSettingsResponse getSharingSettings(Long userId) {
+        User me = userRepository.findById(userId).orElseThrow();
+        return new SharingSettingsResponse(me.isSharePark(), me.isShareActivityCount(), me.isShareTaskTitles());
+    }
+
+    @Transactional
+    public SharingSettingsResponse updateSharingSettings(Long userId, SharingSettingsRequest request) {
+        User me = userRepository.findById(userId).orElseThrow();
+        me.updateSharingSettings(request.sharePark(), request.shareActivityCount(), request.shareTaskTitles());
+        return new SharingSettingsResponse(me.isSharePark(), me.isShareActivityCount(), me.isShareTaskTitles());
     }
 }

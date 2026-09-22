@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import type { NoteKind, ProjectDetail, TimelineEntry } from '../types/project'
-import { addNote, completeMilestone, getProject, getTimeline } from '../api/projects'
+import { addNote, completeMilestone, getProject, getTimeline, updateProjectShared } from '../api/projects'
 
 const kindLabels: Record<string, string> = {
   AUTO_LOG: '완료',
@@ -23,6 +23,7 @@ export default function ProjectDetailPage() {
   const [noteBody, setNoteBody] = useState('')
   const [noteUrl, setNoteUrl] = useState('')
   const [saving, setSaving] = useState(false)
+  const [sharingToggle, setSharingToggle] = useState(false)
 
   async function loadDetail() {
     try {
@@ -47,6 +48,19 @@ export default function ProjectDetailPage() {
   async function handleComplete(milestoneId: number) {
     await completeMilestone(milestoneId)
     loadDetail()
+  }
+
+  async function handleToggleShared() {
+    if (!detail || sharingToggle) return
+    setSharingToggle(true)
+    try {
+      const updated = await updateProjectShared(projectId, !detail.project.shared)
+      setDetail({ ...detail, project: updated })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '설정을 저장하지 못했습니다')
+    } finally {
+      setSharingToggle(false)
+    }
   }
 
   async function handleAddNote() {
@@ -86,7 +100,19 @@ export default function ProjectDetailPage() {
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
       <Link to="/projects" className="text-xs text-neutral-400">← 프로젝트</Link>
-      <h1 className="mb-6 mt-2 text-xl font-medium tracking-tight">{detail.project.name}</h1>
+      <div className="mb-6 mt-2 flex items-center justify-between">
+        <h1 className="text-xl font-medium tracking-tight">{detail.project.name}</h1>
+        <button
+          onClick={handleToggleShared}
+          disabled={sharingToggle}
+          className="rounded-md px-2.5 py-1 text-[11px] font-medium disabled:opacity-50"
+          style={detail.project.shared
+            ? { background: 'var(--cherry-bg)', color: 'var(--cherry)' }
+            : { background: '#F1EFE8', color: '#888780' }}
+        >
+          {detail.project.shared ? '친구에게 공유중' : '비공개'}
+        </button>
+      </div>
 
       <div className="mb-6 flex gap-1 rounded-lg bg-neutral-100 p-1">
         <button

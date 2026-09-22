@@ -81,6 +81,12 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("FRIENDSHIP_NOT_FOUND", e.getMessage()));
     }
 
+    @ExceptionHandler(ParkNotSharedException.class)
+    public ResponseEntity<ErrorResponse> handleParkNotShared(ParkNotSharedException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse("PARK_NOT_SHARED", e.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException e) {
         String message = e.getBindingResult().getFieldErrors().stream()

@@ -4,6 +4,8 @@ import com.cherry.friend.dto.FriendCodeResponse;
 import com.cherry.friend.dto.FriendResponse;
 import com.cherry.friend.dto.PendingRequestResponse;
 import com.cherry.friend.dto.SendFriendRequest;
+import com.cherry.friend.dto.SharingSettingsRequest;
+import com.cherry.friend.dto.SharingSettingsResponse;
 import com.cherry.park.ParkService;
 import com.cherry.park.dto.FriendParkResponse;
 import jakarta.validation.Valid;
@@ -55,6 +57,16 @@ public class FriendController {
     @GetMapping
     public List<FriendResponse> getFriends() {
         return friendshipService.getFriends(DEV_USER_ID);
+    }
+
+    @GetMapping("/settings")
+    public SharingSettingsResponse getSettings() {
+        return friendshipService.getSharingSettings(DEV_USER_ID);
+    }
+
+    @PutMapping("/settings")
+    public SharingSettingsResponse updateSettings(@RequestBody SharingSettingsRequest request) {
+        return friendshipService.updateSharingSettings(DEV_USER_ID, request);
     }
 
     @GetMapping("/{id}/park")
