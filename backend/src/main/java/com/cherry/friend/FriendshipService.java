@@ -52,6 +52,14 @@ public class FriendshipService {
         friendship.accept(LocalDateTime.now());
     }
 
+    @Transactional(readOnly = true)
+    public Long resolveAcceptedPartnerId(Long userId, Long friendshipId) {
+        Friendship friendship = friendshipRepository.findById(friendshipId)
+                .filter(f -> f.involves(userId) && "ACCEPTED".equals(f.getStatus()))
+                .orElseThrow(FriendshipNotFoundException::new);
+        return friendship.partnerId(userId);
+    }
+
     @Transactional
     public void remove(Long userId, Long friendshipId) {
         Friendship friendship = friendshipRepository.findById(friendshipId)

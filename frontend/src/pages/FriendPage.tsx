@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
-import type { Friend, FriendCode, PendingRequest } from '../types/friend'
+import type { Friend, FriendCode, FriendPark, PendingRequest } from '../types/friend'
 import {
   acceptFriendRequest,
+  getFriendPark,
   getFriends,
   getMyFriendCode,
   getPendingRequests,
   removeFriendship,
   sendFriendRequest,
+  visitFriendPark,
 } from '../api/friend'
 
 export default function FriendPage() {
@@ -18,6 +20,9 @@ export default function FriendPage() {
   const [copied, setCopied] = useState(false)
   const [busyId, setBusyId] = useState<number | null>(null)
   const [sending, setSending] = useState(false)
+  const [openParkId, setOpenParkId] = useState<number | null>(null)
+  const [parks, setParks] = useState<Record<number, FriendPark>>({})
+  const [visitedIds, setVisitedIds] = useState<Set<number>>(new Set())
 
   async function loadAll() {
     try {
@@ -84,6 +89,35 @@ export default function FriendPage() {
       await loadAll()
     } catch (e) {
       setError(e instanceof Error ? e.message : '거절하지 못했습니다')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function handleTogglePark(friendshipId: number) {
+    if (openParkId === friendshipId) {
+      setOpenParkId(null)
+      return
+    }
+    setOpenParkId(friendshipId)
+    if (!parks[friendshipId]) {
+      try {
+        const park = await getFriendPark(friendshipId)
+        setParks((prev) => ({ ...prev, [friendshipId]: park }))
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '공원을 불러오지 못했습니다')
+      }
+    }
+  }
+
+  async function handleVisit(friendshipId: number) {
+    if (busyId) return
+    setBusyId(friendshipId)
+    try {
+      await visitFriendPark(friendshipId)
+      setVisitedIds((prev) => new Set(prev).add(friendshipId))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '방문하지 못했습니다')
     } finally {
       setBusyId(null)
     }
@@ -163,15 +197,62 @@ export default function FriendPage() {
       ) : (
         <div className="space-y-2">
           {friends.map((f) => (
-            <div key={f.friendship_id} className="flex items-center justify-between rounded-lg border border-neutral-200 p-3">
-              <span className="text-sm">{f.nickname}</span>
-              <button
-                onClick={() => handleReject(f.friendship_id)}
-                disabled={busyId === f.friendship_id}
-                className="text-[11px] text-neutral-400 disabled:opacity-50"
-              >
-                삭제
-              </button>
+            <div key={f.friendship_id} className="rounded-lg border border-neutral-200 p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm">{f.nickname}</span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => handleTogglePark(f.friendship_id)}
+                    className="text-[11px] font-medium" style={{ color: 'var(--cherry)' }}
+                  >
+                    {openParkId === f.friendship_id ? '닫기' : '공원 구경'}
+                  </button>
+                  <button
+                    onClick={() => handleReject(f.friendship_id)}
+                    disabled={busyId === f.friendship_id}
+                    className="text-[11px] text-neutral-400 disabled:opacity-50"
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
+
+              {openParkId === f.friendship_id && (
+                <div className="mt-3 border-t border-neutral-100 pt-3">
+                  {!parks[f.friendship_id] ? (
+                    <p className="text-xs text-neutral-400">불러오는 중...</p>
+                  ) : (
+                    <>
+                      <p className="mb-2 text-xs text-neutral-400">
+                        인구 <span className="font-medium text-neutral-600">{parks[f.friendship_id].population}</span>
+                      </p>
+                      {parks[f.friendship_id].slots.length === 0 ? (
+                        <p className="mb-3 text-xs text-neutral-400">아직 지어진 기구가 없어요</p>
+                      ) : (
+                        <div className="mb-3 grid grid-cols-6 gap-2">
+                          {parks[f.friendship_id].slots.map((slot) => (
+                            <div
+                              key={slot.id}
+                              className="flex aspect-square flex-col items-center justify-center rounded-md"
+                              style={{ background: 'var(--cherry-bg)' }}
+                            >
+                              <span className="text-base">{slot.indoor ? '🎡' : '🎢'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <button
+                        onClick={() => handleVisit(f.friendship_id)}
+                        disabled={busyId === f.friendship_id || visitedIds.has(f.friendship_id)}
+                        className="w-full rounded-md py-1.5 text-[11px] font-medium text-white disabled:opacity-50"
+                        style={{ background: 'var(--cherry)' }}
+                      >
+                        {visitedIds.has(f.friendship_id) ? '오늘 다녀왔어요' : '놀러가기'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
