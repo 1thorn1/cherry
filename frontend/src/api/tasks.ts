@@ -5,10 +5,15 @@ export function getToday(date: string) {
   return request<TodayResponse>(`/api/today?date=${date}`)
 }
 
-export function createTask(title: string, taskDate: string) {
+export function createTask(title: string, taskDate: string, projectId?: number, milestoneId?: number) {
   return request<Task>('/api/tasks', {
     method: 'POST',
-    body: JSON.stringify({ title, task_date: taskDate }),
+    body: JSON.stringify({
+      title,
+      task_date: taskDate,
+      project_id: projectId ?? null,
+      milestone_id: milestoneId ?? null,
+    }),
   })
 }
 

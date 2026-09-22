@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { IconCheck } from '@tabler/icons-react'
-import type { NoteKind, ProjectDetail, TimelineEntry } from '../types/project'
-import { addNote, completeMilestone, getProject, getTimeline, updateProjectShared } from '../api/projects'
+import type { Milestone, NoteKind, ProjectDetail, TimelineEntry } from '../types/project'
+import { addNote, getProject, getTimeline, updateProjectShared } from '../api/projects'
+import { createTask } from '../api/tasks'
+import MilestoneTrack from '../components/MilestoneTrack'
+import MilestoneGrid from '../components/MilestoneGrid'
 
 const kindLabels: Record<string, string> = {
   AUTO_LOG: '완료',
@@ -25,6 +27,8 @@ export default function ProjectDetailPage() {
   const [noteUrl, setNoteUrl] = useState('')
   const [saving, setSaving] = useState(false)
   const [sharingToggle, setSharingToggle] = useState(false)
+  const [sendingId, setSendingId] = useState<number | null>(null)
+  const [sentIds, setSentIds] = useState<Set<number>>(new Set())
 
   async function loadDetail() {
     try {
@@ -46,9 +50,18 @@ export default function ProjectDetailPage() {
   useEffect(() => { loadDetail() }, [id])
   useEffect(() => { if (tab === 'timeline') loadTimeline() }, [id, tab])
 
-  async function handleComplete(milestoneId: number) {
-    await completeMilestone(milestoneId)
-    loadDetail()
+  async function handleSendToday(milestone: Milestone) {
+    if (sendingId) return
+    setSendingId(milestone.id)
+    try {
+      const today = new Date().toISOString().slice(0, 10)
+      await createTask(milestone.title, today, projectId, milestone.id)
+      setSentIds((prev) => new Set(prev).add(milestone.id))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '오늘 할 일로 보내지 못했습니다')
+    } finally {
+      setSendingId(null)
+    }
   }
 
   async function handleToggleShared() {
@@ -132,28 +145,33 @@ export default function ProjectDetailPage() {
 
       {tab === 'progress' && (
         <div>
-          {detail.milestones.length === 0 && (
-            <p className="py-8 text-center text-xs text-neutral-400">마일스톤이 없어요</p>
+          {detail.project.type === 'EXAM' ? (
+            <MilestoneGrid
+              projectId={projectId}
+              milestones={detail.milestones}
+              onSendToday={handleSendToday}
+              sendingId={sendingId}
+              sentIds={sentIds}
+            />
+          ) : (
+            <>
+              <MilestoneTrack milestones={detail.milestones} />
+              {(() => {
+                const next = detail.milestones.find((m) => !m.completed)
+                if (!next) return null
+                return (
+                  <button
+                    onClick={() => handleSendToday(next)}
+                    disabled={sendingId === next.id}
+                    className="mt-4 w-full rounded-lg py-2.5 text-sm font-medium text-white disabled:opacity-50"
+                    style={{ background: 'var(--cherry)' }}
+                  >
+                    {sentIds.has(next.id) ? '오늘 목록에 추가됨' : `"${next.title}" 오늘 할 일로 보내기`}
+                  </button>
+                )
+              })()}
+            </>
           )}
-          {detail.milestones.map((milestone) => (
-            <div key={milestone.id} className="flex items-center gap-3 border-b border-neutral-100 py-3">
-              <button
-                onClick={() => handleComplete(milestone.id)}
-                disabled={milestone.completed}
-                className="flex h-4 w-4 flex-none items-center justify-center rounded border-[1.5px] border-neutral-300 text-white disabled:border-none"
-                style={milestone.completed ? { background: 'var(--cherry)' } : undefined}
-                aria-label="마일스톤 완료"
-              >
-                {milestone.completed && <IconCheck size={10} stroke={2.5} />}
-              </button>
-              <span className={`flex-1 text-sm ${milestone.completed ? 'text-neutral-400 line-through' : ''}`}>
-                {milestone.title}
-              </span>
-              {milestone.target_week && (
-                <span className="text-[11px] text-neutral-300">{milestone.target_week}</span>
-              )}
-            </div>
-          ))}
         </div>
       )}
 

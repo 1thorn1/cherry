@@ -65,6 +65,10 @@ public class Task {
     private LocalDateTime updatedAt;
 
     public static Task create(Long userId, String title, LocalDate taskDate) {
+        return create(userId, title, taskDate, null, null);
+    }
+
+    public static Task create(Long userId, String title, LocalDate taskDate, Long projectId, Long milestoneId) {
         Task task = new Task();
         task.userId = userId;
         task.title = title;
@@ -72,6 +76,8 @@ public class Task {
         if (taskDate != null) {
             task.horizon = "THIS_WEEK";
         }
+        task.projectId = projectId;
+        task.milestoneId = milestoneId;
         return task;
     }
 

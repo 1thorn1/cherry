@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { Milestone, NoteKind, Project, ProjectDetail, ProjectOverview, TimelineEntry } from '../types/project'
+import type { NoteKind, Project, ProjectDetail, ProjectOverview, TimelineEntry } from '../types/project'
 
 export function getProjects() {
   return request<Project[]>('/api/projects')
@@ -32,10 +32,6 @@ export function updateProjectShared(id: number, shared: boolean) {
     method: 'PATCH',
     body: JSON.stringify({ shared }),
   })
-}
-
-export function completeMilestone(id: number) {
-  return request<Milestone>(`/api/milestones/${id}/complete`, { method: 'PATCH' })
 }
 
 export function getTimeline(projectId: number) {

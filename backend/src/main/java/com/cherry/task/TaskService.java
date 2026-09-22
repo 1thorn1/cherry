@@ -34,7 +34,8 @@ public class TaskService {
 
     @Transactional
     public TaskResponse create(Long userId, TaskCreateRequest request) {
-        Task task = Task.create(userId, request.title().trim(), request.taskDate());
+        Task task = Task.create(userId, request.title().trim(), request.taskDate(),
+                request.projectId(), request.milestoneId());
         return TaskResponse.from(taskRepository.save(task));
     }
 
@@ -59,13 +60,28 @@ public class TaskService {
     public TaskResponse complete(Long userId, Long taskId) {
         Task task = findOwned(userId, taskId);
         boolean alreadyCompleted = task.getCompletedAt() != null;
-        Long currentMilestoneId = task.getProjectId() == null ? null
+
+        // 생성 시점에 특정 마일스톤이 지정된 태스크("N강 오늘 할 일로 보내기")만 그 마일스톤을 실제로 완료시킨다.
+        // 그냥 프로젝트에 태그된 태스크는 기록용으로만 "현재" 마일스톤에 소프트 연결한다 (완료 처리는 안 함).
+        Long presetMilestoneId = task.getMilestoneId();
+        Long milestoneIdToTag = presetMilestoneId != null ? presetMilestoneId
+                : task.getProjectId() == null ? null
                 : milestoneRepository.findFirstByProjectIdAndCompletedAtIsNullOrderBySeqAsc(task.getProjectId())
                         .map(Milestone::getId)
                         .orElse(null);
-        task.complete(LocalDateTime.now(), currentMilestoneId);
+
+        task.complete(LocalDateTime.now(), milestoneIdToTag);
+
         if (!alreadyCompleted) {
             parkService.awardForTaskCompletion(userId, taskId, LocalDate.now());
+            if (presetMilestoneId != null) {
+                milestoneRepository.findById(presetMilestoneId)
+                        .filter(m -> m.getCompletedAt() == null)
+                        .ifPresent(m -> {
+                            m.complete(LocalDateTime.now());
+                            parkService.awardForMilestoneCompletion(userId, presetMilestoneId);
+                        });
+            }
         }
         return TaskResponse.from(task);
     }
