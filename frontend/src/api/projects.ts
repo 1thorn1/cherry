@@ -1,8 +1,12 @@
 import { request } from './client'
-import type { Milestone, NoteKind, Project, ProjectDetail, TimelineEntry } from '../types/project'
+import type { Milestone, NoteKind, Project, ProjectDetail, ProjectOverview, TimelineEntry } from '../types/project'
 
 export function getProjects() {
   return request<Project[]>('/api/projects')
+}
+
+export function getProjectOverview() {
+  return request<ProjectOverview>('/api/projects/overview')
 }
 
 export function getProject(id: number) {

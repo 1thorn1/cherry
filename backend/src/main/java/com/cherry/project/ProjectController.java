@@ -4,6 +4,7 @@ import com.cherry.project.dto.NoteCreateRequest;
 import com.cherry.project.dto.NoteResponse;
 import com.cherry.project.dto.ProjectCreateRequest;
 import com.cherry.project.dto.ProjectDetailResponse;
+import com.cherry.project.dto.ProjectOverviewResponse;
 import com.cherry.project.dto.ProjectResponse;
 import com.cherry.project.dto.ProjectSharedRequest;
 import com.cherry.project.dto.TimelineEntryResponse;
@@ -33,6 +34,11 @@ public class ProjectController {
     @GetMapping
     public List<ProjectResponse> list() {
         return projectService.list(DEV_USER_ID);
+    }
+
+    @GetMapping("/overview")
+    public ProjectOverviewResponse overview() {
+        return projectService.getOverview(DEV_USER_ID);
     }
 
     @GetMapping("/{id}")
