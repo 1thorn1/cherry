@@ -10,6 +10,8 @@ export interface CreateRoutineInput {
   freq: RoutineFreq
   weekdays?: number
   month_day?: number
+  default_time?: string
+  time_basis?: 'CHECKED' | 'SCHEDULED'
   started_on: string
 }
 

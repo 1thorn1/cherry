@@ -94,10 +94,10 @@ public class Task {
         return task;
     }
 
-    public void complete(LocalDateTime now, Long currentMilestoneId) {
+    public void complete(LocalDateTime now, LocalDateTime effectiveAt, Long currentMilestoneId) {
         if (this.completedAt != null) return;
         this.completedAt = now;
-        this.effectiveAt = now;
+        this.effectiveAt = effectiveAt;
         this.milestoneId = currentMilestoneId;
     }
 
@@ -105,6 +105,10 @@ public class Task {
         this.completedAt = null;
         this.effectiveAt = null;
         this.milestoneId = null;
+    }
+
+    public void changeEffectiveTime(LocalDateTime effectiveAt) {
+        this.effectiveAt = effectiveAt;
     }
 
     public void assignProject(Long projectId) {

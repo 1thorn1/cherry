@@ -1,5 +1,6 @@
 import { useDroppable } from '@dnd-kit/core'
 import { useEffect, useRef } from 'react'
+import { IconCheck } from '@tabler/icons-react'
 import type { Task } from '../types/task'
 import {
   START_HOUR,
@@ -21,7 +22,11 @@ function toMinutes(iso: string) {
 }
 
 function anchorTime(task: Task, view: TimetableView) {
-  return view === 'scheduled' ? task.scheduled_start : task.effective_at ?? task.completed_at
+  if (view === 'scheduled') {
+    // 예정 시간이 없어도 완료는 했다면, 실제로 한 시각에 완료 표시로 보여준다
+    return task.scheduled_start ?? (task.completed_at ? task.effective_at ?? task.completed_at : null)
+  }
+  return task.effective_at ?? task.completed_at
 }
 
 function range(task: Task, view: TimetableView) {
@@ -97,14 +102,18 @@ export default function Timetable({ tasks, view, onUnschedule }: Props) {
             color: task.completed_at ? '#888780' : 'var(--cherry)',
           }
 
-          if (view === 'actual') {
+          // 예정 시간 없이 완료 시각으로만 표시되는 항목 — 실제 일정이 아니므로 해제 불가, 완료 표시만
+          const isCompletionMarker = view === 'scheduled' && !task.scheduled_start
+
+          if (view === 'actual' || isCompletionMarker) {
             return (
               <div
                 key={task.id}
-                className="absolute overflow-hidden rounded-md px-2 py-1 text-left text-[11px] leading-tight"
+                className="absolute flex items-center gap-1 overflow-hidden rounded-md px-2 py-1 text-left text-[11px] leading-tight"
                 style={style}
               >
-                {task.title}
+                {isCompletionMarker && <IconCheck size={11} stroke={2.5} className="flex-none" />}
+                <span className="truncate">{task.title}</span>
               </div>
             )
           }

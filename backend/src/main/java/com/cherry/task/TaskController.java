@@ -1,6 +1,7 @@
 package com.cherry.task;
 
 import com.cherry.task.dto.TaskCreateRequest;
+import com.cherry.task.dto.TaskEffectiveTimeRequest;
 import com.cherry.task.dto.TaskMemoRequest;
 import com.cherry.task.dto.TaskProjectRequest;
 import com.cherry.task.dto.TaskReminderRequest;
@@ -36,6 +37,12 @@ public class TaskController {
     @PatchMapping("/{id}/uncomplete")
     public TaskResponse uncomplete(@PathVariable Long id) {
         return taskService.uncomplete(DEV_USER_ID, id);
+    }
+
+    @PatchMapping("/{id}/effective-time")
+    public TaskResponse setEffectiveTime(@PathVariable Long id,
+                                         @RequestBody TaskEffectiveTimeRequest request) {
+        return taskService.setEffectiveTime(DEV_USER_ID, id, request.effectiveAt());
     }
 
     @PatchMapping("/{id}/memo")

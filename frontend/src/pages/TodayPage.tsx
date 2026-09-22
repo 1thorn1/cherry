@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { DndContext, useDraggable, type DragEndEvent } from '@dnd-kit/core'
-import { IconBell, IconCheck, IconGripVertical, IconRepeat } from '@tabler/icons-react'
+import { IconBell, IconCheck, IconClock, IconGripVertical, IconRepeat } from '@tabler/icons-react'
 import type { Task } from '../types/task'
 import type { Routine, RoutineFreq } from '../types/routine'
 import type { Park } from '../types/park'
@@ -8,7 +8,7 @@ import type { TaskParseResult } from '../types/parse'
 import Timetable from '../components/Timetable'
 import TimeSelect from '../components/TimeSelect'
 import NotifySelect from '../components/NotifySelect'
-import { getToday, createTask, completeTask, uncompleteTask, deleteTask, scheduleTask, setTaskReminder } from '../api/tasks'
+import { getToday, createTask, completeTask, uncompleteTask, deleteTask, scheduleTask, setTaskReminder, setTaskEffectiveTime } from '../api/tasks'
 import { getRoutines, createRoutine } from '../api/routines'
 import { getPark } from '../api/park'
 import { parseTask } from '../api/parse'
@@ -140,6 +140,8 @@ export default function TodayPage() {
   const [view, setView] = useState<TimetableView>('scheduled')
   const [saving, setSaving] = useState(false)
   const [suggestions, setSuggestions] = useState<Record<number, TaskParseResult>>({})
+  const [openChipTaskId, setOpenChipTaskId] = useState<number | null>(null)
+  const [editingTimeTaskId, setEditingTimeTaskId] = useState<number | null>(null)
 
   const [routines, setRoutines] = useState<Routine[]>([])
   const [showRoutineForm, setShowRoutineForm] = useState(false)
@@ -147,6 +149,8 @@ export default function TodayPage() {
   const [routineFreq, setRoutineFreq] = useState<RoutineFreq>('DAILY')
   const [routineWeekdays, setRoutineWeekdays] = useState<Set<number>>(new Set())
   const [routineMonthDay, setRoutineMonthDay] = useState('')
+  const [routineDefaultTime, setRoutineDefaultTime] = useState('')
+  const [routineTimeBasis, setRoutineTimeBasis] = useState<'CHECKED' | 'SCHEDULED'>('CHECKED')
   const [routineSaving, setRoutineSaving] = useState(false)
 
   const [park, setPark] = useState<Park | null>(null)
@@ -206,11 +210,15 @@ export default function TodayPage() {
         freq: routineFreq,
         weekdays: routineFreq === 'WEEKLY' ? weekdaysMask : undefined,
         month_day: routineFreq === 'MONTHLY' ? Number(routineMonthDay) : undefined,
+        default_time: routineDefaultTime || undefined,
+        time_basis: routineDefaultTime ? routineTimeBasis : undefined,
         started_on: today,
       })
       setRoutineTitle('')
       setRoutineWeekdays(new Set())
       setRoutineMonthDay('')
+      setRoutineDefaultTime('')
+      setRoutineTimeBasis('CHECKED')
       setShowRoutineForm(false)
       await Promise.all([load(), loadRoutines()])
     } catch (e) {
@@ -275,9 +283,21 @@ export default function TodayPage() {
   }
 
   async function handleToggle(task: Task) {
-    task.completed_at ? await uncompleteTask(task.id) : await completeTask(task.id)
+    if (task.completed_at) {
+      await uncompleteTask(task.id)
+      if (openChipTaskId === task.id) setOpenChipTaskId(null)
+    } else {
+      await completeTask(task.id)
+    }
     load()
     loadPark()
+  }
+
+  async function applyEffectiveTime(task: Task, effectiveAt: string) {
+    await setTaskEffectiveTime(task.id, effectiveAt)
+    setOpenChipTaskId(null)
+    setEditingTimeTaskId(null)
+    load()
   }
 
   async function handleDelete(id: number) {
@@ -412,6 +432,33 @@ export default function TodayPage() {
             />
           )}
 
+          <input
+            type="time"
+            value={routineDefaultTime}
+            onChange={(e) => setRoutineDefaultTime(e.target.value)}
+            className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+          />
+
+          {routineDefaultTime && (
+            <div className="mb-3">
+              <p className="mb-1.5 text-[11px] text-neutral-400">완료로 기록할 시각</p>
+              <div className="flex gap-1 rounded-lg bg-neutral-100 p-1">
+                <button
+                  onClick={() => setRoutineTimeBasis('CHECKED')}
+                  className={`flex-1 rounded-md py-2 text-xs font-medium ${routineTimeBasis === 'CHECKED' ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
+                >
+                  체크한 시각
+                </button>
+                <button
+                  onClick={() => setRoutineTimeBasis('SCHEDULED')}
+                  className={`flex-1 rounded-md py-2 text-xs font-medium ${routineTimeBasis === 'SCHEDULED' ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
+                >
+                  예정 시각 ({routineDefaultTime})
+                </button>
+              </div>
+            </div>
+          )}
+
           <button
             onClick={handleCreateRoutine}
             disabled={routineSaving}
@@ -478,24 +525,70 @@ export default function TodayPage() {
               <p className="py-8 text-center text-xs text-neutral-400">아직 없어요</p>
             )}
             {done.map((task) => (
-              <div key={task.id} className="flex items-center gap-3 border-b border-neutral-100 py-3">
-                <button
-                  onClick={() => handleToggle(task)}
-                  className="flex h-4 w-4 flex-none items-center justify-center rounded text-white"
-                  style={{ background: 'var(--cherry)' }}
-                  aria-label="완료 취소"
-                >
-                  <IconCheck size={10} stroke={2.5} />
-                </button>
-                <span className="flex-1 text-sm text-neutral-400 line-through">
-                  {task.title}
-                  {routineLabelFor(task) && (
-                    <span className="ml-2 inline-flex items-center gap-0.5 text-[11px] text-neutral-300">
-                      <IconRepeat size={11} stroke={1.75} />{routineLabelFor(task)}
-                    </span>
-                  )}
-                </span>
-                <span className="text-[11px] text-neutral-300">{task.completed_at?.slice(11, 16)}</span>
+              <div key={task.id} className="border-b border-neutral-100 py-3">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => handleToggle(task)}
+                    className="flex h-4 w-4 flex-none items-center justify-center rounded text-white"
+                    style={{ background: 'var(--cherry)' }}
+                    aria-label="완료 취소"
+                  >
+                    <IconCheck size={10} stroke={2.5} />
+                  </button>
+                  <span className="flex-1 text-sm text-neutral-400 line-through">
+                    {task.title}
+                    {routineLabelFor(task) && (
+                      <span className="ml-2 inline-flex items-center gap-0.5 text-[11px] text-neutral-300">
+                        <IconRepeat size={11} stroke={1.75} />{routineLabelFor(task)}
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-[11px] text-neutral-300">
+                    {(task.effective_at ?? task.completed_at)?.slice(11, 16)}
+                  </span>
+                  <button
+                    onClick={() => setOpenChipTaskId(openChipTaskId === task.id ? null : task.id)}
+                    className="flex text-neutral-300"
+                    aria-label="완료 시각 수정"
+                  >
+                    <IconClock size={13} stroke={1.75} />
+                  </button>
+                </div>
+
+                {openChipTaskId === task.id && (
+                  <div className="ml-7 mt-2 flex flex-wrap items-center gap-1.5">
+                    <span className="mr-0.5 text-[11px] text-neutral-400">언제로 기록할까요?</span>
+                    {task.scheduled_start && (
+                      <button
+                        onClick={() => applyEffectiveTime(task, task.scheduled_start!)}
+                        className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
+                      >
+                        예정대로
+                      </button>
+                    )}
+                    <button
+                      onClick={() => applyEffectiveTime(task, task.completed_at!)}
+                      className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
+                    >
+                      지금
+                    </button>
+                    {editingTimeTaskId === task.id ? (
+                      <input
+                        type="time"
+                        autoFocus
+                        onChange={(e) => e.target.value && applyEffectiveTime(task, `${task.task_date ?? today}T${e.target.value}:00`)}
+                        className="rounded-md border border-neutral-200 px-1.5 py-1 text-[11px]"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setEditingTimeTaskId(task.id)}
+                        className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
+                      >
+                        직접입력
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </section>
