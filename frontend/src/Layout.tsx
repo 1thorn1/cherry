@@ -8,7 +8,6 @@ const tabs = [
   { to: '/calendar', label: '캘린더', end: false },
   { to: '/projects', label: '프로젝트', end: false },
   { to: '/park', label: '공원', end: false },
-  { to: '/friends', label: '친구', end: false },
 ]
 
 export default function Layout() {
@@ -18,6 +17,14 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen pb-20">
+      <NavLink
+        to="/settings"
+        aria-label="설정"
+        className="fixed right-4 top-4 z-10 rounded-full bg-white p-2 text-base leading-none shadow-sm aria-[current=page]:bg-[var(--cherry-bg)]"
+      >
+        ⚙️
+      </NavLink>
+
       <Outlet />
 
       <nav className="fixed bottom-0 left-0 right-0 flex border-t border-neutral-100 bg-white">

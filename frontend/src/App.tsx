@@ -6,7 +6,7 @@ import ProjectsPage from './pages/ProjectsPage'
 import ProjectDetailPage from './pages/ProjectDetailPage'
 import SearchPage from './pages/SearchPage'
 import ParkPage from './pages/ParkPage'
-import FriendPage from './pages/FriendPage'
+import SettingsPage from './pages/SettingsPage'
 import ChallengesPage from './pages/ChallengesPage'
 import ChallengeDetailPage from './pages/ChallengeDetailPage'
 
@@ -20,7 +20,7 @@ export default function App() {
         <Route path="projects/:id" element={<ProjectDetailPage />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="park" element={<ParkPage />} />
-        <Route path="friends" element={<FriendPage />} />
+        <Route path="settings" element={<SettingsPage />} />
         <Route path="challenges" element={<ChallengesPage />} />
         <Route path="challenges/:id" element={<ChallengeDetailPage />} />
       </Route>
