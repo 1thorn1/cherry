@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { DndContext, useDraggable, type DragEndEvent } from '@dnd-kit/core'
-import { IconBell, IconCheck, IconClock, IconGripVertical, IconRepeat } from '@tabler/icons-react'
+import { IconBell, IconCheck, IconClock, IconGripVertical, IconNote, IconRepeat } from '@tabler/icons-react'
 import type { Task } from '../types/task'
 import type { Routine, RoutineFreq } from '../types/routine'
 import type { Park } from '../types/park'
@@ -8,7 +8,7 @@ import type { TaskParseResult } from '../types/parse'
 import Timetable from '../components/Timetable'
 import TimeSelect from '../components/TimeSelect'
 import NotifySelect from '../components/NotifySelect'
-import { getToday, createTask, completeTask, uncompleteTask, deleteTask, scheduleTask, setTaskReminder, setTaskEffectiveTime } from '../api/tasks'
+import { getToday, createTask, completeTask, uncompleteTask, deleteTask, scheduleTask, setTaskReminder, setTaskEffectiveTime, setTaskMemo } from '../api/tasks'
 import { getRoutines, createRoutine } from '../api/routines'
 import { getPark } from '../api/park'
 import { parseTask } from '../api/parse'
@@ -142,6 +142,8 @@ export default function TodayPage() {
   const [suggestions, setSuggestions] = useState<Record<number, TaskParseResult>>({})
   const [openChipTaskId, setOpenChipTaskId] = useState<number | null>(null)
   const [editingTimeTaskId, setEditingTimeTaskId] = useState<number | null>(null)
+  const [openMemoTaskId, setOpenMemoTaskId] = useState<number | null>(null)
+  const [memoDraft, setMemoDraft] = useState('')
 
   const [routines, setRoutines] = useState<Routine[]>([])
   const [showRoutineForm, setShowRoutineForm] = useState(false)
@@ -286,11 +288,31 @@ export default function TodayPage() {
     if (task.completed_at) {
       await uncompleteTask(task.id)
       if (openChipTaskId === task.id) setOpenChipTaskId(null)
+      if (openMemoTaskId === task.id) setOpenMemoTaskId(null)
     } else {
-      await completeTask(task.id)
+      const updated = await completeTask(task.id)
+      setOpenMemoTaskId(updated.id)
+      setMemoDraft('')
     }
     load()
     loadPark()
+  }
+
+  async function saveMemo(task: Task) {
+    const memo = memoDraft.trim()
+    setOpenMemoTaskId(null)
+    if (memo === (task.memo ?? '')) return
+    await setTaskMemo(task.id, memo)
+    load()
+  }
+
+  function toggleMemoEditor(task: Task) {
+    if (openMemoTaskId === task.id) {
+      setOpenMemoTaskId(null)
+    } else {
+      setOpenMemoTaskId(task.id)
+      setMemoDraft(task.memo ?? '')
+    }
   }
 
   async function applyEffectiveTime(task: Task, effectiveAt: string) {
@@ -547,6 +569,13 @@ export default function TodayPage() {
                     {(task.effective_at ?? task.completed_at)?.slice(11, 16)}
                   </span>
                   <button
+                    onClick={() => toggleMemoEditor(task)}
+                    className="flex text-neutral-300"
+                    aria-label="메모 수정"
+                  >
+                    <IconNote size={13} stroke={1.75} />
+                  </button>
+                  <button
                     onClick={() => setOpenChipTaskId(openChipTaskId === task.id ? null : task.id)}
                     className="flex text-neutral-300"
                     aria-label="완료 시각 수정"
@@ -554,6 +583,20 @@ export default function TodayPage() {
                     <IconClock size={13} stroke={1.75} />
                   </button>
                 </div>
+
+                {openMemoTaskId === task.id ? (
+                  <input
+                    autoFocus
+                    value={memoDraft}
+                    onChange={(e) => setMemoDraft(e.target.value)}
+                    onBlur={() => saveMemo(task)}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                    placeholder="메모 (선택)"
+                    className="ml-7 mt-2 w-[calc(100%-1.75rem)] rounded-md border border-neutral-200 px-2 py-1 text-[11px] outline-none focus:border-neutral-400"
+                  />
+                ) : task.memo ? (
+                  <p className="ml-7 mt-1 text-[11px] text-neutral-400">{task.memo}</p>
+                ) : null}
 
                 {openChipTaskId === task.id && (
                   <div className="ml-7 mt-2 flex flex-wrap items-center gap-1.5">
