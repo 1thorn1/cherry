@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,6 +22,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     boolean existsByRoutineIdAndTaskDate(Long routineId, LocalDate taskDate);
 
     List<Task> findByProjectIdAndCompletedAtIsNotNullAndDeletedAtIsNullOrderByCompletedAtDesc(Long projectId);
+
+    List<Task> findByProjectIdAndCompletedAtBetweenAndDeletedAtIsNull(
+            Long projectId, LocalDateTime start, LocalDateTime end);
 
     List<Task> findByUserIdAndTaskDateBetweenAndDeletedAtIsNull(Long userId, LocalDate start, LocalDate end);
 

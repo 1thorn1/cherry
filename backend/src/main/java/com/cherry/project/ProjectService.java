@@ -39,18 +39,25 @@ public class ProjectService {
 
     @Transactional
     public ProjectResponse create(Long userId, ProjectCreateRequest request) {
-        Project project = Project.create(userId, request.name().trim(), request.type(),
-                request.totalUnits(), request.examDate());
+        Project project = createProject(userId, request.name().trim(), request.type(),
+                request.totalUnits(), request.examDate(), request.milestoneTitles());
+        return ProjectResponse.from(project);
+    }
+
+    @Transactional
+    public Project createProject(Long userId, String name, String type, Integer totalUnits,
+                                  LocalDate examDate, List<String> milestoneTitles) {
+        Project project = Project.create(userId, name, type, totalUnits, examDate);
         projectRepository.save(project);
 
         List<Milestone> milestones = switch (project.getType()) {
             case "PROGRESS" -> generateProgressMilestones(project);
             case "EXAM" -> generateExamMilestones(project);
-            default -> generateFreeMilestones(project, request.milestoneTitles());
+            default -> generateFreeMilestones(project, milestoneTitles);
         };
         milestoneRepository.saveAll(milestones);
 
-        return ProjectResponse.from(project);
+        return project;
     }
 
     @Transactional(readOnly = true)
