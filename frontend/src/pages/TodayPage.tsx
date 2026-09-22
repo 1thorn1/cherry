@@ -546,26 +546,26 @@ export default function TodayPage() {
                   <span className="text-[11px] text-neutral-300">
                     {(task.effective_at ?? task.completed_at)?.slice(11, 16)}
                   </span>
-                  {task.scheduled_start && (
-                    <button
-                      onClick={() => setOpenChipTaskId(openChipTaskId === task.id ? null : task.id)}
-                      className="flex text-neutral-300"
-                      aria-label="완료 시각 수정"
-                    >
-                      <IconClock size={13} stroke={1.75} />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setOpenChipTaskId(openChipTaskId === task.id ? null : task.id)}
+                    className="flex text-neutral-300"
+                    aria-label="완료 시각 수정"
+                  >
+                    <IconClock size={13} stroke={1.75} />
+                  </button>
                 </div>
 
-                {openChipTaskId === task.id && task.scheduled_start && (
+                {openChipTaskId === task.id && (
                   <div className="ml-7 mt-2 flex flex-wrap items-center gap-1.5">
                     <span className="mr-0.5 text-[11px] text-neutral-400">언제로 기록할까요?</span>
-                    <button
-                      onClick={() => applyEffectiveTime(task, task.scheduled_start!)}
-                      className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
-                    >
-                      예정대로
-                    </button>
+                    {task.scheduled_start && (
+                      <button
+                        onClick={() => applyEffectiveTime(task, task.scheduled_start!)}
+                        className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
+                      >
+                        예정대로
+                      </button>
+                    )}
                     <button
                       onClick={() => applyEffectiveTime(task, task.completed_at!)}
                       className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
