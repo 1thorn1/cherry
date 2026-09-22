@@ -87,6 +87,18 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("PARK_NOT_SHARED", e.getMessage()));
     }
 
+    @ExceptionHandler(ChallengeNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleChallengeNotFound(ChallengeNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("CHALLENGE_NOT_FOUND", e.getMessage()));
+    }
+
+    @ExceptionHandler(AlreadyChallengeMemberException.class)
+    public ResponseEntity<ErrorResponse> handleAlreadyChallengeMember(AlreadyChallengeMemberException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse("ALREADY_CHALLENGE_MEMBER", e.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException e) {
         String message = e.getBindingResult().getFieldErrors().stream()
