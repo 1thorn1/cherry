@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Project } from '../types/project'
 import { createProject, getProjects, type CreateProjectInput } from '../api/projects'
+import { getChallengeProjectLinks } from '../api/challenges'
+import type { ChallengeProjectLink } from '../types/challenge'
 
 type Mode = 'FREE' | 'PROGRESS' | 'EXAM'
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
+  const [challengeLinks, setChallengeLinks] = useState<ChallengeProjectLink[]>([])
   const [name, setName] = useState('')
   const [mode, setMode] = useState<Mode>('FREE')
   const [totalUnits, setTotalUnits] = useState('')
@@ -16,7 +19,9 @@ export default function ProjectsPage() {
 
   async function load() {
     try {
-      setProjects(await getProjects())
+      const [projectList, links] = await Promise.all([getProjects(), getChallengeProjectLinks()])
+      setProjects(projectList)
+      setChallengeLinks(links)
       setError('')
     } catch (e) {
       setError(e instanceof Error ? e.message : '불러오지 못했습니다')
@@ -63,7 +68,10 @@ export default function ProjectsPage() {
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-medium tracking-tight">공사 중인 것들</h1>
-        <Link to="/search" className="text-xs text-neutral-400">검색</Link>
+        <div className="flex items-center gap-3">
+          <Link to="/challenges" className="text-xs text-neutral-400">같이 하기</Link>
+          <Link to="/search" className="text-xs text-neutral-400">검색</Link>
+        </div>
       </div>
 
       <div className="mb-8 rounded-lg border border-neutral-200 p-4">
@@ -132,19 +140,29 @@ export default function ProjectsPage() {
         <p className="py-8 text-center text-xs text-neutral-400">아직 프로젝트가 없어요</p>
       )}
 
-      {projects.map((project) => (
-        <Link
-          key={project.id}
-          to={`/projects/${project.id}`}
-          className="flex items-center justify-between border-b border-neutral-100 py-3 text-sm"
-        >
-          <span>{project.name}</span>
-          <span className="text-[11px] text-neutral-400">
-            {project.type === 'PROGRESS' && `${project.total_units}강`}
-            {project.type === 'EXAM' && `D-day ${project.exam_date}`}
-          </span>
-        </Link>
-      ))}
+      {projects.map((project) => {
+        const challengeLink = challengeLinks.find((l) => l.project_id === project.id)
+        return (
+          <div key={project.id} className="flex items-center justify-between border-b border-neutral-100 py-3 text-sm">
+            <Link to={`/projects/${project.id}`} className="flex-1">{project.name}</Link>
+            <div className="flex items-center gap-2">
+              {challengeLink && (
+                <Link
+                  to={`/challenges/${challengeLink.challenge_id}`}
+                  className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                  style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
+                >
+                  같이 하기
+                </Link>
+              )}
+              <span className="text-[11px] text-neutral-400">
+                {project.type === 'PROGRESS' && `${project.total_units}강`}
+                {project.type === 'EXAM' && `D-day ${project.exam_date}`}
+              </span>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }

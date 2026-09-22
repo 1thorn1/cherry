@@ -2,6 +2,7 @@ package com.cherry.challenge;
 
 import com.cherry.challenge.dto.ChallengeCreateRequest;
 import com.cherry.challenge.dto.ChallengeDetailResponse;
+import com.cherry.challenge.dto.ChallengeProjectLinkResponse;
 import com.cherry.challenge.dto.ChallengeResponse;
 import com.cherry.challenge.dto.MemberProgressResponse;
 import com.cherry.common.AlreadyChallengeMemberException;
@@ -25,7 +26,9 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -84,6 +87,21 @@ public class ChallengeService {
                 .stream().map(ChallengeMember::getChallengeId).toList();
         return challengeRepository.findAllById(challengeIds).stream()
                 .map(ChallengeResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ChallengeProjectLinkResponse> myProjectLinks(Long userId) {
+        List<ChallengeMember> memberships = challengeMemberRepository.findByUserIdAndLeftAtIsNull(userId);
+        Map<Long, Challenge> challengesById = challengeRepository
+                .findAllById(memberships.stream().map(ChallengeMember::getChallengeId).toList())
+                .stream().collect(Collectors.toMap(Challenge::getId, c -> c));
+
+        return memberships.stream()
+                .map(m -> {
+                    Challenge challenge = challengesById.get(m.getChallengeId());
+                    return new ChallengeProjectLinkResponse(m.getProjectId(), challenge.getId(), challenge.getTitle());
+                })
+                .toList();
     }
 
     @Transactional(readOnly = true)

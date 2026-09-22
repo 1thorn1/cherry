@@ -33,6 +33,7 @@ export default function FriendPage() {
   const [visitedIds, setVisitedIds] = useState<Set<number>>(new Set())
   const [settings, setSettings] = useState<SharingSettings | null>(null)
   const [savingSettings, setSavingSettings] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
 
   async function loadAll() {
     try {
@@ -153,7 +154,18 @@ export default function FriendPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
-      <h1 className="mb-6 text-xl font-medium tracking-tight">친구</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-xl font-medium tracking-tight">친구</h1>
+        <button
+          onClick={() => setShowSettings((v) => !v)}
+          aria-label="공개 설정"
+          aria-pressed={showSettings}
+          className="rounded-md p-1.5 text-base leading-none"
+          style={showSettings ? { background: 'var(--cherry-bg)' } : undefined}
+        >
+          ⚙️
+        </button>
+      </div>
 
       <div className="mb-6 rounded-lg border border-neutral-200 p-4">
         <p className="mb-2 text-xs text-neutral-400">내 친구 코드</p>
@@ -185,7 +197,7 @@ export default function FriendPage() {
         </button>
       </form>
 
-      {settings && (
+      {settings && showSettings && (
         <div className="mb-8 rounded-lg border border-neutral-200 p-4">
           <p className="mb-3 text-xs text-neutral-400">공개 설정</p>
           <div className="space-y-3">
