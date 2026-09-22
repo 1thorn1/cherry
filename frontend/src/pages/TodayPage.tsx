@@ -4,12 +4,14 @@ import { IconBell, IconCheck, IconGripVertical, IconRepeat } from '@tabler/icons
 import type { Task } from '../types/task'
 import type { Routine, RoutineFreq } from '../types/routine'
 import type { Park } from '../types/park'
+import type { TaskParseResult } from '../types/parse'
 import Timetable from '../components/Timetable'
 import TimeSelect from '../components/TimeSelect'
 import NotifySelect from '../components/NotifySelect'
 import { getToday, createTask, completeTask, uncompleteTask, deleteTask, scheduleTask, setTaskReminder } from '../api/tasks'
 import { getRoutines, createRoutine } from '../api/routines'
 import { getPark } from '../api/park'
+import { parseTask } from '../api/parse'
 import { START_HOUR, END_HOUR, hourDroppableId, type TimetableView } from '../lib/timetable'
 import { routineRuleLabel } from '../lib/routine'
 import { ensurePushSubscription } from '../lib/push'
@@ -17,20 +19,45 @@ import { ensurePushSubscription } from '../lib/push'
 const today = new Date().toISOString().slice(0, 10)
 const WEEKDAY_LABELS = ['월', '화', '수', '목', '금', '토', '일']
 
+function formatSuggestion(s: TaskParseResult): string {
+  const parts: string[] = []
+  if (s.task_date && s.task_date !== today) {
+    const diffDays = Math.round(
+      (new Date(`${s.task_date}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86400000
+    )
+    if (diffDays === 1) parts.push('내일')
+    else if (diffDays === 2) parts.push('모레')
+    else parts.push(s.task_date.slice(5).replace('-', '/'))
+  }
+  if (s.scheduled_time) {
+    const [h, m] = s.scheduled_time.split(':').map(Number)
+    const period = h < 12 ? '오전' : '오후'
+    const h12 = h % 12 === 0 ? 12 : h % 12
+    parts.push(m === 0 ? `${period} ${h12}시` : `${period} ${h12}시 ${m}분`)
+  }
+  return parts.join(' ')
+}
+
 function TaskRow({
   task,
   routineLabel,
+  suggestion,
   onToggle,
   onSchedule,
   onSetReminder,
   onDelete,
+  onApplySuggestion,
+  onDismissSuggestion,
 }: {
   task: Task
   routineLabel: string | null
+  suggestion: TaskParseResult | null
   onToggle: (task: Task) => void
   onSchedule: (task: Task, hour: number | null) => void
   onSetReminder: (task: Task, offset: number | null) => void
   onDelete: (id: number) => void
+  onApplySuggestion: (task: Task) => void
+  onDismissSuggestion: (id: number) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id })
 
@@ -41,44 +68,65 @@ function TaskRow({
         transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
         opacity: isDragging ? 0.5 : 1,
       }}
-      className="group flex items-center gap-3 border-b border-neutral-100 py-3"
+      className="border-b border-neutral-100 py-3"
     >
-      <button
-        onClick={() => onToggle(task)}
-        className="h-4 w-4 flex-none rounded border-[1.5px] border-neutral-300 hover:border-neutral-500"
-        aria-label="완료"
-      />
-      <span
-        {...listeners}
-        {...attributes}
-        className="touch-none select-none text-neutral-300 cursor-grab active:cursor-grabbing"
-        aria-label="드래그해서 시간 배정"
-      >
-        <IconGripVertical size={14} stroke={1.75} />
-      </span>
-      <span className="flex-1 text-sm">
-        {task.title}
-        {routineLabel && (
-          <span className="ml-2 inline-flex items-center gap-0.5 text-[11px] text-neutral-400">
-            <IconRepeat size={12} stroke={1.75} />{routineLabel}
-          </span>
+      <div className="group flex items-center gap-3">
+        <button
+          onClick={() => onToggle(task)}
+          className="h-4 w-4 flex-none rounded border-[1.5px] border-neutral-300 hover:border-neutral-500"
+          aria-label="완료"
+        />
+        <span
+          {...listeners}
+          {...attributes}
+          className="touch-none select-none text-neutral-300 cursor-grab active:cursor-grabbing"
+          aria-label="드래그해서 시간 배정"
+        >
+          <IconGripVertical size={14} stroke={1.75} />
+        </span>
+        <span className="flex-1 text-sm">
+          {task.title}
+          {routineLabel && (
+            <span className="ml-2 inline-flex items-center gap-0.5 text-[11px] text-neutral-400">
+              <IconRepeat size={12} stroke={1.75} />{routineLabel}
+            </span>
+          )}
+          {task.notify_offset_min !== null && (
+            <span className="ml-2 inline-flex text-neutral-400" aria-label="알림 켜짐">
+              <IconBell size={12} stroke={1.75} />
+            </span>
+          )}
+        </span>
+        <TimeSelect value={task.scheduled_start} onChange={(hour) => onSchedule(task, hour)} />
+        {task.scheduled_start && (
+          <NotifySelect value={task.notify_offset_min} onChange={(offset) => onSetReminder(task, offset)} />
         )}
-        {task.notify_offset_min !== null && (
-          <span className="ml-2 inline-flex text-neutral-400" aria-label="알림 켜짐">
-            <IconBell size={12} stroke={1.75} />
-          </span>
-        )}
-      </span>
-      <TimeSelect value={task.scheduled_start} onChange={(hour) => onSchedule(task, hour)} />
-      {task.scheduled_start && (
-        <NotifySelect value={task.notify_offset_min} onChange={(offset) => onSetReminder(task, offset)} />
+        <button
+          onClick={() => onDelete(task.id)}
+          className="text-xs text-neutral-300 opacity-0 transition group-hover:opacity-100"
+        >
+          삭제
+        </button>
+      </div>
+
+      {suggestion && (
+        <div className="ml-7 mt-2 flex items-center gap-2 text-[11px]">
+          <span className="text-neutral-400">{formatSuggestion(suggestion)}로 예정할까요?</span>
+          <button
+            onClick={() => onApplySuggestion(task)}
+            className="rounded-full px-2 py-0.5 font-medium text-white"
+            style={{ background: 'var(--cherry)' }}
+          >
+            적용
+          </button>
+          <button
+            onClick={() => onDismissSuggestion(task.id)}
+            className="rounded-full bg-neutral-100 px-2 py-0.5 font-medium text-neutral-400"
+          >
+            무시
+          </button>
+        </div>
       )}
-      <button
-        onClick={() => onDelete(task.id)}
-        className="text-xs text-neutral-300 opacity-0 transition group-hover:opacity-100"
-      >
-        삭제
-      </button>
     </div>
   )
 }
@@ -91,6 +139,7 @@ export default function TodayPage() {
   const [tab, setTab] = useState<'todo' | 'done' | 'timetable'>('todo')
   const [view, setView] = useState<TimetableView>('scheduled')
   const [saving, setSaving] = useState(false)
+  const [suggestions, setSuggestions] = useState<Record<number, TaskParseResult>>({})
 
   const [routines, setRoutines] = useState<Routine[]>([])
   const [showRoutineForm, setShowRoutineForm] = useState(false)
@@ -182,14 +231,47 @@ export default function TodayPage() {
     if (!title || saving) return
     setSaving(true)
     try {
-      await createTask(title, today)
+      const created = await createTask(title, today)
       setInput('')
       await load()
+      try {
+        const parsed = await parseTask(title)
+        const worthShowing = (parsed.task_date && parsed.task_date !== today) || parsed.scheduled_time
+        if (worthShowing) {
+          setSuggestions((prev) => ({ ...prev, [created.id]: parsed }))
+        }
+      } catch {
+        // 파싱 실패는 조용히 무시 — 저장은 이미 끝났음 (A-6-10 원칙)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : '추가하지 못했습니다')
     } finally {
       setSaving(false)
     }
+  }
+
+  async function handleApplySuggestion(task: Task) {
+    const suggestion = suggestions[task.id]
+    if (!suggestion) return
+    const date = suggestion.task_date ?? today
+    let start: string | null = null
+    let end: string | null = null
+    if (suggestion.scheduled_time) {
+      const [h, m] = suggestion.scheduled_time.split(':').map(Number)
+      start = `${date}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`
+      end = `${date}T${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`
+    }
+    await scheduleTask(task.id, start, end, suggestion.task_date ?? undefined)
+    handleDismissSuggestion(task.id)
+    await load()
+  }
+
+  function handleDismissSuggestion(taskId: number) {
+    setSuggestions((prev) => {
+      const next = { ...prev }
+      delete next[taskId]
+      return next
+    })
   }
 
   async function handleToggle(task: Task) {
@@ -379,10 +461,13 @@ export default function TodayPage() {
                 key={task.id}
                 task={task}
                 routineLabel={routineLabelFor(task)}
+                suggestion={suggestions[task.id] ?? null}
                 onToggle={handleToggle}
                 onSchedule={handleSchedule}
                 onSetReminder={handleSetReminder}
                 onDelete={handleDelete}
+                onApplySuggestion={handleApplySuggestion}
+                onDismissSuggestion={handleDismissSuggestion}
               />
             ))}
           </section>
