@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { Friend, FriendCode, PendingRequest } from '../types/friend'
+import type { Friend, FriendCode, FriendPark, PendingRequest } from '../types/friend'
 
 export function getMyFriendCode() {
   return request<FriendCode>('/api/friends/code')
@@ -26,4 +26,12 @@ export function removeFriendship(friendshipId: number) {
 
 export function getFriends() {
   return request<Friend[]>('/api/friends')
+}
+
+export function getFriendPark(friendshipId: number) {
+  return request<FriendPark>(`/api/friends/${friendshipId}/park`)
+}
+
+export function visitFriendPark(friendshipId: number) {
+  return request<void>(`/api/friends/${friendshipId}/visit`, { method: 'POST' })
 }
