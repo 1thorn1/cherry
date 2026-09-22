@@ -1,5 +1,6 @@
 package com.cherry.park;
 
+import com.cherry.park.dto.FriendParkResponse;
 import com.cherry.park.dto.ParkResponse;
 import com.cherry.park.dto.ParkSlotResponse;
 import com.cherry.user.User;
@@ -19,10 +20,12 @@ public class ParkService {
     private static final double POPULATION_BONUS_RATE = 0.01; // 인구 100당 +100%
     private static final int DAILY_POINT_CAP = 100;
     private static final int MILESTONE_BONUS = 50;
+    private static final int DAILY_VISIT_CAP = 3; // 방문 보너스는 하루 3명까지
 
     private final PointLedgerRepository pointLedgerRepository;
     private final ParkSlotRepository parkSlotRepository;
     private final DailyStatRepository dailyStatRepository;
+    private final ParkVisitRepository parkVisitRepository;
     private final UserRepository userRepository;
 
     @Transactional
@@ -40,7 +43,7 @@ public class ParkService {
         int newPoints = Math.min(rawPoints, DAILY_POINT_CAP);
 
         int delta = newPoints - stat.getPointsEarned();
-        stat.update(newCompletedCount, newPoints, newPoints);
+        stat.update(newCompletedCount, stat.getVisitors(), newPoints);
 
         pointLedgerRepository.save(PointLedger.create(userId, date, delta, "TASK_COMPLETE", "TASK", taskId));
         user.earnPoints(delta);
@@ -71,5 +74,29 @@ public class ParkService {
                 .stream().map(ParkSlotResponse::from).toList();
 
         return new ParkResponse(user.getPopulation(), user.getPointBalance(), todayVisitors, slots);
+    }
+
+    @Transactional(readOnly = true)
+    public FriendParkResponse getFriendView(Long hostId) {
+        User host = userRepository.findById(hostId).orElseThrow();
+        var slots = parkSlotRepository.findByUserIdOrderBySlotIndexAsc(hostId)
+                .stream().map(ParkSlotResponse::from).toList();
+
+        return new FriendParkResponse(host.getPopulation(), slots);
+    }
+
+    @Transactional
+    public void visit(Long visitorId, Long hostId) {
+        LocalDate today = LocalDate.now();
+        if (parkVisitRepository.existsByVisitorIdAndHostIdAndVisitedOn(visitorId, hostId, today)) {
+            return; // 오늘 이미 다녀감 — 조용히 무시
+        }
+        parkVisitRepository.save(ParkVisit.create(visitorId, hostId, today));
+
+        DailyStat stat = dailyStatRepository.findByUserIdAndStatDate(hostId, today)
+                .orElseGet(() -> dailyStatRepository.save(DailyStat.create(hostId, today)));
+        if (stat.getVisitors() < DAILY_VISIT_CAP) {
+            stat.update(stat.getCompletedCount(), stat.getVisitors() + 1, stat.getPointsEarned());
+        }
     }
 }

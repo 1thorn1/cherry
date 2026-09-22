@@ -4,6 +4,8 @@ import com.cherry.friend.dto.FriendCodeResponse;
 import com.cherry.friend.dto.FriendResponse;
 import com.cherry.friend.dto.PendingRequestResponse;
 import com.cherry.friend.dto.SendFriendRequest;
+import com.cherry.park.ParkService;
+import com.cherry.park.dto.FriendParkResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,6 +22,7 @@ public class FriendController {
     private static final Long DEV_USER_ID = 1L;
 
     private final FriendshipService friendshipService;
+    private final ParkService parkService;
 
     @GetMapping("/code")
     public FriendCodeResponse getMyCode() {
@@ -52,5 +55,18 @@ public class FriendController {
     @GetMapping
     public List<FriendResponse> getFriends() {
         return friendshipService.getFriends(DEV_USER_ID);
+    }
+
+    @GetMapping("/{id}/park")
+    public FriendParkResponse viewFriendPark(@PathVariable Long id) {
+        Long hostId = friendshipService.resolveAcceptedPartnerId(DEV_USER_ID, id);
+        return parkService.getFriendView(hostId);
+    }
+
+    @PostMapping("/{id}/visit")
+    public ResponseEntity<Void> visitFriendPark(@PathVariable Long id) {
+        Long hostId = friendshipService.resolveAcceptedPartnerId(DEV_USER_ID, id);
+        parkService.visit(DEV_USER_ID, hostId);
+        return ResponseEntity.noContent().build();
     }
 }

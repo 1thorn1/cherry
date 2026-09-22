@@ -1610,6 +1610,7 @@ WHERE MATCH(body) AGAINST('그리드' IN BOOLEAN MODE);
 |---|---|---|---|
 | 2026-09-14 | `frontend/src/App.tsx` (PR #25에서 도입) | `Timetable`이 `todo.map()` 콜백 안에 위치해, 할 일 카드 개수만큼 시간표 전체가 중복 렌더링됨. 레이아웃도 좌/우 2단이 아니라 카드마다 시간표가 끼어드는 구조였음 | 수정 완료 — 0.2 드래그 앤 드롭 작업(2026-09-14) 중 `Timetable`을 루프 밖으로 빼서 3단 컬럼(할 일/완료/시간표)으로 분리 |
 | 2026-09-17 | `frontend/src/Layout.tsx` (PR #35에서 도입) | 하단 탭 바(오늘/캘린더/프로젝트/공원)에 `lg:hidden`이 남아있어, 데스크톱 너비에서 탭 자체가 안 보임. 라우팅 붙이기 전엔 탭이 장식이라 문제없었지만, 각 탭이 실제 페이지로 분리된 뒤에는 데스크톱에서 페이지 이동 수단이 아예 없어지는 버그가 됨 | 수정 완료 — 0.5 프론트 작업(2026-09-17) 중 `lg:hidden` 제거, 항상 노출되도록 변경 |
+| 2026-09-22 | `backend/src/main/java/com/cherry/park/ParkService.java` (`awardForTaskCompletion`, V6 공원 기능에서 도입) | `DailyStat.update(completedCount, visitors, pointsEarned)` 호출에서 `visitors` 자리에 실제 방문객 수 대신 `newPoints`(포인트 값)를 넘김. 태스크를 완료할 때마다 오늘 방문객 수가 그날 적립 포인트 값으로 덮어써짐. 친구 방문 보너스(A-6-14 2단계) 작업 중 `DailyStat.visitors`를 갱신하는 로직을 보다가 발견 | 수정 완료 — 2단계 작업(2026-09-22) 중 기존 `stat.getVisitors()` 값을 그대로 넘기도록 수정 |
 
 ---
 
