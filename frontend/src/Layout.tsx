@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import { IconSettings } from '@tabler/icons-react'
 import { getCatalog } from './api/shop'
 import { applyEquippedTheme } from './lib/theme'
 
@@ -20,9 +21,9 @@ export default function Layout() {
       <NavLink
         to="/settings"
         aria-label="설정"
-        className="fixed right-4 top-4 z-10 rounded-full bg-white p-2 text-base leading-none shadow-sm aria-[current=page]:bg-[var(--cherry-bg)]"
+        className="fixed right-4 top-4 z-10 flex rounded-full bg-white p-2 text-neutral-500 shadow-sm aria-[current=page]:bg-[var(--cherry-bg)] aria-[current=page]:text-[var(--cherry)]"
       >
-        ⚙️
+        <IconSettings size={20} stroke={1.75} />
       </NavLink>
 
       <Outlet />

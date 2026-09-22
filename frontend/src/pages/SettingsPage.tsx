@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { IconCarouselHorizontal, IconRollercoaster } from '@tabler/icons-react'
 import type { Friend, FriendCode, FriendPark, PendingRequest, SharingSettings } from '../types/friend'
 import {
   acceptFriendRequest,
@@ -300,7 +301,11 @@ export default function SettingsPage() {
                               className="flex aspect-square flex-col items-center justify-center rounded-md"
                               style={{ background: 'var(--cherry-bg)' }}
                             >
-                              <span className="text-base">{slot.indoor ? '🎡' : '🎢'}</span>
+                              {slot.indoor ? (
+                                <IconCarouselHorizontal size={18} stroke={1.5} color="var(--cherry)" />
+                              ) : (
+                                <IconRollercoaster size={18} stroke={1.5} color="var(--cherry)" />
+                              )}
                             </div>
                           ))}
                         </div>

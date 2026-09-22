@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { IconCheck } from '@tabler/icons-react'
 import type { NoteKind, ProjectDetail, TimelineEntry } from '../types/project'
 import { addNote, completeMilestone, getProject, getTimeline, updateProjectShared } from '../api/projects'
 
@@ -139,11 +140,11 @@ export default function ProjectDetailPage() {
               <button
                 onClick={() => handleComplete(milestone.id)}
                 disabled={milestone.completed}
-                className="flex h-4 w-4 flex-none items-center justify-center rounded border-[1.5px] border-neutral-300 text-[10px] text-white disabled:border-none"
+                className="flex h-4 w-4 flex-none items-center justify-center rounded border-[1.5px] border-neutral-300 text-white disabled:border-none"
                 style={milestone.completed ? { background: 'var(--cherry)' } : undefined}
                 aria-label="마일스톤 완료"
               >
-                {milestone.completed ? '✓' : ''}
+                {milestone.completed && <IconCheck size={10} stroke={2.5} />}
               </button>
               <span className={`flex-1 text-sm ${milestone.completed ? 'text-neutral-400 line-through' : ''}`}>
                 {milestone.title}

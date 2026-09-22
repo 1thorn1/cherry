@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { DndContext, useDraggable, type DragEndEvent } from '@dnd-kit/core'
+import { IconBell, IconCheck, IconGripVertical, IconRepeat } from '@tabler/icons-react'
 import type { Task } from '../types/task'
 import type { Routine, RoutineFreq } from '../types/routine'
 import type { Park } from '../types/park'
@@ -53,15 +54,19 @@ function TaskRow({
         className="touch-none select-none text-neutral-300 cursor-grab active:cursor-grabbing"
         aria-label="드래그해서 시간 배정"
       >
-        ⠿
+        <IconGripVertical size={14} stroke={1.75} />
       </span>
       <span className="flex-1 text-sm">
         {task.title}
         {routineLabel && (
-          <span className="ml-2 text-[11px] text-neutral-400">🔁 {routineLabel}</span>
+          <span className="ml-2 inline-flex items-center gap-0.5 text-[11px] text-neutral-400">
+            <IconRepeat size={12} stroke={1.75} />{routineLabel}
+          </span>
         )}
         {task.notify_offset_min !== null && (
-          <span className="ml-2" aria-label="알림 켜짐">🔔</span>
+          <span className="ml-2 inline-flex text-neutral-400" aria-label="알림 켜짐">
+            <IconBell size={12} stroke={1.75} />
+          </span>
         )}
       </span>
       <TimeSelect value={task.scheduled_start} onChange={(hour) => onSchedule(task, hour)} />
@@ -391,16 +396,18 @@ export default function TodayPage() {
               <div key={task.id} className="flex items-center gap-3 border-b border-neutral-100 py-3">
                 <button
                   onClick={() => handleToggle(task)}
-                  className="flex h-4 w-4 flex-none items-center justify-center rounded text-[10px] text-white"
+                  className="flex h-4 w-4 flex-none items-center justify-center rounded text-white"
                   style={{ background: 'var(--cherry)' }}
                   aria-label="완료 취소"
                 >
-                  ✓
+                  <IconCheck size={10} stroke={2.5} />
                 </button>
                 <span className="flex-1 text-sm text-neutral-400 line-through">
                   {task.title}
                   {routineLabelFor(task) && (
-                    <span className="ml-2 text-[11px] text-neutral-300">🔁 {routineLabelFor(task)}</span>
+                    <span className="ml-2 inline-flex items-center gap-0.5 text-[11px] text-neutral-300">
+                      <IconRepeat size={11} stroke={1.75} />{routineLabelFor(task)}
+                    </span>
                   )}
                 </span>
                 <span className="text-[11px] text-neutral-300">{task.completed_at?.slice(11, 16)}</span>
