@@ -132,6 +132,15 @@ public class Task {
         this.taskDate = taskDate;
     }
 
+    // 미루기(A-11): 날짜만 바꾸고 예정 시각은 버린다 — 옮겨진 날의 그 시각이 그대로 유효하다는 보장이 없다.
+    // taskDate가 null이면 "이번주로"(날짜 미지정, 이번 주 버킷)를 의미한다.
+    public void postpone(LocalDate taskDate) {
+        this.taskDate = taskDate;
+        this.horizon = "THIS_WEEK";
+        this.scheduledStart = null;
+        this.scheduledEnd = null;
+    }
+
     public void changeNotifyOffset(Integer notifyOffsetMin) {
         this.notifyOffsetMin = notifyOffsetMin;
     }

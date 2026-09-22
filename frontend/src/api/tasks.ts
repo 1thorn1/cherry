@@ -43,6 +43,13 @@ export function setTaskEffectiveTime(id: number, effectiveAt: string) {
   })
 }
 
+export function postponeTask(id: number, taskDate: string | null) {
+  return request<Task>(`/api/tasks/${id}/postpone`, {
+    method: 'PATCH',
+    body: JSON.stringify({ task_date: taskDate }),
+  })
+}
+
 export function setTaskMemo(id: number, memo: string) {
   return request<Task>(`/api/tasks/${id}/memo`, {
     method: 'PATCH',
