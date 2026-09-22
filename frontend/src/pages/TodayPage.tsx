@@ -4,6 +4,7 @@ import { IconBell, IconCalendar, IconCheck, IconClock, IconGripVertical, IconNot
 import type { Task } from '../types/task'
 import type { Routine, RoutineFreq } from '../types/routine'
 import type { Park } from '../types/park'
+import type { Project } from '../types/project'
 import type { TaskParseResult } from '../types/parse'
 import Timetable from '../components/Timetable'
 import TimeSelect from '../components/TimeSelect'
@@ -11,6 +12,7 @@ import NotifySelect from '../components/NotifySelect'
 import { getToday, createTask, completeTask, uncompleteTask, deleteTask, scheduleTask, postponeTask, setTaskReminder, setTaskEffectiveTime, setTaskMemo } from '../api/tasks'
 import { getRoutines, createRoutine } from '../api/routines'
 import { getPark } from '../api/park'
+import { getProjects } from '../api/projects'
 import { parseTask } from '../api/parse'
 import { START_HOUR, END_HOUR, hourDroppableId, type TimetableView } from '../lib/timetable'
 import { routineRuleLabel } from '../lib/routine'
@@ -39,6 +41,17 @@ function thisWeekendDate(): string {
   return addDays(today, diff)
 }
 
+// `#프로젝트명`으로 즉시 묶기 (A-6-1). 이미 있는 프로젝트 이름과 정확히 일치할 때만 태그하고,
+// 일치하는 게 없으면 오타로 새 프로젝트가 몰래 생기는 걸 막기 위해 그냥 글자 그대로 둔다.
+function extractProjectTag(title: string, projects: Project[]): { cleanTitle: string; projectId?: number } {
+  const match = title.match(/#(\S+)/)
+  if (!match) return { cleanTitle: title }
+  const project = projects.find((p) => p.name === match[1])
+  if (!project) return { cleanTitle: title }
+  const cleanTitle = title.replace(match[0], '').replace(/\s+/g, ' ').trim()
+  return { cleanTitle: cleanTitle || title, projectId: project.id }
+}
+
 function formatSuggestion(s: TaskParseResult): string {
   const parts: string[] = []
   if (s.task_date && s.task_date !== today) {
@@ -61,6 +74,7 @@ function formatSuggestion(s: TaskParseResult): string {
 function TaskRow({
   task,
   routineLabel,
+  projectName,
   suggestion,
   postponeOpen,
   onToggle,
@@ -74,6 +88,7 @@ function TaskRow({
 }: {
   task: Task
   routineLabel: string | null
+  projectName: string | null
   suggestion: TaskParseResult | null
   postponeOpen: boolean
   onToggle: (task: Task) => void
@@ -112,6 +127,11 @@ function TaskRow({
         </span>
         <span className="flex-1 text-sm">
           {task.title}
+          {projectName && (
+            <span className="ml-2 inline-flex items-center rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500">
+              #{projectName}
+            </span>
+          )}
           {routineLabel && (
             <span className="ml-2 inline-flex items-center gap-0.5 text-[11px] text-neutral-400">
               <IconRepeat size={12} stroke={1.75} />{routineLabel}
@@ -221,6 +241,7 @@ export default function TodayPage() {
   const [routineSaving, setRoutineSaving] = useState(false)
 
   const [park, setPark] = useState<Park | null>(null)
+  const [projects, setProjects] = useState<Project[]>([])
 
   async function load() {
     try {
@@ -250,7 +271,15 @@ export default function TodayPage() {
     }
   }
 
-  useEffect(() => { load(); loadRoutines(); loadPark() }, [])
+  async function loadProjects() {
+    try {
+      setProjects(await getProjects())
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '불러오지 못했습니다')
+    }
+  }
+
+  useEffect(() => { load(); loadRoutines(); loadPark(); loadProjects() }, [])
 
   function toggleWeekday(index: number) {
     setRoutineWeekdays((prev) => {
@@ -302,16 +331,22 @@ export default function TodayPage() {
     return routine ? routineRuleLabel(routine) : null
   }
 
+  function projectNameFor(task: Task) {
+    if (!task.project_id) return null
+    return projects.find((p) => p.id === task.project_id)?.name ?? null
+  }
+
   async function handleAdd() {
-    const title = input.trim()
-    if (!title || saving) return
+    const raw = input.trim()
+    if (!raw || saving) return
     setSaving(true)
     try {
-      const created = await createTask(title, today)
+      const { cleanTitle, projectId } = extractProjectTag(raw, projects)
+      const created = await createTask(cleanTitle, today, projectId)
       setInput('')
       await load()
       try {
-        const parsed = await parseTask(title)
+        const parsed = await parseTask(cleanTitle)
         const worthShowing = (parsed.task_date && parsed.task_date !== today) || parsed.scheduled_time
         if (worthShowing) {
           setSuggestions((prev) => ({ ...prev, [created.id]: parsed }))
@@ -651,6 +686,7 @@ export default function TodayPage() {
                 key={task.id}
                 task={task}
                 routineLabel={routineLabelFor(task)}
+                projectName={projectNameFor(task)}
                 suggestion={suggestions[task.id] ?? null}
                 postponeOpen={postponeMenuTaskId === task.id}
                 onToggle={handleToggle}
@@ -683,6 +719,11 @@ export default function TodayPage() {
                   </button>
                   <span className="flex-1 text-sm text-neutral-400 line-through">
                     {task.title}
+                    {projectNameFor(task) && (
+                      <span className="ml-2 inline-flex items-center rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-400">
+                        #{projectNameFor(task)}
+                      </span>
+                    )}
                     {routineLabelFor(task) && (
                       <span className="ml-2 inline-flex items-center gap-0.5 text-[11px] text-neutral-300">
                         <IconRepeat size={11} stroke={1.75} />{routineLabelFor(task)}
