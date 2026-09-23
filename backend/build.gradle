@@ -36,8 +36,29 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'nl.martijndwars:web-push:5.1.1'
 	implementation 'org.bouncycastle:bcprov-jdk18on:1.79'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// 저장소 루트의 .env를 bootRun에 주입한다. GOOGLE_CLIENT_ID/SECRET 등은 절대
+// application.yml에 기본값으로 박아두지 않고(비밀값이라 VAPID와 다름) 여기서만 채운다.
+tasks.named('bootRun') {
+	doFirst {
+		def envFile = file("${rootDir}/../.env")
+		if (envFile.exists()) {
+			envFile.readLines().each { line ->
+				def trimmed = line.trim()
+				if (trimmed && !trimmed.startsWith('#') && trimmed.contains('=')) {
+					def (key, value) = trimmed.split('=', 2)
+					if (System.getenv(key) == null) {
+						environment(key, value)
+					}
+				}
+			}
+		}
+	}
 }

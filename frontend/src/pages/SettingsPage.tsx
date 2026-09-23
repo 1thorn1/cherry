@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { IconCarouselHorizontal, IconRollercoaster } from '@tabler/icons-react'
 import type { Friend, FriendCode, FriendPark, PendingRequest, SharingSettings } from '../types/friend'
+import type { AuthUser } from '../types/auth'
 import {
   acceptFriendRequest,
   getFriendPark,
@@ -13,6 +14,7 @@ import {
   updateSharingSettings,
   visitFriendPark,
 } from '../api/friend'
+import { getMe, logout } from '../api/auth'
 
 const settingLabels: { key: keyof SharingSettings; label: string; hint: string }[] = [
   { key: 'share_park', label: '공원 보여주기', hint: '기구, 인구' },
@@ -34,6 +36,9 @@ export default function SettingsPage() {
   const [visitedIds, setVisitedIds] = useState<Set<number>>(new Set())
   const [settings, setSettings] = useState<SharingSettings | null>(null)
   const [savingSettings, setSavingSettings] = useState(false)
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null)
+  const [authChecked, setAuthChecked] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
 
   async function loadAll() {
     try {
@@ -53,6 +58,26 @@ export default function SettingsPage() {
   }
 
   useEffect(() => { loadAll() }, [])
+
+  useEffect(() => {
+    getMe()
+      .then(setAuthUser)
+      .catch(() => setAuthUser(null))
+      .finally(() => setAuthChecked(true))
+  }, [])
+
+  async function handleLogout() {
+    if (loggingOut) return
+    setLoggingOut(true)
+    try {
+      await logout()
+      setAuthUser(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '로그아웃하지 못했습니다')
+    } finally {
+      setLoggingOut(false)
+    }
+  }
 
   async function handleCopy() {
     if (!myCode) return
@@ -155,6 +180,37 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
       <h1 className="mb-6 text-xl font-medium tracking-tight">설정</h1>
+
+      {authChecked && (
+        <div className="mb-6 flex items-center justify-between rounded-lg border border-neutral-200 p-4">
+          {authUser ? (
+            <>
+              <div>
+                <p className="text-sm font-medium">{authUser.nickname}</p>
+                {authUser.email && <p className="text-[11px] text-neutral-400">{authUser.email}</p>}
+              </div>
+              <button
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="rounded-md bg-neutral-100 px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+              >
+                로그아웃
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-neutral-400">로그인하면 프로필과 친구 목록이 계정에 저장돼요</p>
+              <a
+                href="/oauth2/authorization/google"
+                className="rounded-md px-3 py-1.5 text-xs font-medium text-white"
+                style={{ background: 'var(--cherry)' }}
+              >
+                Google로 로그인
+              </a>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="mb-6 rounded-lg border border-neutral-200 p-4">
         <p className="mb-2 text-xs text-neutral-400">내 친구 코드</p>

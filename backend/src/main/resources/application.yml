@@ -25,6 +25,15 @@ spring:
   jackson:
     property-naming-strategy: SNAKE_CASE
 
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope: profile, email
+
 vapid:
   public-key: ${VAPID_PUBLIC_KEY:BJBlTgRDS41vrnXzyEgY9ipyNWXqoNFW4rWg_4xbXQJT42ZfUalwOWtd1_jWQx3lSKi4ktcA-mmphK3V1POSvOE}
   private-key: ${VAPID_PRIVATE_KEY:o2GwFffdHUoX-heR3Ru0Yzl3NA1XaoclTQqFI6omFnI}
