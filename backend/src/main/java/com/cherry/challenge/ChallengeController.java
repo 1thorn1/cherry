@@ -3,6 +3,7 @@ package com.cherry.challenge;
 import com.cherry.challenge.dto.ChallengeCreateRequest;
 import com.cherry.challenge.dto.ChallengeDetailResponse;
 import com.cherry.challenge.dto.ChallengeJoinRequest;
+import com.cherry.challenge.dto.ChallengeMemoRequest;
 import com.cherry.challenge.dto.ChallengeProjectLinkResponse;
 import com.cherry.challenge.dto.ChallengeResponse;
 import com.cherry.challenge.dto.PauseRequest;
@@ -51,6 +52,12 @@ public class ChallengeController {
     @PatchMapping("/{id}/pause")
     public ResponseEntity<Void> pause(@PathVariable Long id, @RequestBody PauseRequest request) {
         challengeService.setPaused(DEV_USER_ID, id, request.paused());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/memo")
+    public ResponseEntity<Void> memo(@PathVariable Long id, @Valid @RequestBody ChallengeMemoRequest request) {
+        challengeService.updateSharedMemo(DEV_USER_ID, id, request.memo());
         return ResponseEntity.noContent().build();
     }
 

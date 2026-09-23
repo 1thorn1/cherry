@@ -31,6 +31,9 @@ public class ChallengeMember {
     @Column(nullable = false)
     private boolean paused = false;
 
+    @Column(name = "shared_memo", length = 200)
+    private String sharedMemo;
+
     private LocalDateTime leftAt;
 
     public static ChallengeMember create(Long challengeId, Long userId, Long projectId) {
@@ -43,6 +46,10 @@ public class ChallengeMember {
 
     public void updatePaused(boolean paused) {
         this.paused = paused;
+    }
+
+    public void updateSharedMemo(String sharedMemo) {
+        this.sharedMemo = sharedMemo;
     }
 
     public void leave(LocalDateTime now) {
