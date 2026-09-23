@@ -19,8 +19,13 @@ import { routineRuleLabel } from '../lib/routine'
 import { ensurePushSubscription } from '../lib/push'
 import { usePersistedState } from '../lib/persistedState'
 
-const today = new Date().toISOString().slice(0, 10)
 const WEEKDAY_LABELS = ['월', '화', '수', '목', '금', '토', '일']
+
+// 예전엔 이 값을 모듈 최상단에서 한 번만 계산해 상수로 뒀는데, 그러면 브라우저 탭(특히 PWA)을
+// 자정 넘겨 계속 켜둔 경우 "오늘"이 어제 날짜로 영원히 고정돼버렸다. 매번 새로 계산해야 한다.
+function getTodayStr(): string {
+  return new Date().toISOString().slice(0, 10)
+}
 
 // 로컬 타임존을 거치는 new Date()/toISOString() 왕복은 UTC+9에서 자정 근처 하루가 밀리므로
 // 날짜 문자열을 UTC 기준으로만 계산한다 (달력 날짜 그 자체를 다루는 것이지 시각이 아니기 때문).
@@ -32,10 +37,11 @@ function addDays(dateStr: string, days: number): string {
 }
 
 function tomorrowDate(): string {
-  return addDays(today, 1)
+  return addDays(getTodayStr(), 1)
 }
 
 function thisWeekendDate(): string {
+  const today = getTodayStr()
   const [y, m, d] = today.split('-').map(Number)
   const day = new Date(Date.UTC(y, m - 1, d)).getUTCDay()
   const diff = day === 0 ? 0 : (6 - day) % 7
@@ -54,6 +60,7 @@ function extractProjectTag(title: string, projects: Project[]): { cleanTitle: st
 }
 
 function formatSuggestion(s: TaskParseResult): string {
+  const today = getTodayStr()
   const parts: string[] = []
   if (s.task_date && s.task_date !== today) {
     const diffDays = Math.round(
@@ -215,6 +222,7 @@ function TaskRow({
 }
 
 export default function TodayPage() {
+  const today = getTodayStr()
   const [todo, setTodo] = useState<Task[]>([])
   const [done, setDone] = useState<Task[]>([])
   const [backlog, setBacklog] = useState<Task[]>([])
@@ -284,6 +292,23 @@ export default function TodayPage() {
 
   useEffect(() => { loadRoutines(); loadPark(); loadProjects() }, [])
   useEffect(() => { load() }, [viewDate])
+
+  // 탭을 자정 넘겨 계속 켜둔 채로 있으면(특히 PWA) "오늘"을 보고 있던 화면이 어제 날짜에
+  // 멈춰 있었다 — 1분마다, 그리고 탭이 다시 보일 때마다 날짜가 바뀌었는지 확인해서
+  // "오늘"을 보던 중이었다면 자동으로 새 날짜로 넘어가게 한다(직접 다른 날짜를 보고
+  // 있었다면 그 화면은 그대로 둔다).
+  useEffect(() => {
+    function syncToday() {
+      const fresh = getTodayStr()
+      setViewDate((prev) => (prev === today ? fresh : prev))
+    }
+    const id = setInterval(syncToday, 60_000)
+    document.addEventListener('visibilitychange', syncToday)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', syncToday)
+    }
+  }, [today])
 
   function toggleWeekday(index: number) {
     setRoutineWeekdays((prev) => {
