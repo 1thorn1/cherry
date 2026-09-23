@@ -6,6 +6,7 @@ import { createTask } from '../api/tasks'
 import MilestoneTrack from '../components/MilestoneTrack'
 import MilestoneChipGrid from '../components/MilestoneChipGrid'
 import NoteEntry from '../components/NoteEntry'
+import { getTodayStr } from '../lib/date'
 
 const kindLabels: Record<string, string> = {
   AUTO_LOG: '완료',
@@ -77,8 +78,7 @@ export default function ProjectDetailPage() {
     if (sendingId) return
     setSendingId(milestone.id)
     try {
-      const today = new Date().toISOString().slice(0, 10)
-      await createTask(milestone.title, today, projectId, milestone.id)
+      await createTask(milestone.title, getTodayStr(), projectId, milestone.id)
       setSentIds((prev) => new Set(prev).add(milestone.id))
     } catch (e) {
       setError(e instanceof Error ? e.message : '오늘 할 일로 보내지 못했습니다')

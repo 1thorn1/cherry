@@ -5,6 +5,7 @@ import { createProject, getProjectOverview, type CreateProjectInput } from '../a
 import { getChallengeProjectLinks } from '../api/challenges'
 import type { ChallengeProjectLink } from '../types/challenge'
 import MilestoneTrack from '../components/MilestoneTrack'
+import { getTodayStr } from '../lib/date'
 
 type Mode = 'FREE' | 'PROGRESS' | 'EXAM'
 
@@ -234,7 +235,7 @@ export default function ProjectsPage() {
           <div className="relative space-y-2">
             <div
               className="pointer-events-none absolute inset-y-0 w-px bg-neutral-300"
-              style={{ left: `${(daysBetween(overview.weeks[0], new Date().toISOString().slice(0, 10)) / GRID_DAYS) * 100}%` }}
+              style={{ left: `${(daysBetween(overview.weeks[0], getTodayStr()) / GRID_DAYS) * 100}%` }}
             />
             {overview.lanes.map((lane, i) => {
               const start = Math.min(Math.max(daysBetween(overview.weeks[0], lane.start_date), 0), GRID_DAYS)

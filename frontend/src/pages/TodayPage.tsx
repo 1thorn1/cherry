@@ -18,14 +18,9 @@ import { START_HOUR, END_HOUR, hourDroppableId, type TimetableView } from '../li
 import { routineRuleLabel } from '../lib/routine'
 import { ensurePushSubscription } from '../lib/push'
 import { usePersistedState } from '../lib/persistedState'
+import { getTodayStr } from '../lib/date'
 
 const WEEKDAY_LABELS = ['월', '화', '수', '목', '금', '토', '일']
-
-// 예전엔 이 값을 모듈 최상단에서 한 번만 계산해 상수로 뒀는데, 그러면 브라우저 탭(특히 PWA)을
-// 자정 넘겨 계속 켜둔 경우 "오늘"이 어제 날짜로 영원히 고정돼버렸다. 매번 새로 계산해야 한다.
-function getTodayStr(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 // 로컬 타임존을 거치는 new Date()/toISOString() 왕복은 UTC+9에서 자정 근처 하루가 밀리므로
 // 날짜 문자열을 UTC 기준으로만 계산한다 (달력 날짜 그 자체를 다루는 것이지 시각이 아니기 때문).
