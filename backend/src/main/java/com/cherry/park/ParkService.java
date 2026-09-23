@@ -18,6 +18,8 @@ public class ParkService {
 
     // 스펙(A-8)에 정확한 숫자가 없어 임시로 정한 값. 실사용하며 조정할 것.
     private static final int BASE_PER_COMPLETION = 2;
+    // 반복 항목은 "매일 오는 손님이라 신규 방문객이 적다"는 세계관으로 적립을 낮게 (A-6-7 부작용 방어).
+    private static final int ROUTINE_BASE_PER_COMPLETION = 1;
     private static final double POPULATION_BONUS_RATE = 0.01; // 인구 100당 +100%
     private static final int DAILY_POINT_CAP = 100;
     private static final int MILESTONE_BONUS = 50;
@@ -30,7 +32,7 @@ public class ParkService {
     private final UserRepository userRepository;
 
     @Transactional
-    public void awardForTaskCompletion(Long userId, Long taskId, LocalDate date) {
+    public void awardForTaskCompletion(Long userId, Long taskId, LocalDate date, boolean isRoutine) {
         if (pointLedgerRepository.existsByUserIdAndRefTypeAndRefId(userId, "TASK", taskId)) return;
 
         DailyStat stat = dailyStatRepository.findByUserIdAndStatDate(userId, date)
@@ -38,13 +40,13 @@ public class ParkService {
         User user = userRepository.findById(userId).orElseThrow();
 
         int newCompletedCount = stat.getCompletedCount() + 1;
-        int base = newCompletedCount * BASE_PER_COMPLETION;
+        int newPointBasis = stat.getPointBasis() + (isRoutine ? ROUTINE_BASE_PER_COMPLETION : BASE_PER_COMPLETION);
         double populationBonus = user.getPopulation() * POPULATION_BONUS_RATE;
-        int rawPoints = (int) Math.floor(base * (1 + populationBonus));
+        int rawPoints = (int) Math.floor(newPointBasis * (1 + populationBonus));
         int newPoints = Math.min(rawPoints, DAILY_POINT_CAP);
 
         int delta = newPoints - stat.getPointsEarned();
-        stat.update(newCompletedCount, stat.getVisitors(), newPoints);
+        stat.update(newCompletedCount, newPointBasis, stat.getVisitors(), newPoints);
 
         pointLedgerRepository.save(PointLedger.create(userId, date, delta, "TASK_COMPLETE", "TASK", taskId));
         user.earnPoints(delta);
@@ -105,7 +107,7 @@ public class ParkService {
         DailyStat stat = dailyStatRepository.findByUserIdAndStatDate(hostId, today)
                 .orElseGet(() -> dailyStatRepository.save(DailyStat.create(hostId, today)));
         if (stat.getVisitors() < DAILY_VISIT_CAP) {
-            stat.update(stat.getCompletedCount(), stat.getVisitors() + 1, stat.getPointsEarned());
+            stat.update(stat.getCompletedCount(), stat.getPointBasis(), stat.getVisitors() + 1, stat.getPointsEarned());
         }
     }
 }
