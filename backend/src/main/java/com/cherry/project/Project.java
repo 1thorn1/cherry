@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "project")
@@ -71,5 +73,26 @@ public class Project {
 
     public void updateShared(boolean shared) {
         this.shared = shared;
+    }
+
+    // work_days: 7비트, bit(n-1)이 ISO 요일 n(월=1~일=7)에 대응. 기본 127 = 매일 작업일.
+    public List<Integer> getWorkDaysList() {
+        List<Integer> days = new ArrayList<>();
+        for (int i = 0; i < 7; i++) {
+            if ((workDays & (1 << i)) != 0) days.add(i + 1);
+        }
+        return days;
+    }
+
+    public void updateWorkDays(List<Integer> isoDays) {
+        byte mask = 0;
+        for (int day : isoDays) {
+            mask |= (byte) (1 << (day - 1));
+        }
+        this.workDays = mask;
+    }
+
+    public boolean isWorkDay(int isoDayOfWeek) {
+        return (workDays & (1 << (isoDayOfWeek - 1))) != 0;
     }
 }

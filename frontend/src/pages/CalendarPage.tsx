@@ -11,10 +11,13 @@ import {
   isWeekend,
   isSameMonth,
   isAfter,
+  getISODay,
 } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import type { CalendarDay, MonthSummary } from '../types/calendar'
+import type { Project } from '../types/project'
 import { getWeek, getMonth } from '../api/calendar'
+import { getProjects } from '../api/projects'
 import {
   START_HOUR,
   END_HOUR,
@@ -40,6 +43,15 @@ function range(startIso: string, endIso: string | null) {
   return { startMin, endMin: Math.max(endMin, startMin + 20) }
 }
 
+// 캘린더 주말 흐림(A-6-2): 프로젝트에 속한 항목만, 그 프로젝트의 work_days에
+// 없는 요일이면 흐리게 표시한다. 프로젝트가 없는 항목은 판단 기준이 없어 흐리지 않는다.
+function isNonWorkDay(projectId: number | null, isoDay: number, projects: Project[]): boolean {
+  if (projectId === null) return false
+  const project = projects.find((p) => p.id === projectId)
+  if (!project) return false
+  return !project.work_days.includes(isoDay)
+}
+
 type Period = 'week' | 'month'
 
 export default function CalendarPage() {
@@ -48,6 +60,7 @@ export default function CalendarPage() {
   const [monthCursor, setMonthCursor] = useState(() => new Date())
   const [days, setDays] = useState<CalendarDay[]>([])
   const [summary, setSummary] = useState<MonthSummary | null>(null)
+  const [projects, setProjects] = useState<Project[]>([])
   const [view, setView] = usePersistedState<TimetableView>('calendar.view', 'scheduled')
   const [error, setError] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -74,6 +87,10 @@ export default function CalendarPage() {
       setError(e instanceof Error ? e.message : '불러오지 못했습니다')
     }
   }
+
+  useEffect(() => {
+    getProjects().then(setProjects).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (period === 'week') loadWeek()
@@ -168,18 +185,18 @@ export default function CalendarPage() {
             <div className="grid" style={{ gridTemplateColumns: GRID_COLUMNS }}>
               <div className="pr-1 text-right text-[10px] text-neutral-300">종일</div>
               {days.map((day) => {
-                const weekend = isWeekend(new Date(day.date))
+                const isoDay = getISODay(new Date(day.date))
                 const allDayTasks = day.tasks.filter((t) => !t.scheduled_start)
                 const allDayPreviews = day.previews.filter((p) => !p.default_time)
                 return (
                   <div
                     key={day.date}
-                    className={`min-h-[30px] border-b border-neutral-100 px-1 py-1 ${weekend ? 'bg-neutral-50' : ''}`}
+                    className="min-h-[30px] border-b border-neutral-100 px-1 py-1"
                   >
                     {allDayTasks.map((t) => (
                       <div
                         key={t.id}
-                        className={`mb-0.5 truncate rounded px-1 text-[10px] ${t.completed_at ? 'text-neutral-300 line-through' : ''}`}
+                        className={`mb-0.5 truncate rounded px-1 text-[10px] ${t.completed_at ? 'text-neutral-300 line-through' : ''} ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
                         style={t.completed_at ? undefined : { background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
                       >
                         {t.title}
@@ -209,7 +226,7 @@ export default function CalendarPage() {
                 </div>
 
                 {days.map((day) => {
-                  const weekend = isWeekend(new Date(day.date))
+                  const isoDay = getISODay(new Date(day.date))
                   const scheduledTasks = day.tasks.filter((t) => t.scheduled_start)
                   const completedTasks = day.tasks.filter((t) => t.completed_at)
                   const timedPreviews = day.previews.filter((p) => p.default_time)
@@ -239,7 +256,7 @@ export default function CalendarPage() {
                   }
 
                   return (
-                    <div key={day.date} className={`relative ${weekend ? 'bg-neutral-50' : ''}`}>
+                    <div key={day.date} className="relative">
                       {hours.map((h) => (
                         <div key={h} className="border-t border-neutral-100" style={{ height: ROW_HEIGHT }} />
                       ))}
@@ -249,7 +266,7 @@ export default function CalendarPage() {
                         return (
                           <div
                             key={t.id}
-                            className="absolute overflow-hidden rounded px-1 text-[10px] leading-tight"
+                            className={`absolute overflow-hidden rounded px-1 text-[10px] leading-tight ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
                             style={{
                               ...blockStyle(b, scheduledLayout),
                               background: t.completed_at ? '#F1EFE8' : 'var(--cherry-bg)',
@@ -266,7 +283,7 @@ export default function CalendarPage() {
                         return (
                           <div
                             key={t.id}
-                            className="absolute overflow-hidden rounded px-1 text-[10px] leading-tight"
+                            className={`absolute overflow-hidden rounded px-1 text-[10px] leading-tight ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
                             style={{ ...blockStyle(b, actualLayout), background: '#F1EFE8', color: '#888780' }}
                           >
                             {t.title}

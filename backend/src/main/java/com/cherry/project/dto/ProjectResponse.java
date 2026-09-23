@@ -4,6 +4,7 @@ import com.cherry.project.Project;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record ProjectResponse(
         Long id,
@@ -14,6 +15,7 @@ public record ProjectResponse(
         LocalDate examDate,
         String status,
         boolean shared,
+        List<Integer> workDays,
         LocalDateTime createdAt
 ) {
     public static ProjectResponse from(Project project) {
@@ -26,6 +28,7 @@ public record ProjectResponse(
                 project.getExamDate(),
                 project.getStatus(),
                 project.isShared(),
+                project.getWorkDaysList(),
                 project.getCreatedAt()
         );
     }

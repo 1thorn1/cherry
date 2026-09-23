@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import type { Milestone, NoteKind, ProjectDetail, TimelineEntry } from '../types/project'
-import { addNote, getProject, getTimeline, updateProjectShared } from '../api/projects'
+import { addNote, getProject, getTimeline, updateProjectShared, updateProjectWorkDays } from '../api/projects'
 import { createTask } from '../api/tasks'
 import MilestoneTrack from '../components/MilestoneTrack'
 import MilestoneGrid from '../components/MilestoneGrid'
@@ -12,6 +12,16 @@ const kindLabels: Record<string, string> = {
   LINK: '링크',
   RETRO: '회고',
 }
+
+const WORK_DAY_LABELS: { day: number; label: string }[] = [
+  { day: 1, label: '월' },
+  { day: 2, label: '화' },
+  { day: 3, label: '수' },
+  { day: 4, label: '목' },
+  { day: 5, label: '금' },
+  { day: 6, label: '토' },
+  { day: 7, label: '일' },
+]
 
 function daysBetween(startIso: string, endIso: string): number {
   const days = (new Date(endIso).getTime() - new Date(startIso).getTime()) / 86400000
@@ -32,6 +42,7 @@ export default function ProjectDetailPage() {
   const [noteUrl, setNoteUrl] = useState('')
   const [saving, setSaving] = useState(false)
   const [sharingToggle, setSharingToggle] = useState(false)
+  const [workDaysSaving, setWorkDaysSaving] = useState(false)
   const [sendingId, setSendingId] = useState<number | null>(null)
   const [sentIds, setSentIds] = useState<Set<number>>(new Set())
 
@@ -79,6 +90,22 @@ export default function ProjectDetailPage() {
       setError(e instanceof Error ? e.message : '설정을 저장하지 못했습니다')
     } finally {
       setSharingToggle(false)
+    }
+  }
+
+  async function handleToggleWorkDay(day: number) {
+    if (!detail || workDaysSaving) return
+    const current = detail.project.work_days
+    const next = current.includes(day) ? current.filter((d) => d !== day) : [...current, day]
+    if (next.length === 0) return
+    setWorkDaysSaving(true)
+    try {
+      const updated = await updateProjectWorkDays(projectId, next)
+      setDetail({ ...detail, project: updated })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '작업 요일을 저장하지 못했습니다')
+    } finally {
+      setWorkDaysSaving(false)
     }
   }
 
@@ -174,6 +201,29 @@ export default function ProjectDetailPage() {
 
       {tab === 'progress' && (
         <div>
+          {detail.project.type !== 'FREE' && (
+            <div className="mb-4 flex items-center gap-2">
+              <span className="text-[11px] text-neutral-400">작업 요일</span>
+              <div className="flex gap-1">
+                {WORK_DAY_LABELS.map(({ day, label }) => {
+                  const active = detail.project.work_days.includes(day)
+                  return (
+                    <button
+                      key={day}
+                      onClick={() => handleToggleWorkDay(day)}
+                      disabled={workDaysSaving}
+                      className="h-6 w-6 rounded-full text-[10px] font-medium disabled:opacity-50"
+                      style={active
+                        ? { background: 'var(--cherry-bg)', color: 'var(--cherry)' }
+                        : { background: '#F1EFE8', color: '#B8B6AC' }}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
           {detail.project.type === 'EXAM' ? (
             <MilestoneGrid
               projectId={projectId}

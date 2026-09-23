@@ -34,6 +34,13 @@ export function updateProjectShared(id: number, shared: boolean) {
   })
 }
 
+export function updateProjectWorkDays(id: number, workDays: number[]) {
+  return request<Project>(`/api/projects/${id}/work-days`, {
+    method: 'PATCH',
+    body: JSON.stringify({ work_days: workDays }),
+  })
+}
+
 export function getTimeline(projectId: number) {
   return request<TimelineEntry[]>(`/api/projects/${projectId}/timeline`)
 }
