@@ -5,6 +5,7 @@ import { addMilestone, addNote, completeMilestoneNow, deleteProject, getProject,
 import { createTask } from '../api/tasks'
 import MilestoneTrack from '../components/MilestoneTrack'
 import MilestoneChipGrid from '../components/MilestoneChipGrid'
+import MarkdownBody from '../components/MarkdownBody'
 
 const kindLabels: Record<string, string> = {
   AUTO_LOG: '완료',
@@ -64,6 +65,7 @@ export default function ProjectDetailPage() {
   async function loadTimeline() {
     try {
       setTimeline(await getTimeline(projectId))
+      setError('')
     } catch (e) {
       setError(e instanceof Error ? e.message : '불러오지 못했습니다')
     }
@@ -223,18 +225,10 @@ export default function ProjectDetailPage() {
     notesByMilestone.set(entry.milestone_id, list)
   }
 
-  if (error) {
-    return (
-      <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
-        <p className="text-xs text-red-600">{error}</p>
-      </div>
-    )
-  }
-
   if (!detail) {
     return (
       <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
-        <p className="text-xs text-neutral-400">불러오는 중...</p>
+        {error ? <p className="text-xs text-red-600">{error}</p> : <p className="text-xs text-neutral-400">불러오는 중...</p>}
       </div>
     )
   }
@@ -264,6 +258,10 @@ export default function ProjectDetailPage() {
         </button>
         </div>
       </div>
+
+      {error && (
+        <p className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-xs text-red-600">{error}</p>
+      )}
 
       <div className="mb-6 flex gap-1 rounded-lg bg-neutral-100 p-1">
         <button
@@ -376,9 +374,9 @@ export default function ProjectDetailPage() {
             <textarea
               value={noteBody}
               onChange={(e) => setNoteBody(e.target.value)}
-              placeholder={noteKind === 'LINK' ? '한 줄 설명' : '결정한 것, 막힌 것, 정리...'}
-              rows={3}
-              className="mb-3 w-full resize-none rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+              placeholder={noteKind === 'LINK' ? '한 줄 설명' : '결정한 것, 막힌 것, 정리... (마크다운 지원 — # 제목, - 목록, **굵게**...)'}
+              rows={noteKind === 'LINK' ? 3 : 6}
+              className="mb-3 w-full resize-y rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
             />
 
             <button
@@ -429,8 +427,8 @@ export default function ProjectDetailPage() {
                     {entry.url && <p className="text-xs text-neutral-400">{entry.url}</p>}
                   </div>
                 )}
-                {(entry.kind === 'NOTE' || entry.kind === 'RETRO') && (
-                  <p className="whitespace-pre-wrap text-sm">{entry.body}</p>
+                {(entry.kind === 'NOTE' || entry.kind === 'RETRO') && entry.body && (
+                  <MarkdownBody>{entry.body}</MarkdownBody>
                 )}
               </div>
             </div>
