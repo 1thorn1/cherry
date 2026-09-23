@@ -17,6 +17,7 @@ import com.cherry.project.dto.ProjectOverviewResponse;
 import com.cherry.project.dto.ProjectResponse;
 import com.cherry.project.dto.ProjectSharedRequest;
 import com.cherry.project.dto.TimelineEntryResponse;
+import com.cherry.task.Task;
 import com.cherry.task.TaskRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -180,15 +181,31 @@ public class ProjectService {
     public List<TimelineEntryResponse> timeline(Long userId, Long projectId) {
         findOwned(userId, projectId);
 
-        Stream<TimelineEntryResponse> autoLogs = taskRepository
-                .findByProjectIdAndCompletedAtIsNotNullAndDeletedAtIsNullOrderByCompletedAtDesc(projectId)
-                .stream().map(TimelineEntryResponse::fromTask);
+        List<Task> completedTasks = taskRepository
+                .findByProjectIdAndCompletedAtIsNotNullAndDeletedAtIsNullOrderByCompletedAtDesc(projectId);
+
+        // 반복 항목은 매일 완료 로그가 쌓여 타임라인을 오염시키므로 반복별로 접어서 한 줄로 보여준다
+        // ("약 먹기 × 24", A-6-7/A-6-4 부작용 방어). 반복이 아닌 일반 완료는 그대로 개별 표시한다.
+        Map<Long, List<Task>> byRoutine = completedTasks.stream()
+                .filter(t -> t.getRoutineId() != null)
+                .collect(Collectors.groupingBy(Task::getRoutineId));
+
+        Stream<TimelineEntryResponse> routineLogs = byRoutine.values().stream()
+                .map(tasks -> TimelineEntryResponse.fromRoutineGroup(
+                        tasks.get(0).getRoutineId(),
+                        tasks.get(0).getTitle(),
+                        tasks.size(),
+                        tasks.stream().map(Task::getCompletedAt).max(Comparator.naturalOrder()).orElseThrow()));
+
+        Stream<TimelineEntryResponse> oneOffLogs = completedTasks.stream()
+                .filter(t -> t.getRoutineId() == null)
+                .map(TimelineEntryResponse::fromTask);
 
         Stream<TimelineEntryResponse> notes = projectNoteRepository
                 .findByProjectIdAndDeletedAtIsNullOrderByCreatedAtDesc(projectId)
                 .stream().map(TimelineEntryResponse::fromNote);
 
-        return Stream.concat(autoLogs, notes)
+        return Stream.concat(Stream.concat(routineLogs, oneOffLogs), notes)
                 .sorted(Comparator.comparing(TimelineEntryResponse::at).reversed())
                 .toList();
     }

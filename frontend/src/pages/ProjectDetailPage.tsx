@@ -238,7 +238,12 @@ export default function ProjectDetailPage() {
                 </span>
                 <span className="text-[11px] text-neutral-300">{entry.at.slice(0, 16).replace('T', ' ')}</span>
               </div>
-              {entry.kind === 'AUTO_LOG' && <p className="text-sm text-neutral-600">{entry.title}</p>}
+              {entry.kind === 'AUTO_LOG' && (
+                <p className="text-sm text-neutral-600">
+                  {entry.title}
+                  {entry.count && entry.count > 1 ? ` × ${entry.count}` : ''}
+                </p>
+              )}
               {entry.kind === 'LINK' && (
                 <div>
                   {entry.body && <p className="text-sm">{entry.body}</p>}

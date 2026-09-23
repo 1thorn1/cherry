@@ -32,6 +32,7 @@ export interface TimelineEntry {
   title: string | null
   body: string | null
   url: string | null
+  count: number | null
   at: string
 }
 
