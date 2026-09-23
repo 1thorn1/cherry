@@ -242,10 +242,12 @@ export default function TodayPage() {
 
   const [park, setPark] = useState<Park | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
+  const [viewDate, setViewDate] = useState(today)
+  const [showDatePicker, setShowDatePicker] = useState(false)
 
   async function load() {
     try {
-      const data = await getToday(today)
+      const data = await getToday(viewDate)
       setTodo(data.todo)
       setDone(data.done)
       setBacklog(data.backlog)
@@ -279,7 +281,8 @@ export default function TodayPage() {
     }
   }
 
-  useEffect(() => { load(); loadRoutines(); loadPark(); loadProjects() }, [])
+  useEffect(() => { loadRoutines(); loadPark(); loadProjects() }, [])
+  useEffect(() => { load() }, [viewDate])
 
   function toggleWeekday(index: number) {
     setRoutineWeekdays((prev) => {
@@ -349,7 +352,7 @@ export default function TodayPage() {
     setSaving(true)
     try {
       const { cleanTitle, projectId } = extractProjectTag(raw, projects)
-      const created = await createTask(cleanTitle, today, projectId)
+      const created = await createTask(cleanTitle, viewDate, projectId)
       setInput('')
       await load()
       try {
@@ -454,8 +457,8 @@ export default function TodayPage() {
     if (hour === null) {
       await scheduleTask(task.id, null, null)
     } else {
-      const start = `${today}T${String(hour).padStart(2, '0')}:00:00`
-      const end = `${today}T${String(hour + 1).padStart(2, '0')}:00:00`
+      const start = `${viewDate}T${String(hour).padStart(2, '0')}:00:00`
+      const end = `${viewDate}T${String(hour + 1).padStart(2, '0')}:00:00`
       await scheduleTask(task.id, start, end)
     }
     load()
@@ -489,7 +492,39 @@ export default function TodayPage() {
 
       <header className="mb-6">
         <h1 className="text-xl font-medium tracking-tight">체리</h1>
-        <p className="mt-1 text-xs text-neutral-500">{today}</p>
+        <div className="mt-1 flex items-center gap-1.5">
+          <p className="text-xs text-neutral-500">{viewDate}</p>
+          <button
+            onClick={() => setShowDatePicker((v) => !v)}
+            className="text-neutral-400"
+            aria-label="날짜 선택"
+          >
+            <IconCalendar size={13} stroke={1.75} />
+          </button>
+          {viewDate !== today && (
+            <button
+              onClick={() => { setViewDate(today); setShowDatePicker(false) }}
+              className="text-[11px] font-medium"
+              style={{ color: 'var(--cherry)' }}
+            >
+              오늘로
+            </button>
+          )}
+        </div>
+        {showDatePicker && (
+          <input
+            type="date"
+            value={viewDate}
+            autoFocus
+            onChange={(e) => {
+              if (e.target.value) {
+                setViewDate(e.target.value)
+                setShowDatePicker(false)
+              }
+            }}
+            className="mt-2 rounded-md border border-neutral-200 px-2 py-1 text-xs"
+          />
+        )}
         {park && (
           <p className="mt-1 text-xs text-neutral-400">
             오늘 방문객 {park.today_visitors} · 체리 {park.point_balance}
@@ -791,7 +826,7 @@ export default function TodayPage() {
                       <input
                         type="time"
                         autoFocus
-                        onChange={(e) => e.target.value && applyEffectiveTime(task, `${task.task_date ?? today}T${e.target.value}:00`)}
+                        onChange={(e) => e.target.value && applyEffectiveTime(task, `${task.task_date ?? viewDate}T${e.target.value}:00`)}
                         className="rounded-md border border-neutral-200 px-1.5 py-1 text-[11px]"
                       />
                     ) : (
