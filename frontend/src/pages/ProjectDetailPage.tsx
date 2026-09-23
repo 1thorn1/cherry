@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import type { Milestone, NoteKind, ProjectDetail, TimelineEntry } from '../types/project'
-import { addMilestone, addNote, getProject, getTimeline, updateProjectShared, updateProjectWorkDays } from '../api/projects'
+import { addMilestone, addNote, completeMilestoneNow, getProject, getTimeline, updateProjectShared, updateProjectWorkDays } from '../api/projects'
 import { createTask } from '../api/tasks'
 import MilestoneTrack from '../components/MilestoneTrack'
 import MilestoneGrid from '../components/MilestoneGrid'
@@ -47,6 +47,7 @@ export default function ProjectDetailPage() {
   const [addingMilestone, setAddingMilestone] = useState(false)
   const [sendingId, setSendingId] = useState<number | null>(null)
   const [sentIds, setSentIds] = useState<Set<number>>(new Set())
+  const [completingId, setCompletingId] = useState<number | null>(null)
 
   async function loadDetail() {
     try {
@@ -79,6 +80,24 @@ export default function ProjectDetailPage() {
       setError(e instanceof Error ? e.message : '오늘 할 일로 보내지 못했습니다')
     } finally {
       setSendingId(null)
+    }
+  }
+
+  async function handleCompleteMilestone(milestone: Milestone) {
+    if (completingId) return
+    setCompletingId(milestone.id)
+    try {
+      await completeMilestoneNow(milestone.id)
+      setSentIds((prev) => {
+        const next = new Set(prev)
+        next.delete(milestone.id)
+        return next
+      })
+      await loadDetail()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '완료 처리하지 못했습니다')
+    } finally {
+      setCompletingId(null)
     }
   }
 
@@ -246,7 +265,9 @@ export default function ProjectDetailPage() {
               projectId={projectId}
               milestones={detail.milestones}
               onSendToday={handleSendToday}
+              onCompleteNow={handleCompleteMilestone}
               sendingId={sendingId}
+              completingId={completingId}
               sentIds={sentIds}
             />
           ) : (
@@ -256,14 +277,23 @@ export default function ProjectDetailPage() {
                 const next = detail.milestones.find((m) => !m.completed)
                 if (!next) return null
                 return (
-                  <button
-                    onClick={() => handleSendToday(next)}
-                    disabled={sendingId === next.id}
-                    className="mt-4 w-full rounded-lg py-2.5 text-sm font-medium text-white disabled:opacity-50"
-                    style={{ background: 'var(--cherry)' }}
-                  >
-                    {sentIds.has(next.id) ? '오늘 목록에 추가됨' : `"${next.title}" 오늘 할 일로 보내기`}
-                  </button>
+                  <div className="mt-4 space-y-1.5">
+                    <button
+                      onClick={() => handleCompleteMilestone(next)}
+                      disabled={completingId === next.id}
+                      className="w-full rounded-lg py-2.5 text-sm font-medium text-white disabled:opacity-50"
+                      style={{ background: 'var(--cherry)' }}
+                    >
+                      {completingId === next.id ? '처리 중...' : `"${next.title}" 완료 처리`}
+                    </button>
+                    <button
+                      onClick={() => handleSendToday(next)}
+                      disabled={sendingId === next.id}
+                      className="w-full text-center text-[11px] text-neutral-400 disabled:opacity-50"
+                    >
+                      {sentIds.has(next.id) ? '오늘 목록에 추가됨' : '오늘 일정에만 추가 (시간을 정해두고 나중에 완료할 때)'}
+                    </button>
+                  </div>
                 )
               })()}
               {detail.project.type === 'FREE' && (

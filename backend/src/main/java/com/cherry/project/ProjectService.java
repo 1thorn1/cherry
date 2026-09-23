@@ -2,7 +2,6 @@ package com.cherry.project;
 
 import com.cherry.common.InvalidNoteException;
 import com.cherry.common.InvalidProjectException;
-import com.cherry.common.MilestoneNotFoundException;
 import com.cherry.common.ProjectNotFoundException;
 import com.cherry.park.ParkService;
 import com.cherry.project.dto.FocusProjectResponse;
@@ -272,19 +271,6 @@ public class ProjectService {
         int nextSeq = existing.isEmpty() ? 1 : existing.get(existing.size() - 1).getSeq() + 1;
         Milestone milestone = Milestone.create(projectId, nextSeq, request.title().trim(), null);
         milestoneRepository.save(milestone);
-        return MilestoneResponse.from(milestone);
-    }
-
-    @Transactional
-    public MilestoneResponse completeMilestone(Long userId, Long milestoneId) {
-        Milestone milestone = milestoneRepository.findById(milestoneId)
-                .orElseThrow(MilestoneNotFoundException::new);
-        findOwned(userId, milestone.getProjectId());
-        boolean alreadyCompleted = milestone.getCompletedAt() != null;
-        milestone.complete(LocalDateTime.now());
-        if (!alreadyCompleted) {
-            parkService.awardForMilestoneCompletion(userId, milestoneId);
-        }
         return MilestoneResponse.from(milestone);
     }
 

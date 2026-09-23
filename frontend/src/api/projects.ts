@@ -49,6 +49,12 @@ export function addMilestone(projectId: number, title: string) {
   })
 }
 
+export function completeMilestoneNow(milestoneId: number) {
+  return request<void>(`/api/milestones/${milestoneId}/complete`, {
+    method: 'PATCH',
+  })
+}
+
 export function getTimeline(projectId: number) {
   return request<TimelineEntry[]>(`/api/projects/${projectId}/timeline`)
 }

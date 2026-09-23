@@ -26,13 +26,17 @@ export default function MilestoneGrid({
   projectId,
   milestones,
   onSendToday,
+  onCompleteNow,
   sendingId,
+  completingId,
   sentIds,
 }: {
   projectId: number
   milestones: Milestone[]
   onSendToday: (m: Milestone) => void
+  onCompleteNow: (m: Milestone) => void
   sendingId: number | null
+  completingId: number | null
   sentIds: Set<number>
 }) {
   const storageKey = `project-grid-collapsed-${projectId}`
@@ -81,13 +85,23 @@ export default function MilestoneGrid({
       <div key={m.id} className="flex items-center justify-between border-b border-neutral-100 py-2.5">
         <span className={`text-sm ${m.completed ? 'text-neutral-400 line-through' : ''}`}>{m.title}</span>
         {!m.completed && (
-          <button
-            onClick={() => onSendToday(m)}
-            disabled={sendingId === m.id}
-            className="flex-none rounded-md bg-neutral-100 px-2 py-1 text-[11px] font-medium disabled:opacity-50"
-          >
-            {sentIds.has(m.id) ? '추가됨' : '오늘로 보내기'}
-          </button>
+          <div className="flex flex-none items-center gap-2">
+            <button
+              onClick={() => onSendToday(m)}
+              disabled={sendingId === m.id}
+              className="text-[11px] text-neutral-400 disabled:opacity-50"
+            >
+              {sentIds.has(m.id) ? '추가됨' : '오늘 일정에 추가'}
+            </button>
+            <button
+              onClick={() => onCompleteNow(m)}
+              disabled={completingId === m.id}
+              className="rounded-md px-2 py-1 text-[11px] font-medium text-white disabled:opacity-50"
+              style={{ background: 'var(--cherry)' }}
+            >
+              {completingId === m.id ? '처리 중' : '완료'}
+            </button>
+          </div>
         )}
       </div>
     )
