@@ -110,6 +110,22 @@ public class TaskService {
         return complete(userId, task.getId());
     }
 
+    // 칩을 다시 눌러 완료를 취소. 이미 지급된 포인트·인구·공원 슬롯은 되돌리지 않는다 —
+    // 일반 태스크 체크 해제(uncomplete())도 같은 원칙이고, 재완료 시 awardForMilestoneCompletion이
+    // point_ledger 중복 지급을 막아주므로 두 번 주지도 않는다.
+    @Transactional
+    public TaskResponse uncompleteMilestoneNow(Long userId, Long milestoneId) {
+        Milestone milestone = milestoneRepository.findById(milestoneId)
+                .orElseThrow(MilestoneNotFoundException::new);
+        milestone.uncomplete();
+
+        Task task = taskRepository
+                .findFirstByMilestoneIdAndUserIdAndCompletedAtIsNotNullAndDeletedAtIsNullOrderByCompletedAtDesc(milestoneId, userId)
+                .orElseThrow(TaskNotFoundException::new);
+        task.reopen();
+        return TaskResponse.from(task);
+    }
+
     // completed_at은 체크한 물리적 시각으로 불변, effective_at이 기록·시간표·통계의 기준이 된다 (A-6-8).
     // 반복의 time_basis가 SCHEDULED고 예정 시각이 있으면 그 시각을, 아니면 지금을 기본값으로 삼는다.
     private LocalDateTime computeEffectiveAt(Task task, LocalDateTime now) {

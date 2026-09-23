@@ -8,6 +8,7 @@ export default function MilestoneChipGrid({
   milestones,
   notesByMilestone,
   onComplete,
+  onUncomplete,
   onSendToday,
   onAddNote,
   completingId,
@@ -18,6 +19,7 @@ export default function MilestoneChipGrid({
   milestones: Milestone[]
   notesByMilestone: Map<number, TimelineEntry[]>
   onComplete: (m: Milestone) => void
+  onUncomplete: (m: Milestone) => void
   onSendToday: (m: Milestone) => void
   onAddNote: (milestoneId: number, body: string) => Promise<void>
   completingId: number | null
@@ -34,9 +36,14 @@ export default function MilestoneChipGrid({
 
   const selected = milestones.find((m) => m.id === expandedId) ?? null
 
-  function toggle(m: Milestone) {
-    setExpandedId((prev) => (prev === m.id ? null : m.id))
+  // 칩(사각형) 클릭 한 번으로 완료/미완료가 그대로 뒤집힌다. 같은 칩을 다시 누르면 되돌아간다.
+  // 패널은 별도 버튼 없이 선택 상태를 보여주는 용도로만 열려 있는다.
+  function handleChipClick(m: Milestone) {
+    setExpandedId(m.id)
     setDraft('')
+    if (completingId) return
+    if (m.completed) onUncomplete(m)
+    else onComplete(m)
   }
 
   async function handleSubmitNote() {
@@ -53,8 +60,9 @@ export default function MilestoneChipGrid({
         {milestones.map((m) => (
           <button
             key={m.id}
-            onClick={() => toggle(m)}
-            className="flex aspect-square flex-col items-center justify-center gap-0.5 rounded-lg border p-1 text-center transition-colors"
+            onClick={() => handleChipClick(m)}
+            disabled={completingId === m.id}
+            className="flex aspect-square flex-col items-center justify-center gap-0.5 rounded-lg border p-1 text-center transition-colors disabled:opacity-60"
             style={
               expandedId === m.id
                 ? { borderColor: 'var(--cherry)', background: 'var(--cherry-bg)' }
@@ -64,7 +72,7 @@ export default function MilestoneChipGrid({
             }
           >
             <span className="text-[10px] font-medium" style={{ color: m.completed ? 'var(--cherry)' : '#999' }}>
-              {m.completed ? '✓' : m.seq}
+              {completingId === m.id ? '···' : m.completed ? '✓' : m.seq}
             </span>
             <span className="line-clamp-2 text-[10px] leading-tight text-neutral-500">{m.title}</span>
           </button>
@@ -85,25 +93,18 @@ export default function MilestoneChipGrid({
 
               {!selected.completed ? (
                 <div className="mb-3 space-y-1.5">
-                  <button
-                    onClick={() => onComplete(selected)}
-                    disabled={completingId === selected.id}
-                    className="w-full rounded-lg py-2 text-sm font-medium text-white disabled:opacity-50"
-                    style={{ background: 'var(--cherry)' }}
-                  >
-                    {completingId === selected.id ? '처리 중...' : '완료 처리'}
-                  </button>
+                  <p className="text-xs text-neutral-400">위 사각형을 누르면 완료 처리돼요</p>
                   <button
                     onClick={() => onSendToday(selected)}
                     disabled={sendingId === selected.id}
-                    className="w-full text-center text-[11px] text-neutral-400 disabled:opacity-50"
+                    className="text-left text-[11px] text-neutral-400 disabled:opacity-50"
                   >
                     {sentIds.has(selected.id) ? '오늘 목록에 추가됨' : '오늘 일정에만 추가'}
                   </button>
                 </div>
               ) : (
                 <p className="mb-3 text-xs text-neutral-400">
-                  완료됨{selected.completed_at ? ` · ${selected.completed_at.slice(0, 10)}` : ''}
+                  완료됨{selected.completed_at ? ` · ${selected.completed_at.slice(0, 10)}` : ''} · 사각형을 다시 누르면 취소돼요
                 </p>
               )}
 

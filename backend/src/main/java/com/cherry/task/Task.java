@@ -107,6 +107,14 @@ public class Task {
         this.milestoneId = null;
     }
 
+    // uncomplete()과 달리 milestoneId를 남긴다. 마일스톤 칩을 다시 눌러 완료시킬 때
+    // completeMilestoneNow()가 같은 태스크를 재사용하게 하려는 것 — 지우면 매번 새 태스크가
+    // 생겨 미완료 상태로 오늘 화면에 쌓인다.
+    public void reopen() {
+        this.completedAt = null;
+        this.effectiveAt = null;
+    }
+
     public void changeEffectiveTime(LocalDateTime effectiveAt) {
         this.effectiveAt = effectiveAt;
     }

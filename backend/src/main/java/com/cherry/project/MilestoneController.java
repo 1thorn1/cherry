@@ -20,4 +20,9 @@ public class MilestoneController {
     public TaskResponse complete(@CurrentUserId Long userId, @PathVariable Long id) {
         return taskService.completeMilestoneNow(userId, id);
     }
+
+    @PatchMapping("/{id}/uncomplete")
+    public TaskResponse uncomplete(@CurrentUserId Long userId, @PathVariable Long id) {
+        return taskService.uncompleteMilestoneNow(userId, id);
+    }
 }

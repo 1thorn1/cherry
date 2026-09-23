@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Milestone, NoteKind, ProjectDetail, TimelineEntry } from '../types/project'
-import { addMilestone, addNote, completeMilestoneNow, deleteProject, getProject, getTimeline, updateProjectShared, updateProjectWorkDays } from '../api/projects'
+import { addMilestone, addNote, completeMilestoneNow, deleteProject, getProject, getTimeline, uncompleteMilestoneNow, updateProjectShared, updateProjectWorkDays } from '../api/projects'
 import { createTask } from '../api/tasks'
 import MilestoneTrack from '../components/MilestoneTrack'
 import MilestoneChipGrid from '../components/MilestoneChipGrid'
@@ -100,6 +100,19 @@ export default function ProjectDetailPage() {
       await Promise.all([loadDetail(), loadTimeline()])
     } catch (e) {
       setError(e instanceof Error ? e.message : '완료 처리하지 못했습니다')
+    } finally {
+      setCompletingId(null)
+    }
+  }
+
+  async function handleUncompleteMilestone(milestone: Milestone) {
+    if (completingId) return
+    setCompletingId(milestone.id)
+    try {
+      await uncompleteMilestoneNow(milestone.id)
+      await Promise.all([loadDetail(), loadTimeline()])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '완료를 취소하지 못했습니다')
     } finally {
       setCompletingId(null)
     }
@@ -333,6 +346,7 @@ export default function ProjectDetailPage() {
               milestones={detail.milestones}
               notesByMilestone={notesByMilestone}
               onComplete={handleCompleteMilestone}
+              onUncomplete={handleUncompleteMilestone}
               onSendToday={handleSendToday}
               onAddNote={handleAddMilestoneNote}
               completingId={completingId}

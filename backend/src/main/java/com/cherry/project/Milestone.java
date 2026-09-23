@@ -49,4 +49,8 @@ public class Milestone {
         if (this.completedAt != null) return;
         this.completedAt = now;
     }
+
+    public void uncomplete() {
+        this.completedAt = null;
+    }
 }

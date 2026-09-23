@@ -59,6 +59,12 @@ export function completeMilestoneNow(milestoneId: number) {
   })
 }
 
+export function uncompleteMilestoneNow(milestoneId: number) {
+  return request<void>(`/api/milestones/${milestoneId}/uncomplete`, {
+    method: 'PATCH',
+  })
+}
+
 export function getTimeline(projectId: number) {
   return request<TimelineEntry[]>(`/api/projects/${projectId}/timeline`)
 }
