@@ -38,6 +38,7 @@ dependencies {
 	implementation 'org.bouncycastle:bcprov-jdk18on:1.79'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+	implementation 'org.springframework.session:spring-session-jdbc'
 }
 
 tasks.named('test') {

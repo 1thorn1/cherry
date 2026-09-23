@@ -25,6 +25,13 @@ spring:
   jackson:
     property-naming-strategy: SNAKE_CASE
 
+  # 세션을 DB에 저장해서 백엔드 재시작(개발 중 흔함)에도 로그인이 안 풀리게 한다.
+  # 스키마는 Flyway V17로 직접 만들어서 여기서는 자동 생성을 끈다.
+  session:
+    store-type: jdbc
+    jdbc:
+      initialize-schema: never
+
   servlet:
     multipart:
       max-file-size: 5MB
@@ -49,6 +56,11 @@ app:
 
 server:
   port: 8080
+  servlet:
+    session:
+      timeout: 30d
+      cookie:
+        max-age: 30d
 
 logging:
   level:
