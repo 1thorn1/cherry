@@ -13,6 +13,11 @@ const kindLabels: Record<string, string> = {
   RETRO: '회고',
 }
 
+function daysBetween(startIso: string, endIso: string): number {
+  const days = (new Date(endIso).getTime() - new Date(startIso).getTime()) / 86400000
+  return Math.max(1, Math.round(days))
+}
+
 export default function ProjectDetailPage() {
   const { id } = useParams()
   const projectId = Number(id)
@@ -94,6 +99,30 @@ export default function ProjectDetailPage() {
       setSaving(false)
     }
   }
+
+  // 마일스톤 구간 구분선 라벨 (A-6-4). 구간 시작은 이전 마일스톤 완료 시각, 첫 구간은 프로젝트 생성 시각.
+  function segmentLabel(milestoneId: number | null): string | null {
+    if (!detail || milestoneId === null) return null
+    const sorted = [...detail.milestones].sort((a, b) => a.seq - b.seq)
+    const index = sorted.findIndex((m) => m.id === milestoneId)
+    if (index === -1) return null
+    const milestone = sorted[index]
+    const segmentStart = sorted[index - 1]?.completed_at ?? detail.project.created_at
+    if (milestone.completed && milestone.completed_at) {
+      return `${milestone.title} · 완료 · ${daysBetween(segmentStart, milestone.completed_at)}일`
+    }
+    return milestone.title
+  }
+
+  const timelineWithDividers = timeline.reduce<{ entry: TimelineEntry; dividerLabel: string | null }[]>(
+    (acc, entry) => {
+      const prevEntry = acc[acc.length - 1]?.entry
+      const changed = !prevEntry || prevEntry.milestone_id !== entry.milestone_id
+      acc.push({ entry, dividerLabel: changed ? segmentLabel(entry.milestone_id) : null })
+      return acc
+    },
+    [],
+  )
 
   if (error) {
     return (
@@ -224,35 +253,44 @@ export default function ProjectDetailPage() {
             <p className="py-8 text-center text-xs text-neutral-400">아직 기록이 없어요</p>
           )}
 
-          {timeline.map((entry) => (
-            <div key={`${entry.kind}-${entry.ref_id}`} className="border-b border-neutral-100 py-3">
-              <div className="mb-1 flex items-center gap-2">
-                <span
-                  className="rounded px-1.5 py-0.5 text-[10px] font-medium"
-                  style={{
-                    background: entry.kind === 'AUTO_LOG' ? '#F1EFE8' : 'var(--cherry-bg)',
-                    color: entry.kind === 'AUTO_LOG' ? '#888780' : 'var(--cherry)',
-                  }}
-                >
-                  {kindLabels[entry.kind] ?? entry.kind}
-                </span>
-                <span className="text-[11px] text-neutral-300">{entry.at.slice(0, 16).replace('T', ' ')}</span>
-              </div>
-              {entry.kind === 'AUTO_LOG' && (
-                <p className="text-sm text-neutral-600">
-                  {entry.title}
-                  {entry.count && entry.count > 1 ? ` × ${entry.count}` : ''}
-                </p>
-              )}
-              {entry.kind === 'LINK' && (
-                <div>
-                  {entry.body && <p className="text-sm">{entry.body}</p>}
-                  {entry.url && <p className="text-xs text-neutral-400">{entry.url}</p>}
+          {timelineWithDividers.map(({ entry, dividerLabel }) => (
+            <div key={`${entry.kind}-${entry.ref_id}`}>
+              {dividerLabel && (
+                <div className="mb-2 mt-5 flex items-center gap-2 text-[11px] font-medium text-neutral-400 first:mt-0">
+                  <span className="h-px flex-1 bg-neutral-200" />
+                  {dividerLabel}
+                  <span className="h-px flex-1 bg-neutral-200" />
                 </div>
               )}
-              {(entry.kind === 'NOTE' || entry.kind === 'RETRO') && (
-                <p className="whitespace-pre-wrap text-sm">{entry.body}</p>
-              )}
+              <div className="border-b border-neutral-100 py-3">
+                <div className="mb-1 flex items-center gap-2">
+                  <span
+                    className="rounded px-1.5 py-0.5 text-[10px] font-medium"
+                    style={{
+                      background: entry.kind === 'AUTO_LOG' ? '#F1EFE8' : 'var(--cherry-bg)',
+                      color: entry.kind === 'AUTO_LOG' ? '#888780' : 'var(--cherry)',
+                    }}
+                  >
+                    {kindLabels[entry.kind] ?? entry.kind}
+                  </span>
+                  <span className="text-[11px] text-neutral-300">{entry.at.slice(0, 16).replace('T', ' ')}</span>
+                </div>
+                {entry.kind === 'AUTO_LOG' && (
+                  <p className="text-sm text-neutral-600">
+                    {entry.title}
+                    {entry.count && entry.count > 1 ? ` × ${entry.count}` : ''}
+                  </p>
+                )}
+                {entry.kind === 'LINK' && (
+                  <div>
+                    {entry.body && <p className="text-sm">{entry.body}</p>}
+                    {entry.url && <p className="text-xs text-neutral-400">{entry.url}</p>}
+                  </div>
+                )}
+                {(entry.kind === 'NOTE' || entry.kind === 'RETRO') && (
+                  <p className="whitespace-pre-wrap text-sm">{entry.body}</p>
+                )}
+              </div>
             </div>
           ))}
         </div>

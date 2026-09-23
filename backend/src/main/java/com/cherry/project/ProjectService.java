@@ -195,7 +195,8 @@ public class ProjectService {
                         tasks.get(0).getRoutineId(),
                         tasks.get(0).getTitle(),
                         tasks.size(),
-                        tasks.stream().map(Task::getCompletedAt).max(Comparator.naturalOrder()).orElseThrow()));
+                        tasks.get(0).getMilestoneId(),
+                        tasks.get(0).getCompletedAt()));
 
         Stream<TimelineEntryResponse> oneOffLogs = completedTasks.stream()
                 .filter(t -> t.getRoutineId() == null)

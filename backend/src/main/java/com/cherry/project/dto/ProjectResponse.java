@@ -3,6 +3,7 @@ package com.cherry.project.dto;
 import com.cherry.project.Project;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public record ProjectResponse(
         Long id,
@@ -12,7 +13,8 @@ public record ProjectResponse(
         Integer totalUnits,
         LocalDate examDate,
         String status,
-        boolean shared
+        boolean shared,
+        LocalDateTime createdAt
 ) {
     public static ProjectResponse from(Project project) {
         return new ProjectResponse(
@@ -23,7 +25,8 @@ public record ProjectResponse(
                 project.getTotalUnits(),
                 project.getExamDate(),
                 project.getStatus(),
-                project.isShared()
+                project.isShared(),
+                project.getCreatedAt()
         );
     }
 }
