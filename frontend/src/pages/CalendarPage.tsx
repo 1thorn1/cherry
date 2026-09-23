@@ -24,6 +24,7 @@ import {
   scrollToCurrentHour,
   type TimetableView,
 } from '../lib/timetable'
+import { usePersistedState } from '../lib/persistedState'
 
 const VISIBLE_HEIGHT = 480
 const GRID_COLUMNS = '44px repeat(7, minmax(108px, 1fr))'
@@ -42,12 +43,12 @@ function range(startIso: string, endIso: string | null) {
 type Period = 'week' | 'month'
 
 export default function CalendarPage() {
-  const [period, setPeriod] = useState<Period>('week')
+  const [period, setPeriod] = usePersistedState<Period>('calendar.period', 'week')
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }))
   const [monthCursor, setMonthCursor] = useState(() => new Date())
   const [days, setDays] = useState<CalendarDay[]>([])
   const [summary, setSummary] = useState<MonthSummary | null>(null)
-  const [view, setView] = useState<TimetableView>('scheduled')
+  const [view, setView] = usePersistedState<TimetableView>('calendar.view', 'scheduled')
   const [error, setError] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
 
