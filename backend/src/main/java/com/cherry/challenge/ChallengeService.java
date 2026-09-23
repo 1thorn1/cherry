@@ -132,6 +132,15 @@ public class ChallengeService {
         member.updatePaused(paused);
     }
 
+    // 공유 메모(A-6-15): 진도 숫자만으로는 "합"만 보이고, 서로 보라고 남기는 한 줄 기록이 안 됨.
+    @Transactional
+    public void updateSharedMemo(Long userId, Long challengeId, String memo) {
+        ChallengeMember member = challengeMemberRepository.findByChallengeIdAndUserId(challengeId, userId)
+                .orElseThrow(ChallengeNotFoundException::new);
+        String trimmed = memo == null ? null : memo.trim();
+        member.updateSharedMemo(trimmed == null || trimmed.isEmpty() ? null : trimmed);
+    }
+
     @Transactional
     public void leave(Long userId, Long challengeId) {
         ChallengeMember member = challengeMemberRepository.findByChallengeIdAndUserId(challengeId, userId)
@@ -167,7 +176,7 @@ public class ChallengeService {
         }
 
         return new MemberProgressResponse(user.getNickname(), completed, total, recentActiveDays,
-                member.isPaused(), member.getUserId().equals(userId));
+                member.isPaused(), member.getSharedMemo(), member.getUserId().equals(userId));
     }
 
     private String generateUniqueInviteCode() {

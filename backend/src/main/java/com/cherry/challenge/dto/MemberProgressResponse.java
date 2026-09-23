@@ -8,6 +8,7 @@ public record MemberProgressResponse(
         int totalMilestones,
         List<Boolean> recentActiveDays,
         boolean paused,
+        String sharedMemo,
         boolean me
 ) {
 }

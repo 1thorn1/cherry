@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { ChallengeDetail } from '../types/challenge'
-import { getChallenge, leaveChallenge, setChallengePaused } from '../api/challenges'
+import { getChallenge, leaveChallenge, setChallengeMemo, setChallengePaused } from '../api/challenges'
 
 export default function ChallengeDetailPage() {
   const { id } = useParams()
@@ -12,6 +12,9 @@ export default function ChallengeDetailPage() {
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [memoDraft, setMemoDraft] = useState('')
+  const [editingMemo, setEditingMemo] = useState(false)
+  const [savingMemo, setSavingMemo] = useState(false)
 
   async function load() {
     try {
@@ -45,6 +48,25 @@ export default function ChallengeDetailPage() {
       setError(e instanceof Error ? e.message : '변경하지 못했습니다')
     } finally {
       setBusy(false)
+    }
+  }
+
+  function startEditingMemo(current: string | null) {
+    setMemoDraft(current ?? '')
+    setEditingMemo(true)
+  }
+
+  async function handleSaveMemo() {
+    if (savingMemo) return
+    setSavingMemo(true)
+    try {
+      await setChallengeMemo(challengeId, memoDraft.trim())
+      setEditingMemo(false)
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '메모를 저장하지 못했습니다')
+    } finally {
+      setSavingMemo(false)
     }
   }
 
@@ -123,7 +145,7 @@ export default function ChallengeDetailPage() {
               />
             </div>
 
-            <div className="flex gap-1.5">
+            <div className="mb-3 flex gap-1.5">
               {member.recent_active_days.map((active, i) => (
                 <span
                   key={i}
@@ -132,6 +154,38 @@ export default function ChallengeDetailPage() {
                 />
               ))}
             </div>
+
+            {member.me && editingMemo ? (
+              <div className="flex gap-2">
+                <input
+                  value={memoDraft}
+                  onChange={(e) => setMemoDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.nativeEvent.isComposing) return
+                    if (e.key === 'Enter') handleSaveMemo()
+                  }}
+                  placeholder="다른 멤버에게 남길 한 줄 (예: 오늘은 3과 복습만)"
+                  className="flex-1 rounded-md border border-neutral-200 px-3 py-1.5 text-xs outline-none focus:border-neutral-400"
+                  autoFocus
+                />
+                <button
+                  onClick={handleSaveMemo}
+                  disabled={savingMemo}
+                  className="rounded-md px-3 text-xs font-medium text-white disabled:opacity-50"
+                  style={{ background: 'var(--cherry)' }}
+                >
+                  저장
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => member.me && startEditingMemo(member.shared_memo)}
+                className={`text-left text-xs ${member.shared_memo ? 'text-neutral-500' : 'text-neutral-300'} ${member.me ? '' : 'cursor-default'}`}
+                disabled={!member.me}
+              >
+                {member.shared_memo ?? (member.me ? '+ 한 줄 남기기' : '')}
+              </button>
+            )}
           </div>
         ))}
       </div>
