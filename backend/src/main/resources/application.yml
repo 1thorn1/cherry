@@ -25,6 +25,11 @@ spring:
   jackson:
     property-naming-strategy: SNAKE_CASE
 
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
   security:
     oauth2:
       client:
@@ -38,6 +43,9 @@ vapid:
   public-key: ${VAPID_PUBLIC_KEY:BJBlTgRDS41vrnXzyEgY9ipyNWXqoNFW4rWg_4xbXQJT42ZfUalwOWtd1_jWQx3lSKi4ktcA-mmphK3V1POSvOE}
   private-key: ${VAPID_PRIVATE_KEY:o2GwFffdHUoX-heR3Ru0Yzl3NA1XaoclTQqFI6omFnI}
   subject: mailto:dev@cherry.local
+
+app:
+  upload-dir: ${UPLOAD_DIR:uploads}
 
 server:
   port: 8080

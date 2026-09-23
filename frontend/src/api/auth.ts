@@ -8,3 +8,20 @@ export function getMe() {
 export function logout() {
   return request<void>('/api/auth/logout', { method: 'POST' })
 }
+
+export function updateNickname(nickname: string) {
+  return request<AuthUser>('/api/users/me', {
+    method: 'PATCH',
+    body: JSON.stringify({ nickname }),
+  })
+}
+
+export function uploadProfileImage(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request<AuthUser>('/api/users/me/profile-image', {
+    method: 'POST',
+    body: formData,
+    headers: {},
+  })
+}

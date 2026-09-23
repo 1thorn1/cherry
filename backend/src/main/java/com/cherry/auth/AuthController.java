@@ -20,11 +20,11 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<AuthUserResponse> me(@AuthenticationPrincipal OAuth2User principal) {
-        if (principal == null) {
+        Long userId = CurrentUser.idOrNull(principal);
+        if (userId == null) {
             return ResponseEntity.status(401).build();
         }
-        Long userId = ((Number) principal.getAttribute(CherryOAuth2UserService.USER_ID_ATTRIBUTE)).longValue();
         User user = userRepository.findById(userId).orElseThrow();
-        return ResponseEntity.ok(new AuthUserResponse(user.getId(), user.getNickname(), user.getEmail(), user.getFriendCode()));
+        return ResponseEntity.ok(AuthUserResponse.from(user));
     }
 }

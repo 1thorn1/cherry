@@ -3,6 +3,7 @@ backend/build/
 backend/.gradle/
 *.class
 *.jar
+backend/uploads/
 
 # Node
 frontend/node_modules/

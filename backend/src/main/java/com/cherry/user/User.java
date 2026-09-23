@@ -24,6 +24,9 @@ public class User {
     @Column(length = 191)
     private String email;
 
+    @Column(name = "profile_image_path", length = 255)
+    private String profileImagePath;
+
     @Column(nullable = false, length = 50)
     private String nickname;
 
@@ -53,6 +56,14 @@ public class User {
         user.nickname = nickname;
         user.friendCode = friendCode;
         return user;
+    }
+
+    public void updateNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    public void updateProfileImagePath(String profileImagePath) {
+        this.profileImagePath = profileImagePath;
     }
 
     public void updateSharingSettings(boolean sharePark, boolean shareActivityCount, boolean shareTaskTitles) {

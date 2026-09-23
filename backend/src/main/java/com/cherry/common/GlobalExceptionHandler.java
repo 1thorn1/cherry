@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -41,6 +42,18 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidProjectException.class)
     public ResponseEntity<ErrorResponse> handleInvalidProject(InvalidProjectException e) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("INVALID_REQUEST", e.getMessage()));
+    }
+
+    @ExceptionHandler(LoginRequiredException.class)
+    public ResponseEntity<ErrorResponse> handleLoginRequired(LoginRequiredException e) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ErrorResponse("LOGIN_REQUIRED", e.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidFileException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidFile(InvalidFileException e) {
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("INVALID_REQUEST", e.getMessage()));
     }
@@ -103,6 +116,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleAlreadyChallengeMember(AlreadyChallengeMemberException e) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(new ErrorResponse("ALREADY_CHALLENGE_MEMBER", e.getMessage()));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSize(MaxUploadSizeExceededException e) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("INVALID_REQUEST", "파일 용량은 5MB를 넘을 수 없습니다"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
