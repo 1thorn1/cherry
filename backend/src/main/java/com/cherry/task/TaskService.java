@@ -82,7 +82,7 @@ public class TaskService {
         task.complete(now, computeEffectiveAt(task, now), milestoneIdToTag);
 
         if (!alreadyCompleted) {
-            parkService.awardForTaskCompletion(userId, taskId, LocalDate.now());
+            parkService.awardForTaskCompletion(userId, taskId, LocalDate.now(), task.getRoutineId() != null);
             if (presetMilestoneId != null) {
                 milestoneRepository.findById(presetMilestoneId)
                         .filter(m -> m.getCompletedAt() == null)

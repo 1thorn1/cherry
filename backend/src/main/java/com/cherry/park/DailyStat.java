@@ -26,6 +26,11 @@ public class DailyStat {
     @Column(name = "completed_count", nullable = false)
     private int completedCount;
 
+    // 포인트 계산 전용 가중치 합계. completedCount(순수 개수)와 분리해야 반복 항목의
+    // 낮은 가중치가 다른 일반 항목의 계산에 섞여 들어가지 않는다 (A-6-7 부작용 방어).
+    @Column(name = "point_basis", nullable = false)
+    private int pointBasis;
+
     @Column(name = "weather_code")
     private String weatherCode;
 
@@ -45,8 +50,9 @@ public class DailyStat {
         return stat;
     }
 
-    public void update(int completedCount, int visitors, int pointsEarned) {
+    public void update(int completedCount, int pointBasis, int visitors, int pointsEarned) {
         this.completedCount = completedCount;
+        this.pointBasis = pointBasis;
         this.weatherCode = "CLEAR";
         this.multiplier = BigDecimal.ONE;
         this.visitors = visitors;
