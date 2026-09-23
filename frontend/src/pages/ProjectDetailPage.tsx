@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import type { Milestone, NoteKind, ProjectDetail, TimelineEntry } from '../types/project'
-import { addNote, getProject, getTimeline, updateProjectShared, updateProjectWorkDays } from '../api/projects'
+import { addMilestone, addNote, getProject, getTimeline, updateProjectShared, updateProjectWorkDays } from '../api/projects'
 import { createTask } from '../api/tasks'
 import MilestoneTrack from '../components/MilestoneTrack'
 import MilestoneGrid from '../components/MilestoneGrid'
@@ -43,6 +43,8 @@ export default function ProjectDetailPage() {
   const [saving, setSaving] = useState(false)
   const [sharingToggle, setSharingToggle] = useState(false)
   const [workDaysSaving, setWorkDaysSaving] = useState(false)
+  const [milestoneDraft, setMilestoneDraft] = useState('')
+  const [addingMilestone, setAddingMilestone] = useState(false)
   const [sendingId, setSendingId] = useState<number | null>(null)
   const [sentIds, setSentIds] = useState<Set<number>>(new Set())
 
@@ -106,6 +108,21 @@ export default function ProjectDetailPage() {
       setError(e instanceof Error ? e.message : '작업 요일을 저장하지 못했습니다')
     } finally {
       setWorkDaysSaving(false)
+    }
+  }
+
+  async function handleAddMilestone() {
+    const trimmed = milestoneDraft.trim()
+    if (!trimmed || addingMilestone) return
+    setAddingMilestone(true)
+    try {
+      await addMilestone(projectId, trimmed)
+      setMilestoneDraft('')
+      await loadDetail()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '마일스톤을 추가하지 못했습니다')
+    } finally {
+      setAddingMilestone(false)
     }
   }
 
@@ -249,6 +266,30 @@ export default function ProjectDetailPage() {
                   </button>
                 )
               })()}
+              {detail.project.type === 'FREE' && (
+                <div className="mt-4 flex gap-2">
+                  <input
+                    value={milestoneDraft}
+                    onChange={(e) => setMilestoneDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.nativeEvent.isComposing) return
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleAddMilestone()
+                      }
+                    }}
+                    placeholder="새 마일스톤 (예: 2구간 - 디자인)"
+                    className="flex-1 rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+                  />
+                  <button
+                    onClick={handleAddMilestone}
+                    disabled={addingMilestone}
+                    className="rounded-lg border border-neutral-200 px-3 text-xs font-medium text-neutral-500 disabled:opacity-50"
+                  >
+                    추가
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>

@@ -1,5 +1,7 @@
 package com.cherry.project;
 
+import com.cherry.project.dto.MilestoneCreateRequest;
+import com.cherry.project.dto.MilestoneResponse;
 import com.cherry.project.dto.NoteCreateRequest;
 import com.cherry.project.dto.NoteResponse;
 import com.cherry.project.dto.ProjectCreateRequest;
@@ -60,6 +62,13 @@ public class ProjectController {
     @PatchMapping("/{id}/work-days")
     public ProjectResponse updateWorkDays(@PathVariable Long id, @Valid @RequestBody ProjectWorkDaysRequest request) {
         return projectService.updateWorkDays(DEV_USER_ID, id, request);
+    }
+
+    @PostMapping("/{id}/milestones")
+    public ResponseEntity<MilestoneResponse> addMilestone(@PathVariable Long id,
+                                                           @Valid @RequestBody MilestoneCreateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(projectService.addMilestone(DEV_USER_ID, id, request));
     }
 
     @PostMapping("/{id}/notes")
