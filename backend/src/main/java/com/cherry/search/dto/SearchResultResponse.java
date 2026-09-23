@@ -8,6 +8,7 @@ public record SearchResultResponse(
         String text,
         Long projectId,
         String projectName,
+        String milestoneTitle,
         LocalDateTime at
 ) {
 }
