@@ -80,7 +80,8 @@ export default function ChallengesPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
-      <h1 className="mb-6 text-xl font-medium tracking-tight">같이 하기</h1>
+      <Link to="/projects" className="text-xs text-neutral-400">← 프로젝트</Link>
+      <h1 className="mb-6 mt-2 text-xl font-medium tracking-tight">같이 하기</h1>
 
       <div className="mb-6 rounded-lg border border-neutral-200 p-4">
         <p className="mb-3 text-xs text-neutral-400">초대 코드로 참여</p>

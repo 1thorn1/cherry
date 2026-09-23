@@ -15,6 +15,7 @@ export interface MemberProgress {
   total_milestones: number
   recent_active_days: boolean[]
   paused: boolean
+  shared_memo: string | null
   me: boolean
 }
 

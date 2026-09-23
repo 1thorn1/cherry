@@ -44,3 +44,10 @@ export function setChallengePaused(id: number, paused: boolean) {
 export function leaveChallenge(id: number) {
   return request<void>(`/api/challenges/${id}/leave`, { method: 'DELETE' })
 }
+
+export function setChallengeMemo(id: number, memo: string) {
+  return request<void>(`/api/challenges/${id}/memo`, {
+    method: 'PATCH',
+    body: JSON.stringify({ memo }),
+  })
+}
