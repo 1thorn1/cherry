@@ -5,6 +5,7 @@ import com.cherry.project.dto.MilestoneCreateRequest;
 import com.cherry.project.dto.MilestoneResponse;
 import com.cherry.project.dto.NoteCreateRequest;
 import com.cherry.project.dto.NoteResponse;
+import com.cherry.project.dto.NoteUpdateRequest;
 import com.cherry.project.dto.ProjectCreateRequest;
 import com.cherry.project.dto.ProjectDetailResponse;
 import com.cherry.project.dto.ProjectOverviewResponse;
@@ -81,5 +82,17 @@ public class ProjectController {
                                                 @Valid @RequestBody NoteCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(projectService.addNote(userId, id, request));
+    }
+
+    @PatchMapping("/{id}/notes/{noteId}")
+    public NoteResponse updateNote(@CurrentUserId Long userId, @PathVariable Long id, @PathVariable Long noteId,
+                                    @RequestBody NoteUpdateRequest request) {
+        return projectService.updateNote(userId, id, noteId, request);
+    }
+
+    @DeleteMapping("/{id}/notes/{noteId}")
+    public ResponseEntity<Void> deleteNote(@CurrentUserId Long userId, @PathVariable Long id, @PathVariable Long noteId) {
+        projectService.deleteNote(userId, id, noteId);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Milestone, NoteKind, ProjectDetail, TimelineEntry } from '../types/project'
-import { addMilestone, addNote, completeMilestoneNow, deleteProject, getProject, getTimeline, uncompleteMilestoneNow, updateProjectShared, updateProjectWorkDays } from '../api/projects'
+import { addMilestone, addNote, completeMilestoneNow, deleteNote, deleteProject, getProject, getTimeline, uncompleteMilestoneNow, updateNote, updateProjectShared, updateProjectWorkDays } from '../api/projects'
 import { createTask } from '../api/tasks'
 import MilestoneTrack from '../components/MilestoneTrack'
 import MilestoneChipGrid from '../components/MilestoneChipGrid'
-import MarkdownBody from '../components/MarkdownBody'
+import NoteEntry from '../components/NoteEntry'
 
 const kindLabels: Record<string, string> = {
   AUTO_LOG: '완료',
@@ -206,6 +206,24 @@ export default function ProjectDetailPage() {
     }
   }
 
+  async function handleUpdateNote(noteId: number, body: string | null, url: string | null) {
+    try {
+      await updateNote(projectId, noteId, body, url)
+      await loadTimeline()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '수정하지 못했습니다')
+    }
+  }
+
+  async function handleDeleteNote(noteId: number) {
+    try {
+      await deleteNote(projectId, noteId)
+      await loadTimeline()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '삭제하지 못했습니다')
+    }
+  }
+
   // 마일스톤 구간 구분선 라벨 (A-6-4). 구간 시작은 이전 마일스톤 완료 시각, 첫 구간은 프로젝트 생성 시각.
   function segmentLabel(milestoneId: number | null): string | null {
     if (!detail || milestoneId === null) return null
@@ -349,6 +367,8 @@ export default function ProjectDetailPage() {
               onUncomplete={handleUncompleteMilestone}
               onSendToday={handleSendToday}
               onAddNote={handleAddMilestoneNote}
+              onUpdateNote={handleUpdateNote}
+              onDeleteNote={handleDeleteNote}
               completingId={completingId}
               sendingId={sendingId}
               sentIds={sentIds}
@@ -429,21 +449,7 @@ export default function ProjectDetailPage() {
                   </span>
                   <span className="text-[11px] text-neutral-300">{entry.at.slice(0, 16).replace('T', ' ')}</span>
                 </div>
-                {entry.kind === 'AUTO_LOG' && (
-                  <p className="text-sm text-neutral-600">
-                    {entry.title}
-                    {entry.count && entry.count > 1 ? ` × ${entry.count}` : ''}
-                  </p>
-                )}
-                {entry.kind === 'LINK' && (
-                  <div>
-                    {entry.body && <p className="text-sm">{entry.body}</p>}
-                    {entry.url && <p className="text-xs text-neutral-400">{entry.url}</p>}
-                  </div>
-                )}
-                {(entry.kind === 'NOTE' || entry.kind === 'RETRO') && entry.body && (
-                  <MarkdownBody>{entry.body}</MarkdownBody>
-                )}
+                <NoteEntry entry={entry} onUpdate={handleUpdateNote} onDelete={handleDeleteNote} hideKindLabel />
               </div>
             </div>
           ))}

@@ -1,5 +1,6 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 
 // react-markdown은 rehype-raw 없이는 원래도 마크다운에 섞인 원문 HTML(<script> 등)을
@@ -18,7 +19,7 @@ export default function MarkdownBody({ children }: { children: string }) {
   return (
     <div className="text-sm text-neutral-700">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkBreaks]}
         rehypePlugins={[[rehypeSanitize, schema]]}
         components={{
           h1: (p) => <h1 className="mb-1.5 mt-2 text-base font-semibold first:mt-0" {...p} />,

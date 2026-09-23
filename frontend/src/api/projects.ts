@@ -81,3 +81,14 @@ export function addNote(
     body: JSON.stringify({ kind, body, url, milestone_id: milestoneId ?? null }),
   })
 }
+
+export function updateNote(projectId: number, noteId: number, body: string | null, url: string | null) {
+  return request<void>(`/api/projects/${projectId}/notes/${noteId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ body, url }),
+  })
+}
+
+export function deleteNote(projectId: number, noteId: number) {
+  return request<void>(`/api/projects/${projectId}/notes/${noteId}`, { method: 'DELETE' })
+}

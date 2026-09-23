@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import type { Milestone, TimelineEntry } from '../types/project'
-import MarkdownBody from './MarkdownBody'
-
-const kindLabels: Record<string, string> = { AUTO_LOG: '완료', NOTE: '메모', LINK: '링크', RETRO: '회고' }
+import NoteEntry from './NoteEntry'
 
 export default function MilestoneChipGrid({
   milestones,
@@ -11,6 +9,8 @@ export default function MilestoneChipGrid({
   onUncomplete,
   onSendToday,
   onAddNote,
+  onUpdateNote,
+  onDeleteNote,
   completingId,
   sendingId,
   sentIds,
@@ -22,6 +22,8 @@ export default function MilestoneChipGrid({
   onUncomplete: (m: Milestone) => void
   onSendToday: (m: Milestone) => void
   onAddNote: (milestoneId: number, body: string) => Promise<void>
+  onUpdateNote: (noteId: number, body: string | null, url: string | null) => Promise<void>
+  onDeleteNote: (noteId: number) => Promise<void>
   completingId: number | null
   sendingId: number | null
   sentIds: Set<number>
@@ -139,20 +141,7 @@ export default function MilestoneChipGrid({
                 <ul className="space-y-1.5">
                   {selectedNotes.map((entry) => (
                     <li key={`${entry.kind}-${entry.ref_id}`} className="rounded-lg bg-neutral-50 px-3 py-2">
-                      <span className="mb-1 inline-block text-[10px] font-medium text-neutral-400">{kindLabels[entry.kind] ?? entry.kind}</span>
-                      {entry.kind === 'AUTO_LOG' ? (
-                        <p className="text-xs text-neutral-600">
-                          {entry.title ?? ''}
-                          {entry.count && entry.count > 1 ? ` × ${entry.count}` : ''}
-                        </p>
-                      ) : entry.kind === 'LINK' ? (
-                        <div className="text-xs">
-                          {entry.body && <p>{entry.body}</p>}
-                          {entry.url && <p className="text-neutral-400">{entry.url}</p>}
-                        </div>
-                      ) : (
-                        entry.body && <MarkdownBody>{entry.body}</MarkdownBody>
-                      )}
+                      <NoteEntry entry={entry} onUpdate={onUpdateNote} onDelete={onDeleteNote} />
                     </li>
                   ))}
                 </ul>

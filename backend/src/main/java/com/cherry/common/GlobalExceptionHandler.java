@@ -34,6 +34,12 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("MILESTONE_NOT_FOUND", e.getMessage()));
     }
 
+    @ExceptionHandler(NoteNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoteNotFound(NoteNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("NOTE_NOT_FOUND", e.getMessage()));
+    }
+
     @ExceptionHandler(InvalidNoteException.class)
     public ResponseEntity<ErrorResponse> handleInvalidNote(InvalidNoteException e) {
         return ResponseEntity.badRequest()

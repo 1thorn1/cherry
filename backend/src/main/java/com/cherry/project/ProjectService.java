@@ -2,6 +2,7 @@ package com.cherry.project;
 
 import com.cherry.common.InvalidNoteException;
 import com.cherry.common.InvalidProjectException;
+import com.cherry.common.NoteNotFoundException;
 import com.cherry.common.ProjectNotFoundException;
 import com.cherry.park.ParkService;
 import com.cherry.project.dto.FocusProjectResponse;
@@ -18,6 +19,7 @@ import com.cherry.project.dto.ProjectOverviewResponse;
 import com.cherry.project.dto.ProjectResponse;
 import com.cherry.project.dto.ProjectSharedRequest;
 import com.cherry.project.dto.ProjectWorkDaysRequest;
+import com.cherry.project.dto.NoteUpdateRequest;
 import com.cherry.project.dto.TimelineEntryResponse;
 import com.cherry.task.Task;
 import com.cherry.task.TaskRepository;
@@ -244,19 +246,42 @@ public class ProjectService {
     }
 
     private void validateNote(NoteCreateRequest request) {
-        switch (request.kind()) {
+        validateNoteContent(request.kind(), request.body(), request.url());
+    }
+
+    private void validateNoteContent(String kind, String body, String url) {
+        switch (kind) {
             case "LINK" -> {
-                if (request.url() == null || request.url().isBlank()) {
+                if (url == null || url.isBlank()) {
                     throw new InvalidNoteException("링크는 URL을 입력해주세요");
                 }
             }
             case "NOTE", "RETRO" -> {
-                if (request.body() == null || request.body().isBlank()) {
+                if (body == null || body.isBlank()) {
                     throw new InvalidNoteException("내용을 입력해주세요");
                 }
             }
             default -> throw new InvalidNoteException("알 수 없는 기록 종류입니다");
         }
+    }
+
+    @Transactional
+    public NoteResponse updateNote(Long userId, Long projectId, Long noteId, NoteUpdateRequest request) {
+        ProjectNote note = findOwnedNote(userId, projectId, noteId);
+        validateNoteContent(note.getKind(), request.body(), request.url());
+        note.updateContent(request.body(), request.url());
+        return NoteResponse.from(note);
+    }
+
+    @Transactional
+    public void deleteNote(Long userId, Long projectId, Long noteId) {
+        ProjectNote note = findOwnedNote(userId, projectId, noteId);
+        note.delete();
+    }
+
+    private ProjectNote findOwnedNote(Long userId, Long projectId, Long noteId) {
+        return projectNoteRepository.findByIdAndUserIdAndProjectIdAndDeletedAtIsNull(noteId, userId, projectId)
+                .orElseThrow(NoteNotFoundException::new);
     }
 
     @Transactional
