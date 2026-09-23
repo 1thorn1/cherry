@@ -39,6 +39,12 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("INVALID_REQUEST", e.getMessage()));
     }
 
+    @ExceptionHandler(InvalidProjectException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidProject(InvalidProjectException e) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("INVALID_REQUEST", e.getMessage()));
+    }
+
     @ExceptionHandler(CosmeticItemNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleCosmeticItemNotFound(CosmeticItemNotFoundException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)

@@ -1,6 +1,7 @@
 package com.cherry.project;
 
 import com.cherry.common.InvalidNoteException;
+import com.cherry.common.InvalidProjectException;
 import com.cherry.common.MilestoneNotFoundException;
 import com.cherry.common.ProjectNotFoundException;
 import com.cherry.park.ParkService;
@@ -58,6 +59,7 @@ public class ProjectService {
     @Transactional
     public Project createProject(Long userId, String name, String type, Integer totalUnits,
                                   LocalDate examDate, List<String> milestoneTitles) {
+        validateTypeFields(type, totalUnits, examDate);
         Project project = Project.create(userId, name, type, totalUnits, examDate);
         projectRepository.save(project);
 
@@ -269,6 +271,22 @@ public class ProjectService {
             parkService.awardForMilestoneCompletion(userId, milestoneId);
         }
         return MilestoneResponse.from(milestone);
+    }
+
+    // B-11 (2026-09-22): total_units 없이 EXAM/PROGRESS 프로젝트를 만들면 마일스톤 생성 시 NPE로 500이 나던 버그.
+    // 타입별 필수값을 요청 단계에서 막는다.
+    private void validateTypeFields(String type, Integer totalUnits, LocalDate examDate) {
+        if ("PROGRESS".equals(type) && (totalUnits == null || totalUnits <= 0)) {
+            throw new InvalidProjectException("총 회차 수를 입력해주세요");
+        }
+        if ("EXAM".equals(type)) {
+            if (totalUnits == null || totalUnits <= 0) {
+                throw new InvalidProjectException("단원 수를 입력해주세요");
+            }
+            if (examDate == null) {
+                throw new InvalidProjectException("시험일을 입력해주세요");
+            }
+        }
     }
 
     private List<Milestone> generateFreeMilestones(Project project, List<String> titles) {
