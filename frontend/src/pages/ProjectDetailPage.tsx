@@ -304,21 +304,8 @@ export default function ProjectDetailPage() {
             </div>
           )}
           <MilestoneTrack milestones={detail.milestones} />
-          <div className="mt-4">
-            <MilestoneChipGrid
-              milestones={detail.milestones}
-              notesByMilestone={notesByMilestone}
-              onComplete={handleCompleteMilestone}
-              onSendToday={handleSendToday}
-              onAddNote={handleAddMilestoneNote}
-              completingId={completingId}
-              sendingId={sendingId}
-              sentIds={sentIds}
-              savingNoteId={savingNoteId}
-            />
-          </div>
           {detail.project.type === 'FREE' && (
-            <div className="mt-4 flex gap-2">
+            <div className="mt-3 flex gap-2">
               <input
                 value={milestoneDraft}
                 onChange={(e) => setMilestoneDraft(e.target.value)}
@@ -341,6 +328,19 @@ export default function ProjectDetailPage() {
               </button>
             </div>
           )}
+          <div className="mt-4">
+            <MilestoneChipGrid
+              milestones={detail.milestones}
+              notesByMilestone={notesByMilestone}
+              onComplete={handleCompleteMilestone}
+              onSendToday={handleSendToday}
+              onAddNote={handleAddMilestoneNote}
+              completingId={completingId}
+              sendingId={sendingId}
+              sentIds={sentIds}
+              savingNoteId={savingNoteId}
+            />
+          </div>
         </div>
       )}
 
