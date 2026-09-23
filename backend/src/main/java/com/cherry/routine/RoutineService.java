@@ -31,8 +31,15 @@ public class RoutineService {
 
     @Transactional(readOnly = true)
     public List<RoutineResponse> list(Long userId) {
+        LocalDate today = LocalDate.now();
+        LocalDate monthStart = today.withDayOfMonth(1);
+        LocalDate monthEnd = today.withDayOfMonth(today.lengthOfMonth());
         return routineRepository.findByUserIdAndPausedFalseAndDeletedAtIsNullOrderByCreatedAtAsc(userId)
-                .stream().map(RoutineResponse::from).toList();
+                .stream()
+                .map(r -> RoutineResponse.from(r,
+                        taskRepository.countByRoutineIdAndCompletedAtIsNotNullAndTaskDateBetween(
+                                r.getId(), monthStart, monthEnd)))
+                .toList();
     }
 
     @Transactional
