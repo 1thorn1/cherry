@@ -16,6 +16,7 @@ import com.cherry.project.dto.ProjectLaneResponse;
 import com.cherry.project.dto.ProjectOverviewResponse;
 import com.cherry.project.dto.ProjectResponse;
 import com.cherry.project.dto.ProjectSharedRequest;
+import com.cherry.project.dto.ProjectWorkDaysRequest;
 import com.cherry.project.dto.TimelineEntryResponse;
 import com.cherry.task.Task;
 import com.cherry.task.TaskRepository;
@@ -247,6 +248,13 @@ public class ProjectService {
     public ProjectResponse updateShared(Long userId, Long projectId, ProjectSharedRequest request) {
         Project project = findOwned(userId, projectId);
         project.updateShared(request.shared());
+        return ProjectResponse.from(project);
+    }
+
+    @Transactional
+    public ProjectResponse updateWorkDays(Long userId, Long projectId, ProjectWorkDaysRequest request) {
+        Project project = findOwned(userId, projectId);
+        project.updateWorkDays(request.workDays());
         return ProjectResponse.from(project);
     }
 

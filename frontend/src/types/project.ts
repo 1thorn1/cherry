@@ -9,6 +9,7 @@ export interface Project {
   exam_date: string | null
   status: string
   shared: boolean
+  work_days: number[]
   created_at: string
 }
 
