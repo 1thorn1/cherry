@@ -48,6 +48,12 @@ public class ProjectController {
         return projectService.detail(userId, id);
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@CurrentUserId Long userId, @PathVariable Long id) {
+        projectService.deleteProject(userId, id);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/{id}/timeline")
     public List<TimelineEntryResponse> timeline(@CurrentUserId Long userId, @PathVariable Long id) {
         return projectService.timeline(userId, id);

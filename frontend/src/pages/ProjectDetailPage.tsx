@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Milestone, NoteKind, ProjectDetail, TimelineEntry } from '../types/project'
-import { addMilestone, addNote, completeMilestoneNow, getProject, getTimeline, updateProjectShared, updateProjectWorkDays } from '../api/projects'
+import { addMilestone, addNote, completeMilestoneNow, deleteProject, getProject, getTimeline, updateProjectShared, updateProjectWorkDays } from '../api/projects'
 import { createTask } from '../api/tasks'
 import MilestoneTrack from '../components/MilestoneTrack'
 import MilestoneGrid from '../components/MilestoneGrid'
@@ -31,6 +31,7 @@ function daysBetween(startIso: string, endIso: string): number {
 export default function ProjectDetailPage() {
   const { id } = useParams()
   const projectId = Number(id)
+  const navigate = useNavigate()
 
   const [tab, setTab] = useState<'progress' | 'timeline'>('progress')
   const [detail, setDetail] = useState<ProjectDetail | null>(null)
@@ -48,6 +49,7 @@ export default function ProjectDetailPage() {
   const [sendingId, setSendingId] = useState<number | null>(null)
   const [sentIds, setSentIds] = useState<Set<number>>(new Set())
   const [completingId, setCompletingId] = useState<number | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   async function loadDetail() {
     try {
@@ -111,6 +113,19 @@ export default function ProjectDetailPage() {
       setError(e instanceof Error ? e.message : '설정을 저장하지 못했습니다')
     } finally {
       setSharingToggle(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!detail || deleting) return
+    if (!window.confirm(`"${detail.project.name}" 프로젝트를 삭제할까요? 완료 기록은 남지만 프로젝트 목록에서는 사라져요.`)) return
+    setDeleting(true)
+    try {
+      await deleteProject(projectId)
+      navigate('/projects')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '삭제하지 못했습니다')
+      setDeleting(false)
     }
   }
 
@@ -208,6 +223,14 @@ export default function ProjectDetailPage() {
       <Link to="/projects" className="text-xs text-neutral-400">← 프로젝트</Link>
       <div className="mb-6 mt-2 flex items-center justify-between">
         <h1 className="text-xl font-medium tracking-tight">{detail.project.name}</h1>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="text-[11px] font-medium text-neutral-300 hover:text-red-500 disabled:opacity-50"
+          >
+            삭제
+          </button>
         <button
           onClick={handleToggleShared}
           disabled={sharingToggle}
@@ -218,6 +241,7 @@ export default function ProjectDetailPage() {
         >
           {detail.project.shared ? '친구에게 공유중' : '비공개'}
         </button>
+        </div>
       </div>
 
       <div className="mb-6 flex gap-1 rounded-lg bg-neutral-100 p-1">

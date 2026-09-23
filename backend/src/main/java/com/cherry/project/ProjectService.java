@@ -253,6 +253,15 @@ public class ProjectService {
         return ProjectResponse.from(project);
     }
 
+    // 소프트 삭제만 한다. 마일스톤·태스크·기록은 그대로 둔다 — 완료 기록은 통계·공원 보상의
+    // 근거라 프로젝트를 지웠다고 같이 사라지면 안 된다. 목록·개요 조회는 deletedAtIsNull로
+    // 이미 걸러지므로 삭제된 프로젝트는 자연히 안 보인다.
+    @Transactional
+    public void deleteProject(Long userId, Long projectId) {
+        Project project = findOwned(userId, projectId);
+        project.delete();
+    }
+
     @Transactional
     public ProjectResponse updateWorkDays(Long userId, Long projectId, ProjectWorkDaysRequest request) {
         Project project = findOwned(userId, projectId);

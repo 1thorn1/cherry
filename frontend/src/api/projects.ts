@@ -42,6 +42,10 @@ export function updateProjectWorkDays(id: number, workDays: number[]) {
   })
 }
 
+export function deleteProject(id: number) {
+  return request<void>(`/api/projects/${id}`, { method: 'DELETE' })
+}
+
 export function addMilestone(projectId: number, title: string) {
   return request<Milestone>(`/api/projects/${projectId}/milestones`, {
     method: 'POST',
