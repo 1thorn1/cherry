@@ -7,9 +7,10 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
-// 로그인 기반은 여기서 시작하지만, 기존 API는 아직 DEV_USER_ID를 하드코딩해서 쓰고 있어
-// 로그인 여부와 무관하게 그대로 동작해야 한다. 그래서 지금은 전부 permitAll — 인증 강제는
-// 컨트롤러들이 실제 로그인 사용자로 갈아탄 뒤(B-12 다음 단계)에 넣는다.
+// Security 필터 체인 자체는 여전히 전부 permitAll — 실제 인증 강제는 각 컨트롤러
+// 파라미터에 붙은 @CurrentUserId(CurrentUserIdArgumentResolver)가 로그인 안 됐을 때
+// LoginRequiredException(401)을 던지는 것으로 대신한다. URL 패턴별로 막을 이유가
+// 아직 없어서(정적 리소스·springdoc 등과 뒤섞여 있음) 이 방식이 더 단순하다.
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor

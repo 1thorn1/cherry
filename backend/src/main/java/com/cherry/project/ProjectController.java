@@ -1,5 +1,6 @@
 package com.cherry.project;
 
+import com.cherry.auth.CurrentUserId;
 import com.cherry.project.dto.MilestoneCreateRequest;
 import com.cherry.project.dto.MilestoneResponse;
 import com.cherry.project.dto.NoteCreateRequest;
@@ -24,57 +25,55 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ProjectController {
 
-    private static final Long DEV_USER_ID = 1L;
-
     private final ProjectService projectService;
 
     @PostMapping
-    public ResponseEntity<ProjectResponse> create(@Valid @RequestBody ProjectCreateRequest request) {
+    public ResponseEntity<ProjectResponse> create(@CurrentUserId Long userId, @Valid @RequestBody ProjectCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(projectService.create(DEV_USER_ID, request));
+                .body(projectService.create(userId, request));
     }
 
     @GetMapping
-    public List<ProjectResponse> list() {
-        return projectService.list(DEV_USER_ID);
+    public List<ProjectResponse> list(@CurrentUserId Long userId) {
+        return projectService.list(userId);
     }
 
     @GetMapping("/overview")
-    public ProjectOverviewResponse overview() {
-        return projectService.getOverview(DEV_USER_ID);
+    public ProjectOverviewResponse overview(@CurrentUserId Long userId) {
+        return projectService.getOverview(userId);
     }
 
     @GetMapping("/{id}")
-    public ProjectDetailResponse detail(@PathVariable Long id) {
-        return projectService.detail(DEV_USER_ID, id);
+    public ProjectDetailResponse detail(@CurrentUserId Long userId, @PathVariable Long id) {
+        return projectService.detail(userId, id);
     }
 
     @GetMapping("/{id}/timeline")
-    public List<TimelineEntryResponse> timeline(@PathVariable Long id) {
-        return projectService.timeline(DEV_USER_ID, id);
+    public List<TimelineEntryResponse> timeline(@CurrentUserId Long userId, @PathVariable Long id) {
+        return projectService.timeline(userId, id);
     }
 
     @PatchMapping("/{id}/shared")
-    public ProjectResponse updateShared(@PathVariable Long id, @RequestBody ProjectSharedRequest request) {
-        return projectService.updateShared(DEV_USER_ID, id, request);
+    public ProjectResponse updateShared(@CurrentUserId Long userId, @PathVariable Long id, @RequestBody ProjectSharedRequest request) {
+        return projectService.updateShared(userId, id, request);
     }
 
     @PatchMapping("/{id}/work-days")
-    public ProjectResponse updateWorkDays(@PathVariable Long id, @Valid @RequestBody ProjectWorkDaysRequest request) {
-        return projectService.updateWorkDays(DEV_USER_ID, id, request);
+    public ProjectResponse updateWorkDays(@CurrentUserId Long userId, @PathVariable Long id, @Valid @RequestBody ProjectWorkDaysRequest request) {
+        return projectService.updateWorkDays(userId, id, request);
     }
 
     @PostMapping("/{id}/milestones")
-    public ResponseEntity<MilestoneResponse> addMilestone(@PathVariable Long id,
+    public ResponseEntity<MilestoneResponse> addMilestone(@CurrentUserId Long userId, @PathVariable Long id,
                                                            @Valid @RequestBody MilestoneCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(projectService.addMilestone(DEV_USER_ID, id, request));
+                .body(projectService.addMilestone(userId, id, request));
     }
 
     @PostMapping("/{id}/notes")
-    public ResponseEntity<NoteResponse> addNote(@PathVariable Long id,
+    public ResponseEntity<NoteResponse> addNote(@CurrentUserId Long userId, @PathVariable Long id,
                                                 @Valid @RequestBody NoteCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(projectService.addNote(DEV_USER_ID, id, request));
+                .body(projectService.addNote(userId, id, request));
     }
 }

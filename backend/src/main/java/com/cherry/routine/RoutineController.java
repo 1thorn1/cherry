@@ -1,5 +1,6 @@
 package com.cherry.routine;
 
+import com.cherry.auth.CurrentUserId;
 import com.cherry.routine.dto.RoutineCreateRequest;
 import com.cherry.routine.dto.RoutineResponse;
 import jakarta.validation.Valid;
@@ -15,23 +16,21 @@ import java.util.List;
 @RequiredArgsConstructor
 public class RoutineController {
 
-    private static final Long DEV_USER_ID = 1L;
-
     private final RoutineService routineService;
 
     @PostMapping
-    public ResponseEntity<RoutineResponse> create(@Valid @RequestBody RoutineCreateRequest request) {
+    public ResponseEntity<RoutineResponse> create(@CurrentUserId Long userId, @Valid @RequestBody RoutineCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(routineService.create(DEV_USER_ID, request));
+                .body(routineService.create(userId, request));
     }
 
     @GetMapping
-    public List<RoutineResponse> list() {
-        return routineService.list(DEV_USER_ID);
+    public List<RoutineResponse> list(@CurrentUserId Long userId) {
+        return routineService.list(userId);
     }
 
     @PatchMapping("/{id}/pause")
-    public RoutineResponse togglePause(@PathVariable Long id) {
-        return routineService.togglePause(DEV_USER_ID, id);
+    public RoutineResponse togglePause(@CurrentUserId Long userId, @PathVariable Long id) {
+        return routineService.togglePause(userId, id);
     }
 }

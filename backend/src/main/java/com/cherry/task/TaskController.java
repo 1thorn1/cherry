@@ -1,5 +1,6 @@
 package com.cherry.task;
 
+import com.cherry.auth.CurrentUserId;
 import com.cherry.task.dto.TaskCreateRequest;
 import com.cherry.task.dto.TaskEffectiveTimeRequest;
 import com.cherry.task.dto.TaskMemoRequest;
@@ -20,65 +21,63 @@ import com.cherry.task.dto.TaskScheduleRequest;
 @RequiredArgsConstructor
 public class TaskController {
 
-    private static final Long DEV_USER_ID = 1L;
-
     private final TaskService taskService;
 
     @PostMapping
-    public ResponseEntity<TaskResponse> create(@Valid @RequestBody TaskCreateRequest request) {
+    public ResponseEntity<TaskResponse> create(@CurrentUserId Long userId, @Valid @RequestBody TaskCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(taskService.create(DEV_USER_ID, request));
+                .body(taskService.create(userId, request));
     }
 
     @PatchMapping("/{id}/complete")
-    public TaskResponse complete(@PathVariable Long id) {
-        return taskService.complete(DEV_USER_ID, id);
+    public TaskResponse complete(@CurrentUserId Long userId, @PathVariable Long id) {
+        return taskService.complete(userId, id);
     }
 
     @PatchMapping("/{id}/uncomplete")
-    public TaskResponse uncomplete(@PathVariable Long id) {
-        return taskService.uncomplete(DEV_USER_ID, id);
+    public TaskResponse uncomplete(@CurrentUserId Long userId, @PathVariable Long id) {
+        return taskService.uncomplete(userId, id);
     }
 
     @PatchMapping("/{id}/effective-time")
-    public TaskResponse setEffectiveTime(@PathVariable Long id,
+    public TaskResponse setEffectiveTime(@CurrentUserId Long userId, @PathVariable Long id,
                                          @RequestBody TaskEffectiveTimeRequest request) {
-        return taskService.setEffectiveTime(DEV_USER_ID, id, request.effectiveAt());
+        return taskService.setEffectiveTime(userId, id, request.effectiveAt());
     }
 
     @PatchMapping("/{id}/memo")
-    public TaskResponse changeMemo(@PathVariable Long id,
+    public TaskResponse changeMemo(@CurrentUserId Long userId, @PathVariable Long id,
                                    @Valid @RequestBody TaskMemoRequest request) {
-        return taskService.changeMemo(DEV_USER_ID, id, request);
+        return taskService.changeMemo(userId, id, request);
     }
 
     @PatchMapping("/{id}/postpone")
-    public TaskResponse postpone(@PathVariable Long id,
+    public TaskResponse postpone(@CurrentUserId Long userId, @PathVariable Long id,
                                  @RequestBody TaskPostponeRequest request) {
-        return taskService.postpone(DEV_USER_ID, id, request.taskDate());
+        return taskService.postpone(userId, id, request.taskDate());
     }
 
     @PatchMapping("/{id}/schedule")
-    public TaskResponse schedule(@PathVariable Long id,
+    public TaskResponse schedule(@CurrentUserId Long userId, @PathVariable Long id,
                                  @RequestBody TaskScheduleRequest request) {
-        return taskService.schedule(DEV_USER_ID, id, request);
+        return taskService.schedule(userId, id, request);
     }
 
     @PatchMapping("/{id}/project")
-    public TaskResponse assignProject(@PathVariable Long id,
+    public TaskResponse assignProject(@CurrentUserId Long userId, @PathVariable Long id,
                                       @RequestBody TaskProjectRequest request) {
-        return taskService.assignProject(DEV_USER_ID, id, request);
+        return taskService.assignProject(userId, id, request);
     }
 
     @PatchMapping("/{id}/reminder")
-    public TaskResponse setReminder(@PathVariable Long id,
+    public TaskResponse setReminder(@CurrentUserId Long userId, @PathVariable Long id,
                                     @RequestBody TaskReminderRequest request) {
-        return taskService.setReminder(DEV_USER_ID, id, request);
+        return taskService.setReminder(userId, id, request);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        taskService.delete(DEV_USER_ID, id);
+    public ResponseEntity<Void> delete(@CurrentUserId Long userId, @PathVariable Long id) {
+        taskService.delete(userId, id);
         return ResponseEntity.noContent().build();
     }
 }

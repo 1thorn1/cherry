@@ -1,5 +1,6 @@
 package com.cherry.challenge;
 
+import com.cherry.auth.CurrentUserId;
 import com.cherry.challenge.dto.ChallengeCreateRequest;
 import com.cherry.challenge.dto.ChallengeDetailResponse;
 import com.cherry.challenge.dto.ChallengeJoinRequest;
@@ -20,50 +21,49 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ChallengeController {
 
-    private static final Long DEV_USER_ID = 1L;
-
     private final ChallengeService challengeService;
 
     @PostMapping
-    public ResponseEntity<ChallengeResponse> create(@Valid @RequestBody ChallengeCreateRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(challengeService.create(DEV_USER_ID, request));
+    public ResponseEntity<ChallengeResponse> create(@CurrentUserId Long userId,
+                                                     @Valid @RequestBody ChallengeCreateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(challengeService.create(userId, request));
     }
 
     @PostMapping("/join")
-    public ChallengeResponse join(@Valid @RequestBody ChallengeJoinRequest request) {
-        return challengeService.join(DEV_USER_ID, request.inviteCode());
+    public ChallengeResponse join(@CurrentUserId Long userId, @Valid @RequestBody ChallengeJoinRequest request) {
+        return challengeService.join(userId, request.inviteCode());
     }
 
     @GetMapping
-    public List<ChallengeResponse> listMine() {
-        return challengeService.listMine(DEV_USER_ID);
+    public List<ChallengeResponse> listMine(@CurrentUserId Long userId) {
+        return challengeService.listMine(userId);
     }
 
     @GetMapping("/project-links")
-    public List<ChallengeProjectLinkResponse> myProjectLinks() {
-        return challengeService.myProjectLinks(DEV_USER_ID);
+    public List<ChallengeProjectLinkResponse> myProjectLinks(@CurrentUserId Long userId) {
+        return challengeService.myProjectLinks(userId);
     }
 
     @GetMapping("/{id}")
-    public ChallengeDetailResponse detail(@PathVariable Long id) {
-        return challengeService.detail(DEV_USER_ID, id);
+    public ChallengeDetailResponse detail(@CurrentUserId Long userId, @PathVariable Long id) {
+        return challengeService.detail(userId, id);
     }
 
     @PatchMapping("/{id}/pause")
-    public ResponseEntity<Void> pause(@PathVariable Long id, @RequestBody PauseRequest request) {
-        challengeService.setPaused(DEV_USER_ID, id, request.paused());
+    public ResponseEntity<Void> pause(@CurrentUserId Long userId, @PathVariable Long id, @RequestBody PauseRequest request) {
+        challengeService.setPaused(userId, id, request.paused());
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/memo")
-    public ResponseEntity<Void> memo(@PathVariable Long id, @Valid @RequestBody ChallengeMemoRequest request) {
-        challengeService.updateSharedMemo(DEV_USER_ID, id, request.memo());
+    public ResponseEntity<Void> memo(@CurrentUserId Long userId, @PathVariable Long id, @Valid @RequestBody ChallengeMemoRequest request) {
+        challengeService.updateSharedMemo(userId, id, request.memo());
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}/leave")
-    public ResponseEntity<Void> leave(@PathVariable Long id) {
-        challengeService.leave(DEV_USER_ID, id);
+    public ResponseEntity<Void> leave(@CurrentUserId Long userId, @PathVariable Long id) {
+        challengeService.leave(userId, id);
         return ResponseEntity.noContent().build();
     }
 }

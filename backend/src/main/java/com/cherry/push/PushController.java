@@ -1,5 +1,6 @@
 package com.cherry.push;
 
+import com.cherry.auth.CurrentUserId;
 import com.cherry.push.dto.PublicKeyResponse;
 import com.cherry.push.dto.SubscribeRequest;
 import com.cherry.push.dto.UnsubscribeRequest;
@@ -14,8 +15,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class PushController {
 
-    private static final Long DEV_USER_ID = 1L;
-
     private final PushSubscriptionRepository pushSubscriptionRepository;
 
     @Value("${vapid.public-key}")
@@ -27,11 +26,11 @@ public class PushController {
     }
 
     @PostMapping("/subscribe")
-    public ResponseEntity<Void> subscribe(@RequestBody SubscribeRequest request,
+    public ResponseEntity<Void> subscribe(@CurrentUserId Long userId, @RequestBody SubscribeRequest request,
                                           @RequestHeader(value = "User-Agent", required = false) String userAgent) {
         if (pushSubscriptionRepository.findByEndpoint(request.endpoint()).isEmpty()) {
             pushSubscriptionRepository.save(PushSubscription.create(
-                    DEV_USER_ID, request.endpoint(), request.keys().p256dh(), request.keys().auth(), userAgent));
+                    userId, request.endpoint(), request.keys().p256dh(), request.keys().auth(), userAgent));
         }
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
