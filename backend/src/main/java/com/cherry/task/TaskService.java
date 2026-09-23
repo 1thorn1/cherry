@@ -1,5 +1,6 @@
 package com.cherry.task;
 
+import com.cherry.common.MilestoneNotFoundException;
 import com.cherry.common.TaskNotFoundException;
 import com.cherry.park.ParkService;
 import com.cherry.project.Milestone;
@@ -93,6 +94,20 @@ public class TaskService {
             }
         }
         return TaskResponse.from(task);
+    }
+
+    // 프로젝트 화면에서 직접 마일스톤을 완료(A-6-4 UX 보완). 오늘 화면 체크와 동일하게
+    // complete()를 그대로 태워서 포인트·공원·기록이 한 줄로 흐르는 원칙을 유지한다.
+    // 이미 "오늘로 보내기"로 만들어둔 미완료 태스크가 있으면 그걸 완료하고, 없으면 오늘 날짜로 새로 만들어 바로 완료한다.
+    @Transactional
+    public TaskResponse completeMilestoneNow(Long userId, Long milestoneId) {
+        Milestone milestone = milestoneRepository.findById(milestoneId)
+                .orElseThrow(MilestoneNotFoundException::new);
+        Task task = taskRepository.findFirstByMilestoneIdAndUserIdAndCompletedAtIsNullAndDeletedAtIsNull(milestoneId, userId)
+                .orElseGet(() -> taskRepository.save(
+                        Task.create(userId, milestone.getTitle(), LocalDate.now(),
+                                milestone.getProjectId(), milestoneId)));
+        return complete(userId, task.getId());
     }
 
     // completed_at은 체크한 물리적 시각으로 불변, effective_at이 기록·시간표·통계의 기준이 된다 (A-6-8).

@@ -2,10 +2,10 @@ package com.cherry.project;
 
 import com.cherry.common.InvalidNoteException;
 import com.cherry.common.InvalidProjectException;
-import com.cherry.common.MilestoneNotFoundException;
 import com.cherry.common.ProjectNotFoundException;
 import com.cherry.park.ParkService;
 import com.cherry.project.dto.FocusProjectResponse;
+import com.cherry.project.dto.MilestoneCreateRequest;
 import com.cherry.project.dto.MilestoneResponse;
 import com.cherry.project.dto.MilestoneTrackResponse;
 import com.cherry.project.dto.NoteCreateRequest;
@@ -260,16 +260,17 @@ public class ProjectService {
         return ProjectResponse.from(project);
     }
 
+    // A-7: 자유형은 마일스톤을 손으로 만든다. 진도형·시험형은 생성 시 자동 생성되므로 임의 추가를 막는다.
     @Transactional
-    public MilestoneResponse completeMilestone(Long userId, Long milestoneId) {
-        Milestone milestone = milestoneRepository.findById(milestoneId)
-                .orElseThrow(MilestoneNotFoundException::new);
-        findOwned(userId, milestone.getProjectId());
-        boolean alreadyCompleted = milestone.getCompletedAt() != null;
-        milestone.complete(LocalDateTime.now());
-        if (!alreadyCompleted) {
-            parkService.awardForMilestoneCompletion(userId, milestoneId);
+    public MilestoneResponse addMilestone(Long userId, Long projectId, MilestoneCreateRequest request) {
+        Project project = findOwned(userId, projectId);
+        if (!"FREE".equals(project.getType())) {
+            throw new InvalidProjectException("자유형 프로젝트에만 마일스톤을 직접 추가할 수 있습니다");
         }
+        List<Milestone> existing = milestoneRepository.findByProjectIdOrderBySeqAsc(projectId);
+        int nextSeq = existing.isEmpty() ? 1 : existing.get(existing.size() - 1).getSeq() + 1;
+        Milestone milestone = Milestone.create(projectId, nextSeq, request.title().trim(), null);
+        milestoneRepository.save(milestone);
         return MilestoneResponse.from(milestone);
     }
 

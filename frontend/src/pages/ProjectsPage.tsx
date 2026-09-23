@@ -23,6 +23,8 @@ export default function ProjectsPage() {
   const [mode, setMode] = useState<Mode>('FREE')
   const [totalUnits, setTotalUnits] = useState('')
   const [examDate, setExamDate] = useState('')
+  const [milestoneTitles, setMilestoneTitles] = useState<string[]>([])
+  const [milestoneDraft, setMilestoneDraft] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -39,6 +41,17 @@ export default function ProjectsPage() {
 
   useEffect(() => { load() }, [])
 
+  function handleAddMilestoneDraft() {
+    const trimmed = milestoneDraft.trim()
+    if (!trimmed) return
+    setMilestoneTitles((prev) => [...prev, trimmed])
+    setMilestoneDraft('')
+  }
+
+  function handleRemoveMilestoneDraft(index: number) {
+    setMilestoneTitles((prev) => prev.filter((_, i) => i !== index))
+  }
+
   async function handleCreate() {
     const trimmed = name.trim()
     if (!trimmed || saving) return
@@ -53,11 +66,15 @@ export default function ProjectsPage() {
         input.type = 'EXAM'
         input.total_units = Number(totalUnits)
         input.exam_date = examDate
+      } else if (milestoneTitles.length > 0) {
+        input.milestone_titles = milestoneTitles
       }
       await createProject(input)
       setName('')
       setTotalUnits('')
       setExamDate('')
+      setMilestoneTitles([])
+      setMilestoneDraft('')
       setMode('FREE')
       setShowCreateForm(false)
       await load()
@@ -135,6 +152,46 @@ export default function ProjectsPage() {
                 onChange={(e) => setExamDate(e.target.value)}
                 className="flex-1 rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
               />
+            </div>
+          )}
+
+          {mode === 'FREE' && (
+            <div className="mb-3">
+              {milestoneTitles.length > 0 && (
+                <ul className="mb-2 space-y-1">
+                  {milestoneTitles.map((title, i) => (
+                    <li
+                      key={i}
+                      className="flex items-center justify-between rounded-lg bg-neutral-50 px-3 py-1.5 text-xs text-neutral-600"
+                    >
+                      <span>{i + 1}. {title}</span>
+                      <button onClick={() => handleRemoveMilestoneDraft(i)} className="text-neutral-400">✕</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="flex gap-2">
+                <input
+                  value={milestoneDraft}
+                  onChange={(e) => setMilestoneDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.nativeEvent.isComposing) return
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleAddMilestoneDraft()
+                    }
+                  }}
+                  placeholder="마일스톤 (선택, 예: 1구간 - 기획)"
+                  className="flex-1 rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+                />
+                <button
+                  onClick={handleAddMilestoneDraft}
+                  className="rounded-lg border border-neutral-200 px-3 text-xs font-medium text-neutral-500"
+                >
+                  추가
+                </button>
+              </div>
+              <p className="mt-1.5 text-[11px] text-neutral-300">비워두면 마일스톤 없이 생성돼요. 나중에 프로젝트 화면에서 추가할 수 있어요</p>
             </div>
           )}
 

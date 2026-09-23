@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { NoteKind, Project, ProjectDetail, ProjectOverview, TimelineEntry } from '../types/project'
+import type { Milestone, NoteKind, Project, ProjectDetail, ProjectOverview, TimelineEntry } from '../types/project'
 
 export function getProjects() {
   return request<Project[]>('/api/projects')
@@ -18,6 +18,7 @@ export interface CreateProjectInput {
   type?: 'PROGRESS' | 'EXAM'
   total_units?: number
   exam_date?: string
+  milestone_titles?: string[]
 }
 
 export function createProject(input: CreateProjectInput) {
@@ -38,6 +39,19 @@ export function updateProjectWorkDays(id: number, workDays: number[]) {
   return request<Project>(`/api/projects/${id}/work-days`, {
     method: 'PATCH',
     body: JSON.stringify({ work_days: workDays }),
+  })
+}
+
+export function addMilestone(projectId: number, title: string) {
+  return request<Milestone>(`/api/projects/${projectId}/milestones`, {
+    method: 'POST',
+    body: JSON.stringify({ title }),
+  })
+}
+
+export function completeMilestoneNow(milestoneId: number) {
+  return request<void>(`/api/milestones/${milestoneId}/complete`, {
+    method: 'PATCH',
   })
 }
 

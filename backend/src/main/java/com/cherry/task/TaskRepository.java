@@ -23,6 +23,8 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     List<Task> findByProjectIdAndCompletedAtIsNotNullAndDeletedAtIsNullOrderByCompletedAtDesc(Long projectId);
 
+    Optional<Task> findFirstByMilestoneIdAndUserIdAndCompletedAtIsNullAndDeletedAtIsNull(Long milestoneId, Long userId);
+
     List<Task> findByProjectIdAndCompletedAtBetweenAndDeletedAtIsNull(
             Long projectId, LocalDateTime start, LocalDateTime end);
 
