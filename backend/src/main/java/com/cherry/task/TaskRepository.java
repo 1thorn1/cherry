@@ -36,6 +36,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             "ORDER BY t.createdAt DESC")
     List<Task> search(@Param("userId") Long userId, @Param("keyword") String keyword);
 
+    // 검색어가 비어 있을 때 최근 기록으로 대신 보여주기 위함 (A-6-5).
+    List<Task> findTop20ByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(Long userId);
+
     // 미완료 이월 풀(A-11): 오늘 이전 날짜로 남은 미완료 항목 + "이번주로" 미룬 날짜 미지정 항목.
     @Query("SELECT t FROM Task t WHERE t.userId = :userId AND t.deletedAt IS NULL AND t.completedAt IS NULL " +
             "AND ((t.taskDate IS NOT NULL AND t.taskDate < :today) OR (t.taskDate IS NULL AND t.horizon = 'THIS_WEEK')) " +
