@@ -174,7 +174,7 @@ export default function CalendarPage() {
                 const d = new Date(day.date)
                 const weekend = isWeekend(d)
                 return (
-                  <div key={day.date} className={`pb-2 text-center text-xs ${weekend ? 'text-neutral-300' : 'text-neutral-500'}`}>
+                  <div key={day.date} className={`pb-2 pl-1 text-left text-xs ${weekend ? 'text-neutral-300' : 'text-neutral-500'}`}>
                     <div>{format(d, 'EEE', { locale: ko })}</div>
                     <div className="font-medium text-neutral-700">{format(d, 'd')}</div>
                   </div>
@@ -364,7 +364,7 @@ function MonthSummaryView({
               <button
                 key={dateStr}
                 onClick={() => onSelectDate(d)}
-                className="aspect-square overflow-hidden rounded-lg border p-1 text-left transition-colors hover:bg-neutral-50 lg:aspect-auto lg:min-h-[104px] lg:p-2"
+                className="flex aspect-square flex-col items-start overflow-hidden rounded-lg border p-1 text-left transition-colors hover:bg-neutral-50 lg:aspect-auto lg:min-h-[104px] lg:p-2"
                 style={{ borderColor: isToday ? 'var(--cherry)' : 'transparent' }}
               >
                 <div className={`text-[11px] ${inMonth ? 'text-neutral-600' : 'text-neutral-300'}`}>
