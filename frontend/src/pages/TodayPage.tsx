@@ -17,6 +17,7 @@ import { parseTask } from '../api/parse'
 import { START_HOUR, END_HOUR, hourDroppableId, type TimetableView } from '../lib/timetable'
 import { routineRuleLabel } from '../lib/routine'
 import { ensurePushSubscription } from '../lib/push'
+import { usePersistedState } from '../lib/persistedState'
 
 const today = new Date().toISOString().slice(0, 10)
 const WEEKDAY_LABELS = ['월', '화', '수', '목', '금', '토', '일']
@@ -222,7 +223,7 @@ export default function TodayPage() {
   const [input, setInput] = useState('')
   const [error, setError] = useState('')
   const [tab, setTab] = useState<'todo' | 'done' | 'timetable'>('todo')
-  const [view, setView] = useState<TimetableView>('scheduled')
+  const [view, setView] = usePersistedState<TimetableView>('today.view', 'scheduled')
   const [saving, setSaving] = useState(false)
   const [suggestions, setSuggestions] = useState<Record<number, TaskParseResult>>({})
   const [openChipTaskId, setOpenChipTaskId] = useState<number | null>(null)
