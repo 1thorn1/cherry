@@ -174,7 +174,7 @@ export default function CalendarPage() {
                 const d = new Date(day.date)
                 const weekend = isWeekend(d)
                 return (
-                  <div key={day.date} className={`pb-2 text-center text-xs ${weekend ? 'text-neutral-300' : 'text-neutral-500'}`}>
+                  <div key={day.date} className={`pb-2 pl-1 text-left text-xs ${weekend ? 'text-neutral-300' : 'text-neutral-500'}`}>
                     <div>{format(d, 'EEE', { locale: ko })}</div>
                     <div className="font-medium text-neutral-700">{format(d, 'd')}</div>
                   </div>
