@@ -9,6 +9,7 @@ export interface Project {
   exam_date: string | null
   status: string
   shared: boolean
+  created_at: string
 }
 
 export interface Milestone {
@@ -17,6 +18,7 @@ export interface Milestone {
   title: string
   target_week: string | null
   completed: boolean
+  completed_at: string | null
 }
 
 export interface ProjectDetail {
@@ -33,6 +35,7 @@ export interface TimelineEntry {
   body: string | null
   url: string | null
   count: number | null
+  milestone_id: number | null
   at: string
 }
 
