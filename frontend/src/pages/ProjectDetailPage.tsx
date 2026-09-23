@@ -4,7 +4,7 @@ import type { Milestone, NoteKind, ProjectDetail, TimelineEntry } from '../types
 import { addMilestone, addNote, completeMilestoneNow, deleteProject, getProject, getTimeline, updateProjectShared, updateProjectWorkDays } from '../api/projects'
 import { createTask } from '../api/tasks'
 import MilestoneTrack from '../components/MilestoneTrack'
-import MilestoneGrid from '../components/MilestoneGrid'
+import MilestoneChipGrid from '../components/MilestoneChipGrid'
 
 const kindLabels: Record<string, string> = {
   AUTO_LOG: '완료',
@@ -50,6 +50,7 @@ export default function ProjectDetailPage() {
   const [sentIds, setSentIds] = useState<Set<number>>(new Set())
   const [completingId, setCompletingId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [savingNoteId, setSavingNoteId] = useState<number | null>(null)
 
   async function loadDetail() {
     try {
@@ -68,8 +69,7 @@ export default function ProjectDetailPage() {
     }
   }
 
-  useEffect(() => { loadDetail() }, [id])
-  useEffect(() => { if (tab === 'timeline') loadTimeline() }, [id, tab])
+  useEffect(() => { loadDetail(); loadTimeline() }, [id])
 
   async function handleSendToday(milestone: Milestone) {
     if (sendingId) return
@@ -95,11 +95,24 @@ export default function ProjectDetailPage() {
         next.delete(milestone.id)
         return next
       })
-      await loadDetail()
+      await Promise.all([loadDetail(), loadTimeline()])
     } catch (e) {
       setError(e instanceof Error ? e.message : '완료 처리하지 못했습니다')
     } finally {
       setCompletingId(null)
+    }
+  }
+
+  async function handleAddMilestoneNote(milestoneId: number, body: string) {
+    if (savingNoteId) return
+    setSavingNoteId(milestoneId)
+    try {
+      await addNote(projectId, 'NOTE', body, null, milestoneId)
+      await loadTimeline()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '기록하지 못했습니다')
+    } finally {
+      setSavingNoteId(null)
     }
   }
 
@@ -202,6 +215,14 @@ export default function ProjectDetailPage() {
     [],
   )
 
+  const notesByMilestone = new Map<number, TimelineEntry[]>()
+  for (const entry of timeline) {
+    if (entry.milestone_id === null) continue
+    const list = notesByMilestone.get(entry.milestone_id) ?? []
+    list.push(entry)
+    notesByMilestone.set(entry.milestone_id, list)
+  }
+
   if (error) {
     return (
       <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
@@ -284,67 +305,43 @@ export default function ProjectDetailPage() {
               </div>
             </div>
           )}
-          {detail.project.type === 'EXAM' ? (
-            <MilestoneGrid
-              projectId={projectId}
+          <MilestoneTrack milestones={detail.milestones} />
+          <div className="mt-4">
+            <MilestoneChipGrid
               milestones={detail.milestones}
+              notesByMilestone={notesByMilestone}
+              onComplete={handleCompleteMilestone}
               onSendToday={handleSendToday}
-              onCompleteNow={handleCompleteMilestone}
-              sendingId={sendingId}
+              onAddNote={handleAddMilestoneNote}
               completingId={completingId}
+              sendingId={sendingId}
               sentIds={sentIds}
+              savingNoteId={savingNoteId}
             />
-          ) : (
-            <>
-              <MilestoneTrack milestones={detail.milestones} />
-              {(() => {
-                const next = detail.milestones.find((m) => !m.completed)
-                if (!next) return null
-                return (
-                  <div className="mt-4 space-y-1.5">
-                    <button
-                      onClick={() => handleCompleteMilestone(next)}
-                      disabled={completingId === next.id}
-                      className="w-full rounded-lg py-2.5 text-sm font-medium text-white disabled:opacity-50"
-                      style={{ background: 'var(--cherry)' }}
-                    >
-                      {completingId === next.id ? '처리 중...' : `"${next.title}" 완료 처리`}
-                    </button>
-                    <button
-                      onClick={() => handleSendToday(next)}
-                      disabled={sendingId === next.id}
-                      className="w-full text-center text-[11px] text-neutral-400 disabled:opacity-50"
-                    >
-                      {sentIds.has(next.id) ? '오늘 목록에 추가됨' : '오늘 일정에만 추가 (시간을 정해두고 나중에 완료할 때)'}
-                    </button>
-                  </div>
-                )
-              })()}
-              {detail.project.type === 'FREE' && (
-                <div className="mt-4 flex gap-2">
-                  <input
-                    value={milestoneDraft}
-                    onChange={(e) => setMilestoneDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.nativeEvent.isComposing) return
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        handleAddMilestone()
-                      }
-                    }}
-                    placeholder="새 마일스톤 (예: 2구간 - 디자인)"
-                    className="flex-1 rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
-                  />
-                  <button
-                    onClick={handleAddMilestone}
-                    disabled={addingMilestone}
-                    className="rounded-lg border border-neutral-200 px-3 text-xs font-medium text-neutral-500 disabled:opacity-50"
-                  >
-                    추가
-                  </button>
-                </div>
-              )}
-            </>
+          </div>
+          {detail.project.type === 'FREE' && (
+            <div className="mt-4 flex gap-2">
+              <input
+                value={milestoneDraft}
+                onChange={(e) => setMilestoneDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.nativeEvent.isComposing) return
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleAddMilestone()
+                  }
+                }}
+                placeholder="새 마일스톤 (예: 2구간 - 디자인)"
+                className="flex-1 rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+              />
+              <button
+                onClick={handleAddMilestone}
+                disabled={addingMilestone}
+                className="rounded-lg border border-neutral-200 px-3 text-xs font-medium text-neutral-500 disabled:opacity-50"
+              >
+                추가
+              </button>
+            </div>
           )}
         </div>
       )}

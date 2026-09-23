@@ -63,9 +63,15 @@ export function getTimeline(projectId: number) {
   return request<TimelineEntry[]>(`/api/projects/${projectId}/timeline`)
 }
 
-export function addNote(projectId: number, kind: NoteKind, body: string | null, url: string | null) {
+export function addNote(
+  projectId: number,
+  kind: NoteKind,
+  body: string | null,
+  url: string | null,
+  milestoneId?: number | null,
+) {
   return request<void>(`/api/projects/${projectId}/notes`, {
     method: 'POST',
-    body: JSON.stringify({ kind, body, url }),
+    body: JSON.stringify({ kind, body, url, milestone_id: milestoneId ?? null }),
   })
 }

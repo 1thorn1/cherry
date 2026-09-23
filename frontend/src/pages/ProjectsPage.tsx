@@ -86,9 +86,9 @@ export default function ProjectsPage() {
   }
 
   const modeOptions: { value: Mode; label: string }[] = [
-    { value: 'FREE', label: '자유롭게' },
-    { value: 'PROGRESS', label: '회차가 있어요' },
-    { value: 'EXAM', label: '시험일이 있어요' },
+    { value: 'FREE', label: '자유형' },
+    { value: 'PROGRESS', label: '회차별' },
+    { value: 'EXAM', label: '시험일' },
   ]
 
   const isEmpty = overview && !overview.focus && overview.others.length === 0

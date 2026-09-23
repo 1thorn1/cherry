@@ -219,15 +219,28 @@ public class ProjectService {
         Project project = findOwned(userId, projectId);
         validateNote(request);
 
-        Long currentMilestoneId = milestoneRepository
-                .findFirstByProjectIdAndCompletedAtIsNullOrderBySeqAsc(projectId)
-                .map(Milestone::getId)
-                .orElse(null);
+        Long milestoneId = request.milestoneId() != null
+                ? resolveOwnedMilestone(project.getId(), request.milestoneId())
+                : milestoneRepository
+                        .findFirstByProjectIdAndCompletedAtIsNullOrderBySeqAsc(projectId)
+                        .map(Milestone::getId)
+                        .orElse(null);
 
-        ProjectNote note = ProjectNote.create(userId, project.getId(), currentMilestoneId,
+        ProjectNote note = ProjectNote.create(userId, project.getId(), milestoneId,
                 request.kind(), request.body(), request.url());
         projectNoteRepository.save(note);
         return NoteResponse.from(note);
+    }
+
+    // 마일스톤 칩을 눌러 기록을 남길 때는 "현재 진행 중인 마일스톤"이 아니라 사용자가 고른
+    // 마일스톤에 정확히 붙여야 해서, 다른 프로젝트 마일스톤을 끌어오지 못하게 소유권을 확인한다.
+    private Long resolveOwnedMilestone(Long projectId, Long milestoneId) {
+        Milestone milestone = milestoneRepository.findById(milestoneId)
+                .orElseThrow(() -> new InvalidNoteException("존재하지 않는 마일스톤입니다"));
+        if (!milestone.getProjectId().equals(projectId)) {
+            throw new InvalidNoteException("다른 프로젝트의 마일스톤입니다");
+        }
+        return milestone.getId();
     }
 
     private void validateNote(NoteCreateRequest request) {
