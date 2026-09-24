@@ -112,6 +112,22 @@ public class TaskService {
         return complete(userId, task.getId());
     }
 
+    // "오늘 일정에 추가" 버튼. 이 milestone에 이미 미완료 태스크가 있으면(예: 체크박스로
+    // 완료했다가 취소해서 taskDate 없는 태스크가 남아있는 경우) 그걸 재사용해서 오늘
+    // 날짜로 옮기기만 한다 — 매번 새 태스크를 만들면 같은 마일스톤이 오늘 화면에
+    // 중복으로 뜬다 (실제로 이 버그로 태스크가 두 개씩 생겨있던 걸 확인함).
+    @Transactional
+    public TaskResponse scheduleMilestoneToday(Long userId, Long milestoneId) {
+        Milestone milestone = milestoneRepository.findById(milestoneId)
+                .orElseThrow(MilestoneNotFoundException::new);
+        Task task = taskRepository.findFirstByMilestoneIdAndUserIdAndCompletedAtIsNullAndDeletedAtIsNull(milestoneId, userId)
+                .orElseGet(() -> taskRepository.save(
+                        Task.create(userId, milestone.getTitle(), LocalDate.now(),
+                                milestone.getProjectId(), milestoneId)));
+        task.moveTo(LocalDate.now());
+        return TaskResponse.from(task);
+    }
+
     // 칩을 다시 눌러 완료를 취소. 이미 지급된 포인트·인구·공원 슬롯은 되돌리지 않는다 —
     // 일반 태스크 체크 해제(uncomplete())도 같은 원칙이고, 재완료 시 awardForMilestoneCompletion이
     // point_ledger 중복 지급을 막아주므로 두 번 주지도 않는다.

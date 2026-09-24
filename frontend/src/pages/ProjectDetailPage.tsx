@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Milestone, NoteKind, ProjectDetail, TimelineEntry } from '../types/project'
-import { addMilestone, addNote, completeMilestoneNow, deleteNote, deleteProject, getProject, getTimeline, renameMilestone, uncompleteMilestoneNow, updateNote, updateProjectShared, updateProjectWorkDays } from '../api/projects'
-import { createTask } from '../api/tasks'
+import { addMilestone, addNote, completeMilestoneNow, deleteNote, deleteProject, getProject, getTimeline, renameMilestone, scheduleMilestoneToday, uncompleteMilestoneNow, updateNote, updateProjectShared, updateProjectWorkDays } from '../api/projects'
 import MilestoneTrack from '../components/MilestoneTrack'
 import MilestoneChipGrid from '../components/MilestoneChipGrid'
 import NoteEntry from '../components/NoteEntry'
-import { getTodayStr } from '../lib/date'
 
 const kindLabels: Record<string, string> = {
   AUTO_LOG: '완료',
@@ -79,7 +77,7 @@ export default function ProjectDetailPage() {
     if (sendingId) return
     setSendingId(milestone.id)
     try {
-      await createTask(milestone.title, getTodayStr(), projectId, milestone.id)
+      await scheduleMilestoneToday(milestone.id)
       setSentIds((prev) => new Set(prev).add(milestone.id))
     } catch (e) {
       setError(e instanceof Error ? e.message : '오늘 할 일로 보내지 못했습니다')
