@@ -1,5 +1,6 @@
 package com.cherry.search;
 
+import com.cherry.auth.CurrentUserId;
 import com.cherry.search.dto.SearchResultResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,12 +13,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SearchController {
 
-    private static final Long DEV_USER_ID = 1L;
-
     private final SearchService searchService;
 
     @GetMapping("/api/search")
-    public List<SearchResultResponse> search(@RequestParam(required = false) String q) {
-        return searchService.search(DEV_USER_ID, q);
+    public List<SearchResultResponse> search(@CurrentUserId Long userId, @RequestParam(required = false) String q) {
+        return searchService.search(userId, q);
     }
 }

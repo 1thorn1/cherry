@@ -1614,6 +1614,7 @@ WHERE MATCH(body) AGAINST('그리드' IN BOOLEAN MODE);
 | 2026-09-22 | `backend/src/main/java/com/cherry/project/ProjectService.java` (`generateExamMilestones`, V4 프로젝트 기능에서 도입) | 시험형(`EXAM`) 프로젝트를 `total_units` 없이 생성하면 `Project.getTotalUnits()`가 `null`을 반환해 언박싱 시 `NullPointerException` 발생 (500 에러). `ProjectCreateRequest`에 타입별 필수값 검증이 없음. 프로젝트 목록 화면(A-6-3) 작업 중 테스트 데이터를 만들다 발견 | 수정 완료 — B-11 정리 작업(2026-09-23) 중 `ProjectService.createProject()`에 `validateTypeFields()` 추가. `PROGRESS`는 `total_units`, `EXAM`은 `total_units`·`exam_date`를 모두 요구하고, 누락 시 500 대신 400(`INVALID_REQUEST`) 반환 |
 | 2026-09-22 | `frontend/src/pages/TodayPage.tsx` (미완료 이월 A-11 작업 중 직접 작성한 헬퍼) | `tomorrowDate()`가 `new Date(...).setDate()` 후 `.toISOString()`으로 날짜만 뽑았는데, `toISOString()`은 UTC 기준이라 UTC+9(KST)에서는 자정 근처 계산이 하루 밀려 "내일" 버튼을 눌러도 오늘 날짜 그대로 저장됨. Playwright로 미루기 동작을 검증하다가 네트워크 요청 페이로드에서 발견 | 수정 완료 — 같은 작업(2026-09-22) 중 `Date.UTC()`로만 날짜를 계산하도록 `addDays()` 헬퍼로 교체 |
 | 2026-09-23 | `backend/src/main/resources/db/migration/V13__daily_stat_point_basis.sql` (반복 어뷰징 방어 A-6-7 작업 중 직접 작성한 마이그레이션) | `daily_stat`에 포인트 계산 전용 `point_basis` 컬럼을 새로 추가하면서 기존 행을 0으로만 채우고 지난 `points_earned`와 맞춰 채워두지 않음. 이 상태로 두면 오늘 이미 완료가 있던 날 다음 완료 시 `point_basis=0`에서 새로 계산해 기존보다 훨씬 낮은 값이 나와 포인트가 갑자기 깎여 보임 (실사용자 포인트 손실로 이어질 뻔함). 마이그레이션 적용 직후 daily_stat 값을 직접 확인하다가 발견 | 수정 완료 — 같은 작업(2026-09-23) 중 `V14__backfill_point_basis.sql`로 `point_basis = completed_count * 2`(기존 방식과 동일한 계산) 백필 |
+| 2026-09-23 | `backend/src/main/java/com/cherry/park/ParkService.java` (`awardForMilestoneCompletion`, V6 공원 기능에서 도입) | 다음 놀이기구 슬롯 번호를 `countByUserId(userId) + 1`로 계산. 과거에 슬롯 행이 삭제돼 번호에 구멍이 생기면(예: 1,2,3,6,7,8 — 행 개수는 6인데 실제 쓰인 최댓값은 8) `count+1`이 이미 쓰인 번호와 겹쳐 `park_slot.uk_slot`(user_id, slot_index) 유니크 제약 위반으로 완료 트랜잭션 전체가 롤백됨. `TaskService.complete()`가 같은 트랜잭션이라 마일스톤·태스크 완료까지 통째로 취소돼 "완료 처리가 안 된다"로 보임. 자유형 프로젝트 마일스톤 완료가 매번 실패한다는 리포트를 받고 백엔드 로그에서 `DataIntegrityViolationException`을 보고 발견 | 수정 완료 — 같은 작업(2026-09-23) 중 `findTopByUserIdOrderBySlotIndexDesc()`로 실제 최댓값 기준으로 다음 번호를 잡도록 변경 |
 
 ---
 
@@ -1623,13 +1624,13 @@ WHERE MATCH(body) AGAINST('그리드' IN BOOLEAN MODE);
 
 | 발견일 | 스펙 위치 | 내용 | 관련 파일 | 상태 |
 |---|---|---|---|---|
-| 2026-09-23 | B-2 (인증) | 구글 OAuth2 로그인이 전혀 없음. Spring Security 의존성 자체가 없고 모든 컨트롤러가 `DEV_USER_ID = 1L`을 하드코딩. B-10은 "1.0 공개"의 전제조건으로 이걸 명시하고 있어 실제 멀티유저 출시를 막는 항목 | 전체 컨트롤러 (`DEV_USER_ID`), `SecurityConfig` 부재 | 미구현 |
+| 2026-09-23 | B-2 (인증) | 구글 OAuth2 로그인이 전혀 없음. Spring Security 의존성 자체가 없고 모든 컨트롤러가 `DEV_USER_ID = 1L`을 하드코딩. B-10은 "1.0 공개"의 전제조건으로 이걸 명시하고 있어 실제 멀티유저 출시를 막는 항목 | 전체 컨트롤러 (`DEV_USER_ID`), `SecurityConfig` 부재 | 구현 완료 (2026-09-23, `com.cherry.auth` 패키지 + `@CurrentUserId`, `DEV_USER_ID` 전부 제거) |
 | 2026-09-23 | B-6 / A-8 / A-10 (날씨) | 기상청 단기예보 연동이 전혀 없음. `DailyStat.create()`가 `weatherCode="CLEAR"`, `multiplier=1.00`을 무조건 하드코딩. `/api/weather/today` 엔드포인트 없음. 오늘 화면 헤더에도 날씨·배율 표시가 빠짐(방문객·체리만 표시) | `backend/src/main/java/com/cherry/park/DailyStat.java:56-57`, `frontend/src/pages/TodayPage.tsx:531` | 미구현 |
-| 2026-09-23 | A-6-4 / B-7 (기록 마크다운) | 메모·구간회고를 마크다운으로 저장·렌더링해야 하는데(`react-markdown`+`remark-gfm`+`rehype-sanitize`, XSS 방어 B-9 포함) 평문 텍스트로만 표시됨. 프론트에 관련 패키지 자체가 없음 | `frontend/src/pages/ProjectDetailPage.tsx:336,341`, `frontend/package.json` | 미구현 |
+| 2026-09-23 | A-6-4 / B-7 (기록 마크다운) | 메모·구간회고를 마크다운으로 저장·렌더링해야 하는데(`react-markdown`+`remark-gfm`+`rehype-sanitize`, XSS 방어 B-9 포함) 평문 텍스트로만 표시됨. 프론트에 관련 패키지 자체가 없음 | `frontend/src/pages/ProjectDetailPage.tsx:336,341`, `frontend/package.json` | 구현 완료 (2026-09-23, `frontend/src/components/MarkdownBody.tsx` — react-markdown+remark-gfm+rehype-sanitize, GFM 체크리스트만 허용하도록 스키마 확장) |
 | 2026-09-23 | B-7 (PWA/오프라인) | 오프라인 완료 큐가 없음. PWA 셸(`vite-plugin-pwa`)은 있지만 IndexedDB에 완료를 먼저 쓰고 재연결 시 동기화하는 로직이 전혀 없어, 오프라인 중 완료하면 그냥 fetch 실패로 끝남 | `frontend/vite.config.ts`, `frontend/src` 전체 (IndexedDB 미사용) | 미구현 |
 | 2026-09-23 | B-4 (하루의 경계 — 새벽 4시) | 하루 판정을 자정이 아니라 `DATE_SUB(completed_at, INTERVAL 4 HOUR)` 기준으로 해야 하는데, 모든 날짜 경계 호출부가 그냥 `LocalDate.now()`를 씀 | `backend/src/main/java/com/cherry/park/ParkService.java:73,101`, `backend/src/main/java/com/cherry/task/TaskService.java:47,60,85` | 미구현 |
 
-**참고 (하드 갭 아님, 설계 판단 필요):** 진도형(PROGRESS) 프로젝트 진행 탭에 "이번주 목표량/페이스" 안내가 없음 — 시험형(EXAM)만 `MilestoneGrid`(`frontend/src/components/MilestoneGrid.tsx:106`)로 주간 목표를 보여줌. PROGRESS는 마감일이 없어 페이스 계산 기준 자체가 스펙에 명시돼 있지 않으므로, 스펙 위반이라기보다 설계 공백에 가까움.
+**참고 (하드 갭 아님, 설계 판단 필요):** 2026-09-23에 진행 탭을 자유형/회차별/시험일 구분 없이 `MilestoneChipGrid`(가로 칩 그리드 + 클릭 시 완료·메모 패널) 하나로 통일하면서, 시험형 전용이던 주간 그룹 뷰(`MilestoneGrid.tsx`, 이번주/지난주 목표 안내)는 제거됨. 진도형(PROGRESS)의 "이번주 목표량/페이스" 안내는 여전히 스펙에 계산 기준이 없어 설계 공백으로 남아 있음 — 필요해지면 칩 그리드 위에 별도로 얹는 방향으로.
 
 ---
 

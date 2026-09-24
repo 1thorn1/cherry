@@ -1,5 +1,6 @@
 package com.cherry.calendar;
 
+import com.cherry.auth.CurrentUserId;
 import com.cherry.calendar.dto.CalendarDayResponse;
 import com.cherry.calendar.dto.MonthSummaryResponse;
 import lombok.RequiredArgsConstructor;
@@ -18,19 +19,19 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CalendarController {
 
-    private static final Long DEV_USER_ID = 1L;
-
     private final CalendarService calendarService;
 
     @GetMapping
     public List<CalendarDayResponse> getWeek(
+            @CurrentUserId Long userId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start) {
-        return calendarService.getWeek(DEV_USER_ID, start);
+        return calendarService.getWeek(userId, start);
     }
 
     @GetMapping("/month")
     public MonthSummaryResponse getMonth(
+            @CurrentUserId Long userId,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM") YearMonth month) {
-        return calendarService.getMonth(DEV_USER_ID, month);
+        return calendarService.getMonth(userId, month);
     }
 }

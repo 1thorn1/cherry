@@ -55,4 +55,13 @@ public class ProjectNote {
         note.createdAt = LocalDateTime.now();
         return note;
     }
+
+    public void updateContent(String body, String url) {
+        this.body = body;
+        this.url = url;
+    }
+
+    public void delete() {
+        this.deletedAt = LocalDateTime.now();
+    }
 }

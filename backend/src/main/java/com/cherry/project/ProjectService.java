@@ -2,6 +2,7 @@ package com.cherry.project;
 
 import com.cherry.common.InvalidNoteException;
 import com.cherry.common.InvalidProjectException;
+import com.cherry.common.NoteNotFoundException;
 import com.cherry.common.ProjectNotFoundException;
 import com.cherry.park.ParkService;
 import com.cherry.project.dto.FocusProjectResponse;
@@ -18,6 +19,7 @@ import com.cherry.project.dto.ProjectOverviewResponse;
 import com.cherry.project.dto.ProjectResponse;
 import com.cherry.project.dto.ProjectSharedRequest;
 import com.cherry.project.dto.ProjectWorkDaysRequest;
+import com.cherry.project.dto.NoteUpdateRequest;
 import com.cherry.project.dto.TimelineEntryResponse;
 import com.cherry.task.Task;
 import com.cherry.task.TaskRepository;
@@ -219,26 +221,43 @@ public class ProjectService {
         Project project = findOwned(userId, projectId);
         validateNote(request);
 
-        Long currentMilestoneId = milestoneRepository
-                .findFirstByProjectIdAndCompletedAtIsNullOrderBySeqAsc(projectId)
-                .map(Milestone::getId)
-                .orElse(null);
+        Long milestoneId = request.milestoneId() != null
+                ? resolveOwnedMilestone(project.getId(), request.milestoneId())
+                : milestoneRepository
+                        .findFirstByProjectIdAndCompletedAtIsNullOrderBySeqAsc(projectId)
+                        .map(Milestone::getId)
+                        .orElse(null);
 
-        ProjectNote note = ProjectNote.create(userId, project.getId(), currentMilestoneId,
+        ProjectNote note = ProjectNote.create(userId, project.getId(), milestoneId,
                 request.kind(), request.body(), request.url());
         projectNoteRepository.save(note);
         return NoteResponse.from(note);
     }
 
+    // 마일스톤 칩을 눌러 기록을 남길 때는 "현재 진행 중인 마일스톤"이 아니라 사용자가 고른
+    // 마일스톤에 정확히 붙여야 해서, 다른 프로젝트 마일스톤을 끌어오지 못하게 소유권을 확인한다.
+    private Long resolveOwnedMilestone(Long projectId, Long milestoneId) {
+        Milestone milestone = milestoneRepository.findById(milestoneId)
+                .orElseThrow(() -> new InvalidNoteException("존재하지 않는 마일스톤입니다"));
+        if (!milestone.getProjectId().equals(projectId)) {
+            throw new InvalidNoteException("다른 프로젝트의 마일스톤입니다");
+        }
+        return milestone.getId();
+    }
+
     private void validateNote(NoteCreateRequest request) {
-        switch (request.kind()) {
+        validateNoteContent(request.kind(), request.body(), request.url());
+    }
+
+    private void validateNoteContent(String kind, String body, String url) {
+        switch (kind) {
             case "LINK" -> {
-                if (request.url() == null || request.url().isBlank()) {
+                if (url == null || url.isBlank()) {
                     throw new InvalidNoteException("링크는 URL을 입력해주세요");
                 }
             }
             case "NOTE", "RETRO" -> {
-                if (request.body() == null || request.body().isBlank()) {
+                if (body == null || body.isBlank()) {
                     throw new InvalidNoteException("내용을 입력해주세요");
                 }
             }
@@ -247,10 +266,38 @@ public class ProjectService {
     }
 
     @Transactional
+    public NoteResponse updateNote(Long userId, Long projectId, Long noteId, NoteUpdateRequest request) {
+        ProjectNote note = findOwnedNote(userId, projectId, noteId);
+        validateNoteContent(note.getKind(), request.body(), request.url());
+        note.updateContent(request.body(), request.url());
+        return NoteResponse.from(note);
+    }
+
+    @Transactional
+    public void deleteNote(Long userId, Long projectId, Long noteId) {
+        ProjectNote note = findOwnedNote(userId, projectId, noteId);
+        note.delete();
+    }
+
+    private ProjectNote findOwnedNote(Long userId, Long projectId, Long noteId) {
+        return projectNoteRepository.findByIdAndUserIdAndProjectIdAndDeletedAtIsNull(noteId, userId, projectId)
+                .orElseThrow(NoteNotFoundException::new);
+    }
+
+    @Transactional
     public ProjectResponse updateShared(Long userId, Long projectId, ProjectSharedRequest request) {
         Project project = findOwned(userId, projectId);
         project.updateShared(request.shared());
         return ProjectResponse.from(project);
+    }
+
+    // 소프트 삭제만 한다. 마일스톤·태스크·기록은 그대로 둔다 — 완료 기록은 통계·공원 보상의
+    // 근거라 프로젝트를 지웠다고 같이 사라지면 안 된다. 목록·개요 조회는 deletedAtIsNull로
+    // 이미 걸러지므로 삭제된 프로젝트는 자연히 안 보인다.
+    @Transactional
+    public void deleteProject(Long userId, Long projectId) {
+        Project project = findOwned(userId, projectId);
+        project.delete();
     }
 
     @Transactional

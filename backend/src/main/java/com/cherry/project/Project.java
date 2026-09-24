@@ -75,6 +75,10 @@ public class Project {
         this.shared = shared;
     }
 
+    public void delete() {
+        this.deletedAt = LocalDateTime.now();
+    }
+
     // work_days: 7비트, bit(n-1)이 ISO 요일 n(월=1~일=7)에 대응. 기본 127 = 매일 작업일.
     public List<Integer> getWorkDaysList() {
         List<Integer> days = new ArrayList<>();

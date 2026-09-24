@@ -1,5 +1,6 @@
 package com.cherry.project;
 
+import com.cherry.auth.CurrentUserId;
 import com.cherry.task.TaskService;
 import com.cherry.task.dto.TaskResponse;
 import lombok.RequiredArgsConstructor;
@@ -13,12 +14,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class MilestoneController {
 
-    private static final Long DEV_USER_ID = 1L;
-
     private final TaskService taskService;
 
     @PatchMapping("/{id}/complete")
-    public TaskResponse complete(@PathVariable Long id) {
-        return taskService.completeMilestoneNow(DEV_USER_ID, id);
+    public TaskResponse complete(@CurrentUserId Long userId, @PathVariable Long id) {
+        return taskService.completeMilestoneNow(userId, id);
+    }
+
+    @PatchMapping("/{id}/uncomplete")
+    public TaskResponse uncomplete(@CurrentUserId Long userId, @PathVariable Long id) {
+        return taskService.uncompleteMilestoneNow(userId, id);
     }
 }

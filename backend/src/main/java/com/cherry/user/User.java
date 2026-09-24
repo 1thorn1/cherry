@@ -12,7 +12,20 @@ import lombok.NoArgsConstructor;
 public class User {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false, length = 20)
+    private String provider;
+
+    @Column(name = "provider_uid", nullable = false, length = 191)
+    private String providerUid;
+
+    @Column(length = 191)
+    private String email;
+
+    @Column(name = "profile_image_path", length = 255)
+    private String profileImagePath;
 
     @Column(nullable = false, length = 50)
     private String nickname;
@@ -34,6 +47,24 @@ public class User {
 
     @Column(name = "share_task_titles", nullable = false)
     private boolean shareTaskTitles = false;
+
+    public static User createFromOAuth(String provider, String providerUid, String email, String nickname, String friendCode) {
+        User user = new User();
+        user.provider = provider;
+        user.providerUid = providerUid;
+        user.email = email;
+        user.nickname = nickname;
+        user.friendCode = friendCode;
+        return user;
+    }
+
+    public void updateNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    public void updateProfileImagePath(String profileImagePath) {
+        this.profileImagePath = profileImagePath;
+    }
 
     public void updateSharingSettings(boolean sharePark, boolean shareActivityCount, boolean shareTaskTitles) {
         this.sharePark = sharePark;

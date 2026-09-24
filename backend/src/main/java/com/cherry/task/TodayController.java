@@ -1,5 +1,6 @@
 package com.cherry.task;
 
+import com.cherry.auth.CurrentUserId;
 import com.cherry.task.dto.TodayResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -15,16 +16,15 @@ import java.time.LocalDate;
 @RequiredArgsConstructor
 public class TodayController {
 
-    private static final Long DEV_USER_ID = 1L;
-
     private final TaskService taskService;
 
     @GetMapping
     public TodayResponse getToday(
+            @CurrentUserId Long userId,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
 
         LocalDate target = (date != null) ? date : LocalDate.now();
-        return taskService.getToday(DEV_USER_ID, target);
+        return taskService.getToday(userId, target);
     }
 }

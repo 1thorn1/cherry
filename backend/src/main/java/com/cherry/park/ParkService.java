@@ -56,7 +56,11 @@ public class ParkService {
     public void awardForMilestoneCompletion(Long userId, Long milestoneId) {
         if (pointLedgerRepository.existsByUserIdAndRefTypeAndRefId(userId, "MILESTONE", milestoneId)) return;
 
-        int nextIndex = parkSlotRepository.countByUserId(userId) + 1;
+        // count+1은 과거에 슬롯이 지워져 번호에 구멍이 생기면(예: 1,2,3,6,7,8) uk_slot(user_id, slot_index)
+        // 유니크 제약과 충돌해 완료 트랜잭션 전체가 롤백된다 — 실제 최댓값 기준으로 다음 번호를 잡는다.
+        int nextIndex = parkSlotRepository.findTopByUserIdOrderBySlotIndexDesc(userId)
+                .map(slot -> slot.getSlotIndex() + 1)
+                .orElse(1);
         parkSlotRepository.save(ParkSlot.create(userId, nextIndex, "BASIC", false, milestoneId));
 
         User user = userRepository.findById(userId).orElseThrow();

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { IconCarouselHorizontal, IconRollercoaster } from '@tabler/icons-react'
 import type { Friend, FriendCode, FriendPark, PendingRequest, SharingSettings } from '../types/friend'
+import type { AuthUser } from '../types/auth'
 import {
   acceptFriendRequest,
   getFriendPark,
@@ -13,6 +14,7 @@ import {
   updateSharingSettings,
   visitFriendPark,
 } from '../api/friend'
+import { getMe, logout, updateNickname, uploadProfileImage } from '../api/auth'
 
 const settingLabels: { key: keyof SharingSettings; label: string; hint: string }[] = [
   { key: 'share_park', label: '공원 보여주기', hint: '기구, 인구' },
@@ -34,6 +36,13 @@ export default function SettingsPage() {
   const [visitedIds, setVisitedIds] = useState<Set<number>>(new Set())
   const [settings, setSettings] = useState<SharingSettings | null>(null)
   const [savingSettings, setSavingSettings] = useState(false)
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null)
+  const [authChecked, setAuthChecked] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+  const [editingNickname, setEditingNickname] = useState(false)
+  const [nicknameDraft, setNicknameDraft] = useState('')
+  const [savingNickname, setSavingNickname] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   async function loadAll() {
     try {
@@ -53,6 +62,60 @@ export default function SettingsPage() {
   }
 
   useEffect(() => { loadAll() }, [])
+
+  useEffect(() => {
+    getMe()
+      .then(setAuthUser)
+      .catch(() => setAuthUser(null))
+      .finally(() => setAuthChecked(true))
+  }, [])
+
+  function startEditingNickname() {
+    if (!authUser) return
+    setNicknameDraft(authUser.nickname)
+    setEditingNickname(true)
+  }
+
+  async function handleSaveNickname() {
+    const trimmed = nicknameDraft.trim()
+    if (!trimmed || savingNickname) return
+    setSavingNickname(true)
+    try {
+      setAuthUser(await updateNickname(trimmed))
+      setEditingNickname(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '닉네임을 저장하지 못했습니다')
+    } finally {
+      setSavingNickname(false)
+    }
+  }
+
+  async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || uploadingImage) return
+    setUploadingImage(true)
+    try {
+      setAuthUser(await uploadProfileImage(file))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '사진을 올리지 못했습니다')
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+  async function handleLogout() {
+    if (loggingOut) return
+    setLoggingOut(true)
+    try {
+      await logout()
+      setAuthUser(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '로그아웃하지 못했습니다')
+    } finally {
+      setLoggingOut(false)
+    }
+  }
 
   async function handleCopy() {
     if (!myCode) return
@@ -155,6 +218,85 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
       <h1 className="mb-6 text-xl font-medium tracking-tight">설정</h1>
+
+      {authChecked && (
+        <div className="mb-6 rounded-lg border border-neutral-200 p-4">
+          {authUser ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <label className="group relative h-12 w-12 flex-none cursor-pointer overflow-hidden rounded-full bg-neutral-100">
+                  {authUser.profile_image_url ? (
+                    <img src={authUser.profile_image_url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center text-sm font-medium text-neutral-400">
+                      {authUser.nickname.slice(0, 1)}
+                    </span>
+                  )}
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-[9px] font-medium text-white opacity-0 group-hover:opacity-100">
+                    {uploadingImage ? '업로드 중' : '사진 변경'}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    onChange={handleImageChange}
+                    disabled={uploadingImage}
+                    className="hidden"
+                  />
+                </label>
+
+                <div>
+                  {editingNickname ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        value={nicknameDraft}
+                        onChange={(e) => setNicknameDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.nativeEvent.isComposing) return
+                          if (e.key === 'Enter') handleSaveNickname()
+                        }}
+                        autoFocus
+                        className="rounded-md border border-neutral-200 px-2 py-1 text-sm outline-none focus:border-neutral-400"
+                      />
+                      <button
+                        onClick={handleSaveNickname}
+                        disabled={savingNickname}
+                        className="rounded-md px-2 py-1 text-[11px] font-medium text-white disabled:opacity-50"
+                        style={{ background: 'var(--cherry)' }}
+                      >
+                        저장
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={startEditingNickname} className="text-sm font-medium hover:underline">
+                      {authUser.nickname}
+                    </button>
+                  )}
+                  {authUser.email && <p className="text-[11px] text-neutral-400">{authUser.email}</p>}
+                </div>
+              </div>
+
+              <button
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="rounded-md bg-neutral-100 px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+              >
+                로그아웃
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-neutral-400">로그인하면 프로필과 친구 목록이 계정에 저장돼요</p>
+              <a
+                href="/oauth2/authorization/google"
+                className="rounded-md px-3 py-1.5 text-xs font-medium text-white"
+                style={{ background: 'var(--cherry)' }}
+              >
+                Google로 로그인
+              </a>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mb-6 rounded-lg border border-neutral-200 p-4">
         <p className="mb-2 text-xs text-neutral-400">내 친구 코드</p>

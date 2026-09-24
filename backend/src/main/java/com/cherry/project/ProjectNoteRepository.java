@@ -5,10 +5,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ProjectNoteRepository extends JpaRepository<ProjectNote, Long> {
 
     List<ProjectNote> findByProjectIdAndDeletedAtIsNullOrderByCreatedAtDesc(Long projectId);
+
+    Optional<ProjectNote> findByIdAndUserIdAndProjectIdAndDeletedAtIsNull(Long id, Long userId, Long projectId);
 
     @Query("SELECT n FROM ProjectNote n WHERE n.userId = :userId AND n.deletedAt IS NULL " +
             "AND (n.body LIKE CONCAT('%', :keyword, '%') OR n.url LIKE CONCAT('%', :keyword, '%')) " +

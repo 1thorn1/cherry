@@ -42,6 +42,10 @@ export function updateProjectWorkDays(id: number, workDays: number[]) {
   })
 }
 
+export function deleteProject(id: number) {
+  return request<void>(`/api/projects/${id}`, { method: 'DELETE' })
+}
+
 export function addMilestone(projectId: number, title: string) {
   return request<Milestone>(`/api/projects/${projectId}/milestones`, {
     method: 'POST',
@@ -55,13 +59,36 @@ export function completeMilestoneNow(milestoneId: number) {
   })
 }
 
+export function uncompleteMilestoneNow(milestoneId: number) {
+  return request<void>(`/api/milestones/${milestoneId}/uncomplete`, {
+    method: 'PATCH',
+  })
+}
+
 export function getTimeline(projectId: number) {
   return request<TimelineEntry[]>(`/api/projects/${projectId}/timeline`)
 }
 
-export function addNote(projectId: number, kind: NoteKind, body: string | null, url: string | null) {
+export function addNote(
+  projectId: number,
+  kind: NoteKind,
+  body: string | null,
+  url: string | null,
+  milestoneId?: number | null,
+) {
   return request<void>(`/api/projects/${projectId}/notes`, {
     method: 'POST',
-    body: JSON.stringify({ kind, body, url }),
+    body: JSON.stringify({ kind, body, url, milestone_id: milestoneId ?? null }),
   })
+}
+
+export function updateNote(projectId: number, noteId: number, body: string | null, url: string | null) {
+  return request<void>(`/api/projects/${projectId}/notes/${noteId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ body, url }),
+  })
+}
+
+export function deleteNote(projectId: number, noteId: number) {
+  return request<void>(`/api/projects/${projectId}/notes/${noteId}`, { method: 'DELETE' })
 }
