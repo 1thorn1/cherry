@@ -4,6 +4,7 @@ import com.cherry.auth.CurrentUserId;
 import com.cherry.task.TaskService;
 import com.cherry.task.dto.TaskResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,8 +23,9 @@ public class MilestoneController {
     }
 
     @PatchMapping("/{id}/uncomplete")
-    public void uncomplete(@CurrentUserId Long userId, @PathVariable Long id) {
+    public ResponseEntity<Void> uncomplete(@CurrentUserId Long userId, @PathVariable Long id) {
         taskService.uncompleteMilestoneNow(userId, id);
+        return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/schedule-today")
