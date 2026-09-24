@@ -78,6 +78,12 @@ export function scheduleMilestoneToday(milestoneId: number) {
   })
 }
 
+export function unscheduleMilestoneToday(milestoneId: number) {
+  return request<void>(`/api/milestones/${milestoneId}/unschedule-today`, {
+    method: 'PATCH',
+  })
+}
+
 export function getTimeline(projectId: number) {
   return request<TimelineEntry[]>(`/api/projects/${projectId}/timeline`)
 }

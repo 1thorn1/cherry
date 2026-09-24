@@ -20,6 +20,7 @@ export interface Milestone {
   target_week: string | null
   completed: boolean
   completed_at: string | null
+  scheduled_today: boolean
 }
 
 export interface ProjectDetail {

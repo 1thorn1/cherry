@@ -128,6 +128,15 @@ public class TaskService {
         return TaskResponse.from(task);
     }
 
+    // "오늘 일정에 추가"를 다시 눌러 취소. 태스크를 지우지 않고 날짜만 떼서 미지정 상태로
+    // 되돌린다 — 지우면 다음에 완료하거나 다시 추가할 때 매번 새 태스크가 생겨 중복이
+    // 재발한다.
+    @Transactional
+    public void unscheduleMilestoneToday(Long userId, Long milestoneId) {
+        taskRepository.findFirstByMilestoneIdAndUserIdAndCompletedAtIsNullAndDeletedAtIsNull(milestoneId, userId)
+                .ifPresent(task -> task.moveTo(null));
+    }
+
     // 칩을 다시 눌러 완료를 취소. 이미 지급된 포인트·인구·공원 슬롯은 되돌리지 않는다 —
     // 일반 태스크 체크 해제(uncomplete())도 같은 원칙이고, 재완료 시 awardForMilestoneCompletion이
     // point_ledger 중복 지급을 막아주므로 두 번 주지도 않는다.

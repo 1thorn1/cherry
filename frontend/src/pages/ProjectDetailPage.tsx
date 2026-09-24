@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Milestone, NoteKind, ProjectDetail, TimelineEntry } from '../types/project'
-import { addMilestone, addNote, completeMilestoneNow, deleteNote, deleteProject, getProject, getTimeline, renameMilestone, scheduleMilestoneToday, uncompleteMilestoneNow, updateNote, updateProjectShared, updateProjectWorkDays } from '../api/projects'
+import { addMilestone, addNote, completeMilestoneNow, deleteNote, deleteProject, getProject, getTimeline, renameMilestone, scheduleMilestoneToday, uncompleteMilestoneNow, unscheduleMilestoneToday, updateNote, updateProjectShared, updateProjectWorkDays } from '../api/projects'
 import MilestoneTrack from '../components/MilestoneTrack'
 import MilestoneChipGrid from '../components/MilestoneChipGrid'
 import NoteEntry from '../components/NoteEntry'
@@ -47,7 +47,6 @@ export default function ProjectDetailPage() {
   const [milestoneDraft, setMilestoneDraft] = useState('')
   const [addingMilestone, setAddingMilestone] = useState(false)
   const [sendingId, setSendingId] = useState<number | null>(null)
-  const [sentIds, setSentIds] = useState<Set<number>>(new Set())
   const [completingId, setCompletingId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [savingNoteId, setSavingNoteId] = useState<number | null>(null)
@@ -77,10 +76,14 @@ export default function ProjectDetailPage() {
     if (sendingId) return
     setSendingId(milestone.id)
     try {
-      await scheduleMilestoneToday(milestone.id)
-      setSentIds((prev) => new Set(prev).add(milestone.id))
+      if (milestone.scheduled_today) {
+        await unscheduleMilestoneToday(milestone.id)
+      } else {
+        await scheduleMilestoneToday(milestone.id)
+      }
+      await loadDetail()
     } catch (e) {
-      setError(e instanceof Error ? e.message : '오늘 할 일로 보내지 못했습니다')
+      setError(e instanceof Error ? e.message : '오늘 일정 변경에 실패했습니다')
     } finally {
       setSendingId(null)
     }
@@ -91,11 +94,6 @@ export default function ProjectDetailPage() {
     setCompletingId(milestone.id)
     try {
       await completeMilestoneNow(milestone.id)
-      setSentIds((prev) => {
-        const next = new Set(prev)
-        next.delete(milestone.id)
-        return next
-      })
       await Promise.all([loadDetail(), loadTimeline()])
     } catch (e) {
       setError(e instanceof Error ? e.message : '완료 처리하지 못했습니다')
@@ -385,7 +383,6 @@ export default function ProjectDetailPage() {
               onDeleteNote={handleDeleteNote}
               completingId={completingId}
               sendingId={sendingId}
-              sentIds={sentIds}
               savingNoteId={savingNoteId}
             />
           </div>

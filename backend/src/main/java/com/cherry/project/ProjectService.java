@@ -39,6 +39,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -177,9 +179,15 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public ProjectDetailResponse detail(Long userId, Long projectId) {
         Project project = findOwned(userId, projectId);
+        Set<Long> scheduledTodayMilestoneIds = taskRepository
+                .findByProjectIdAndUserIdAndTaskDateAndCompletedAtIsNullAndDeletedAtIsNull(
+                        projectId, userId, LocalDate.now())
+                .stream().map(Task::getMilestoneId).filter(Objects::nonNull).collect(Collectors.toSet());
         List<MilestoneResponse> milestones = milestoneRepository
                 .findByProjectIdOrderBySeqAsc(projectId)
-                .stream().map(MilestoneResponse::from).toList();
+                .stream()
+                .map(m -> MilestoneResponse.from(m, scheduledTodayMilestoneIds.contains(m.getId())))
+                .toList();
         return new ProjectDetailResponse(ProjectResponse.from(project), milestones);
     }
 

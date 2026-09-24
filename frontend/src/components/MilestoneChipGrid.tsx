@@ -16,7 +16,6 @@ export default function MilestoneChipGrid({
   onDeleteNote,
   completingId,
   sendingId,
-  sentIds,
   savingNoteId,
 }: {
   milestones: Milestone[]
@@ -31,7 +30,6 @@ export default function MilestoneChipGrid({
   onDeleteNote: (noteId: number) => Promise<void>
   completingId: number | null
   sendingId: number | null
-  sentIds: Set<number>
   savingNoteId: number | null
 }) {
   const [expandedId, setExpandedId] = useState<number | null>(null)
@@ -189,9 +187,12 @@ export default function MilestoneChipGrid({
                 <button
                   onClick={() => onSendToday(selected)}
                   disabled={sendingId === selected.id}
-                  className="mb-3 inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-500 disabled:opacity-50"
+                  className={`mb-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium disabled:opacity-50 ${
+                    selected.scheduled_today ? 'bg-neutral-100 text-neutral-400' : 'bg-neutral-100 text-neutral-500'
+                  }`}
+                  style={selected.scheduled_today ? { color: 'var(--cherry)', background: 'var(--cherry-bg)' } : undefined}
                 >
-                  {sentIds.has(selected.id) ? '오늘 목록에 추가됨' : '오늘 일정에 추가'}
+                  {selected.scheduled_today ? '오늘 일정에서 빼기' : '오늘 일정에 추가'}
                 </button>
               ) : (
                 <p className="mb-3 text-xs text-neutral-400">

@@ -32,4 +32,10 @@ public class MilestoneController {
     public TaskResponse scheduleToday(@CurrentUserId Long userId, @PathVariable Long id) {
         return taskService.scheduleMilestoneToday(userId, id);
     }
+
+    @PatchMapping("/{id}/unschedule-today")
+    public ResponseEntity<Void> unscheduleToday(@CurrentUserId Long userId, @PathVariable Long id) {
+        taskService.unscheduleMilestoneToday(userId, id);
+        return ResponseEntity.noContent().build();
+    }
 }
