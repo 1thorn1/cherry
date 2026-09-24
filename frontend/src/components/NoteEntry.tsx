@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { TimelineEntry } from '../types/project'
+import { toggleMarkdownCheckbox } from '../lib/markdownChecklist'
 import AutoGrowTextarea from './AutoGrowTextarea'
 import MarkdownBody from './MarkdownBody'
 
@@ -23,6 +24,7 @@ export default function NoteEntry({
   const [urlDraft, setUrlDraft] = useState('')
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [togglingCheckbox, setTogglingCheckbox] = useState(false)
 
   const editable = entry.kind !== 'AUTO_LOG'
 
@@ -53,6 +55,18 @@ export default function NoteEntry({
       await onDelete(entry.ref_id)
     } finally {
       setDeleting(false)
+    }
+  }
+
+  async function handleToggleCheckbox(index: number) {
+    if (togglingCheckbox || !entry.body) return
+    const newBody = toggleMarkdownCheckbox(entry.body, index)
+    if (newBody === entry.body) return
+    setTogglingCheckbox(true)
+    try {
+      await onUpdate(entry.ref_id, newBody, entry.url)
+    } finally {
+      setTogglingCheckbox(false)
     }
   }
 
@@ -114,7 +128,9 @@ export default function NoteEntry({
           {entry.url && <p className="text-xs text-neutral-400">{entry.url}</p>}
         </div>
       )}
-      {(entry.kind === 'NOTE' || entry.kind === 'RETRO') && entry.body && <MarkdownBody>{entry.body}</MarkdownBody>}
+      {(entry.kind === 'NOTE' || entry.kind === 'RETRO') && entry.body && (
+        <MarkdownBody onToggleCheckbox={handleToggleCheckbox}>{entry.body}</MarkdownBody>
+      )}
     </div>
   )
 }

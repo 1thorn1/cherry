@@ -16,7 +16,16 @@ const schema = {
   },
 }
 
-export default function MarkdownBody({ children }: { children: string }) {
+export default function MarkdownBody({
+  children,
+  onToggleCheckbox,
+}: {
+  children: string
+  onToggleCheckbox?: (index: number) => void
+}) {
+  // input 컴포넌트가 호출되는 순서 = 문서에 체크박스가 나오는 순서. 몇 번째 체크박스인지를
+  // 여기서 세서 toggleMarkdownCheckbox(원문, index)와 짝을 맞춘다.
+  let checkboxIndex = -1
   return (
     <div className="text-sm text-neutral-700">
       <ReactMarkdown
@@ -56,13 +65,30 @@ export default function MarkdownBody({ children }: { children: string }) {
             <blockquote className="mb-2 border-l-2 pl-2 text-neutral-500 last:mb-0" style={{ borderColor: 'var(--cherry)' }} {...rest} />
           ),
           strong: ({ node: _node, ...rest }) => <strong className="font-semibold" {...rest} />,
-          // 체크박스는 어차피 읽기 전용(disabled)이라, 브라우저마다 다르게 생긴 기본
-          // input[type=checkbox] 대신 앱 다른 곳(마일스톤 칩)과 같은 모양의 체크박스로 그린다.
+          // 브라우저마다 다르게 생긴 기본 input[type=checkbox] 대신 앱 다른 곳(마일스톤 칩)과
+          // 같은 모양의 체크박스로 그린다. onToggleCheckbox가 있으면 눌러서 원문의 [ ]/[x]를
+          // 바로 뒤집을 수 있게 한다(없으면 지금까지처럼 읽기 전용 표시만).
           input: ({ node: _node, checked, type, ...rest }) => {
             if (type !== 'checkbox') return <input type={type} {...rest} />
+            const index = ++checkboxIndex
+            const interactive = Boolean(onToggleCheckbox)
             return (
               <span
-                className="mr-0.5 mt-0.5 inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm"
+                role={interactive ? 'checkbox' : undefined}
+                aria-checked={interactive ? Boolean(checked) : undefined}
+                tabIndex={interactive ? 0 : undefined}
+                onClick={interactive ? () => onToggleCheckbox?.(index) : undefined}
+                onKeyDown={
+                  interactive
+                    ? (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          onToggleCheckbox?.(index)
+                        }
+                      }
+                    : undefined
+                }
+                className={`mr-0.5 mt-0.5 inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm ${interactive ? 'cursor-pointer' : ''}`}
                 style={{
                   background: checked ? 'var(--cherry)' : 'white',
                   border: checked ? 'none' : '1.5px solid #D4D0C4',
