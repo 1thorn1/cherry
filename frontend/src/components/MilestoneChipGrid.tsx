@@ -249,8 +249,8 @@ export default function MilestoneChipGrid({
                       handleSubmitNote()
                     }
                   }}
-                  placeholder={'이 구간에 남길 메모 (마크다운 지원 — # 제목, - 목록, **굵게**, [ ] 체크박스...)'}
-                  rows={6}
+                  placeholder="이 구간 메모 (마크다운 지원)"
+                  rows={3}
                   className="mb-1.5 w-full resize-y rounded-lg border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-neutral-400"
                 />
                 <div className="flex items-center justify-between">
@@ -269,7 +269,7 @@ export default function MilestoneChipGrid({
                 <ul className="space-y-1.5">
                   {selectedNotes.map((entry) => (
                     <li key={`${entry.kind}-${entry.ref_id}`} className="rounded-lg bg-neutral-50 px-3 py-2">
-                      <NoteEntry entry={entry} onUpdate={onUpdateNote} onDelete={onDeleteNote} />
+                      <NoteEntry entry={entry} onUpdate={onUpdateNote} onDelete={onDeleteNote} hideKindLabel />
                     </li>
                   ))}
                 </ul>

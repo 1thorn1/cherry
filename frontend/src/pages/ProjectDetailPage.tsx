@@ -258,9 +258,11 @@ export default function ProjectDetailPage() {
     [],
   )
 
+  // 완료 여부는 칩 자체(체크박스 + "완료됨" 문구)에서 이미 보여주므로, 마일스톤 패널의
+  // 메모 목록엔 자동 완료 기록(AUTO_LOG)까지 또 띄우지 않고 사용자가 직접 남긴 메모만 둔다.
   const notesByMilestone = new Map<number, TimelineEntry[]>()
   for (const entry of timeline) {
-    if (entry.milestone_id === null) continue
+    if (entry.milestone_id === null || entry.kind === 'AUTO_LOG') continue
     const list = notesByMilestone.get(entry.milestone_id) ?? []
     list.push(entry)
     notesByMilestone.set(entry.milestone_id, list)
@@ -419,7 +421,7 @@ export default function ProjectDetailPage() {
             <textarea
               value={noteBody}
               onChange={(e) => setNoteBody(e.target.value)}
-              placeholder={noteKind === 'LINK' ? '한 줄 설명' : '결정한 것, 막힌 것, 정리... (마크다운 지원 — # 제목, - 목록, **굵게**...)'}
+              placeholder={noteKind === 'LINK' ? '한 줄 설명' : '결정한 것, 막힌 것, 정리... (마크다운 지원)'}
               rows={noteKind === 'LINK' ? 3 : 6}
               className="mb-3 w-full resize-y rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
             />

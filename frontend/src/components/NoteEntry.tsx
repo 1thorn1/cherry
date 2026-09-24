@@ -83,12 +83,12 @@ export default function NoteEntry({
   return (
     <div>
       {(!hideKindLabel || editable) && (
-        <div className="mb-1 flex items-center justify-between gap-2">
-          {hideKindLabel ? <span /> : (
+        <div className="mb-1 flex items-center gap-2">
+          {!hideKindLabel && (
             <span className="inline-block text-[10px] font-medium text-neutral-400">{kindLabels[entry.kind] ?? entry.kind}</span>
           )}
           {editable && (
-            <div className="flex gap-2 text-[10px] text-neutral-300">
+            <div className="ml-auto flex gap-2 text-[10px] text-neutral-300">
               <button onClick={startEdit} className="hover:text-neutral-500">수정</button>
               <button onClick={handleDelete} disabled={deleting} className="hover:text-red-500 disabled:opacity-50">삭제</button>
             </div>
