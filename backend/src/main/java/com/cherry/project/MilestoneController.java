@@ -22,8 +22,8 @@ public class MilestoneController {
     }
 
     @PatchMapping("/{id}/uncomplete")
-    public TaskResponse uncomplete(@CurrentUserId Long userId, @PathVariable Long id) {
-        return taskService.uncompleteMilestoneNow(userId, id);
+    public void uncomplete(@CurrentUserId Long userId, @PathVariable Long id) {
+        taskService.uncompleteMilestoneNow(userId, id);
     }
 
     @PatchMapping("/{id}/schedule-today")

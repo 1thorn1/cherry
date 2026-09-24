@@ -131,17 +131,18 @@ public class TaskService {
     // 칩을 다시 눌러 완료를 취소. 이미 지급된 포인트·인구·공원 슬롯은 되돌리지 않는다 —
     // 일반 태스크 체크 해제(uncomplete())도 같은 원칙이고, 재완료 시 awardForMilestoneCompletion이
     // point_ledger 중복 지급을 막아주므로 두 번 주지도 않는다.
+    // 뒷받침하는 완료 태스크가 없어도(예: 오늘 화면에서 먼저 체크 해제했거나 지운 경우)
+    // 에러 없이 마일스톤만 되돌린다 — 예전엔 여기서 못 찾으면 예외를 던져서 트랜잭션이
+    // 롤백되고 마일스톤도 "완료됨"에 영영 갇히는 버그가 있었다.
     @Transactional
-    public TaskResponse uncompleteMilestoneNow(Long userId, Long milestoneId) {
+    public void uncompleteMilestoneNow(Long userId, Long milestoneId) {
         Milestone milestone = milestoneRepository.findById(milestoneId)
                 .orElseThrow(MilestoneNotFoundException::new);
         milestone.uncomplete();
 
-        Task task = taskRepository
+        taskRepository
                 .findFirstByMilestoneIdAndUserIdAndCompletedAtIsNotNullAndDeletedAtIsNullOrderByCompletedAtDesc(milestoneId, userId)
-                .orElseThrow(TaskNotFoundException::new);
-        task.reopen();
-        return TaskResponse.from(task);
+                .ifPresent(Task::reopen);
     }
 
     // completed_at은 체크한 물리적 시각으로 불변, effective_at이 기록·시간표·통계의 기준이 된다 (A-6-8).
@@ -170,10 +171,22 @@ public class TaskService {
         return TaskResponse.from(task);
     }
 
+    // 오늘 화면 체크박스로 완료 취소. 마일스톤에 연결된 태스크라면(milestoneId 존재) 마일스톤
+    // 완료 상태도 같이 되돌린다 — 예전엔 task.uncomplete()가 milestoneId까지 지워버려서
+    // 프로젝트 화면 칩은 "완료됨"으로 영영 고정되고, 남은 태스크는 마일스톤과 연결이
+    // 끊긴 평범한 할일처럼 보이는 버그가 있었다(그 상태에서 지우면 나중에 칩에서 완료 취소를
+    // 눌러도 태스크를 못 찾아 에러가 났다). reopen()으로 milestoneId는 보존해서, 프로젝트 칩
+    // 쪽 완료 취소(uncompleteMilestoneNow)와 완전히 같은 방식으로 동작하게 한다.
     @Transactional
     public TaskResponse uncomplete(Long userId, Long taskId) {
         Task task = findOwned(userId, taskId);
-        task.uncomplete();
+        Long milestoneId = task.getMilestoneId();
+        task.reopen();
+        if (milestoneId != null) {
+            milestoneRepository.findById(milestoneId)
+                    .filter(m -> m.getCompletedAt() != null)
+                    .ifPresent(Milestone::uncomplete);
+        }
         return TaskResponse.from(task);
     }
 
