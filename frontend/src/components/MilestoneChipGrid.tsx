@@ -32,10 +32,15 @@ export default function MilestoneChipGrid({
 }) {
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
+  const [showAll, setShowAll] = useState(false)
 
   if (milestones.length === 0) {
     return <p className="py-4 text-center text-xs text-neutral-400">마일스톤이 없어요</p>
   }
+
+  const ROW_SIZE = 5
+  const hasMore = milestones.length > ROW_SIZE
+  const visibleMilestones = showAll ? milestones : milestones.slice(0, ROW_SIZE)
 
   const selected = milestones.find((m) => m.id === expandedId) ?? null
 
@@ -64,8 +69,8 @@ export default function MilestoneChipGrid({
 
   return (
     <div>
-      <div className="grid grid-cols-5 gap-2">
-        {milestones.map((m) => (
+      <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${ROW_SIZE}, minmax(0, 52px))` }}>
+        {visibleMilestones.map((m) => (
           <div
             key={m.id}
             onClick={() => handleChipClick(m)}
@@ -77,13 +82,12 @@ export default function MilestoneChipGrid({
                 handleChipClick(m)
               }
             }}
-            className="relative flex aspect-square cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border p-1 pt-2.5 text-center transition-colors"
+            className="relative flex aspect-square cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-transparent p-1 pt-2 text-center transition-colors"
             style={{
-              // 채우기 색은 오직 완료 여부만 나타낸다. 선택(패널이 열려있음) 표시는
-              // 링(box-shadow)으로 따로 얹어서, "완료돼서 색이 있는 건지 선택돼서
-              // 색이 있는 건지" 헷갈리지 않게 분리했다.
-              background: m.completed ? 'var(--cherry-bg)' : '#fff',
-              borderColor: m.completed ? 'transparent' : '#E5E5E5',
+              // 완료 여부는 채우기 색으로만 표시한다(테두리색으로 구분하지 않는다) — 완료
+              // 안 됐다고 흰 배경에 옅은 테두리만 두면 눈에 잘 안 띄어서, 명확한 회색
+              // 채우기를 기본값으로 준다. 선택(패널 열림) 표시만 링(box-shadow)으로 얹는다.
+              background: m.completed ? 'var(--cherry-bg)' : '#F1EFE8',
               boxShadow: expandedId === m.id ? '0 0 0 2px var(--cherry)' : 'none',
             }}
           >
@@ -91,20 +95,29 @@ export default function MilestoneChipGrid({
               onClick={(e) => handleToggleComplete(e, m)}
               disabled={completingId === m.id}
               aria-label={m.completed ? '완료 취소' : '완료 처리'}
-              className={`absolute left-1 top-1 flex h-4 w-4 items-center justify-center text-white disabled:opacity-50 ${
-                m.completed ? 'rounded' : 'rounded border-[1.5px] border-neutral-300 bg-white'
+              className={`absolute left-0.5 top-0.5 flex h-3.5 w-3.5 items-center justify-center text-white disabled:opacity-50 ${
+                m.completed ? 'rounded-sm' : 'rounded-sm border-[1.5px] border-neutral-300 bg-white'
               }`}
               style={m.completed ? { background: 'var(--cherry)' } : undefined}
             >
-              {m.completed && <IconCheck size={10} stroke={2.5} />}
+              {m.completed && <IconCheck size={8} stroke={3} />}
             </button>
-            <span className="text-[10px] font-medium" style={{ color: m.completed ? 'var(--cherry)' : '#999' }}>
+            <span className="text-[9px] font-medium" style={{ color: m.completed ? 'var(--cherry)' : '#999' }}>
               {m.seq}
             </span>
-            <span className="line-clamp-2 text-[10px] leading-tight text-neutral-500">{m.title}</span>
+            <span className="line-clamp-2 text-[8px] leading-tight text-neutral-500">{m.title}</span>
           </div>
         ))}
       </div>
+
+      {hasMore && (
+        <button
+          onClick={() => setShowAll((v) => !v)}
+          className="mt-1.5 text-[11px] text-neutral-400"
+        >
+          {showAll ? '접기' : `${milestones.length - ROW_SIZE}개 더 보기`}
+        </button>
+      )}
 
       <div
         className="grid transition-[grid-template-rows] duration-300 ease-out"
