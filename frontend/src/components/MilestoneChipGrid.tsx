@@ -1,5 +1,5 @@
 import { useState, type MouseEvent } from 'react'
-import { IconCheck } from '@tabler/icons-react'
+import { IconCheck, IconChevronDown, IconChevronUp } from '@tabler/icons-react'
 import type { Milestone, TimelineEntry } from '../types/project'
 import NoteEntry from './NoteEntry'
 
@@ -69,7 +69,7 @@ export default function MilestoneChipGrid({
 
   return (
     <div>
-      <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${ROW_SIZE}, minmax(0, 52px))` }}>
+      <div className="grid grid-cols-5 gap-1.5">
         {visibleMilestones.map((m) => (
           <div
             key={m.id}
@@ -82,7 +82,7 @@ export default function MilestoneChipGrid({
                 handleChipClick(m)
               }
             }}
-            className="relative flex aspect-square cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-transparent p-1 pt-2 text-center transition-colors"
+            className="relative flex h-12 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-transparent p-1 pt-2.5 text-center transition-colors"
             style={{
               // 완료 여부는 채우기 색으로만 표시한다(테두리색으로 구분하지 않는다) — 완료
               // 안 됐다고 흰 배경에 옅은 테두리만 두면 눈에 잘 안 띄어서, 명확한 회색
@@ -95,7 +95,7 @@ export default function MilestoneChipGrid({
               onClick={(e) => handleToggleComplete(e, m)}
               disabled={completingId === m.id}
               aria-label={m.completed ? '완료 취소' : '완료 처리'}
-              className={`absolute left-0.5 top-0.5 flex h-3.5 w-3.5 items-center justify-center text-white disabled:opacity-50 ${
+              className={`absolute left-1 top-1 flex h-3.5 w-3.5 items-center justify-center text-white disabled:opacity-50 ${
                 m.completed ? 'rounded-sm' : 'rounded-sm border-[1.5px] border-neutral-300 bg-white'
               }`}
               style={m.completed ? { background: 'var(--cherry)' } : undefined}
@@ -105,7 +105,7 @@ export default function MilestoneChipGrid({
             <span className="text-[9px] font-medium" style={{ color: m.completed ? 'var(--cherry)' : '#999' }}>
               {m.seq}
             </span>
-            <span className="line-clamp-2 text-[8px] leading-tight text-neutral-500">{m.title}</span>
+            <span className="line-clamp-1 w-full truncate text-[8px] leading-tight text-neutral-500">{m.title}</span>
           </div>
         ))}
       </div>
@@ -113,8 +113,9 @@ export default function MilestoneChipGrid({
       {hasMore && (
         <button
           onClick={() => setShowAll((v) => !v)}
-          className="mt-1.5 text-[11px] text-neutral-400"
+          className="mt-2 inline-flex items-center gap-1 rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-600"
         >
+          {showAll ? <IconChevronUp size={14} stroke={1.75} /> : <IconChevronDown size={14} stroke={1.75} />}
           {showAll ? '접기' : `${milestones.length - ROW_SIZE}개 더 보기`}
         </button>
       )}
