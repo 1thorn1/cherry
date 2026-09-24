@@ -9,11 +9,13 @@ export default function NoteEntry({
   onUpdate,
   onDelete,
   hideKindLabel,
+  showDate,
 }: {
   entry: TimelineEntry
   onUpdate: (noteId: number, body: string | null, url: string | null) => Promise<void>
   onDelete: (noteId: number) => Promise<void>
   hideKindLabel?: boolean
+  showDate?: boolean
 }) {
   const [editing, setEditing] = useState(false)
   const [bodyDraft, setBodyDraft] = useState('')
@@ -82,10 +84,13 @@ export default function NoteEntry({
 
   return (
     <div>
-      {(!hideKindLabel || editable) && (
+      {(!hideKindLabel || showDate || editable) && (
         <div className="mb-1 flex items-center gap-2">
           {!hideKindLabel && (
             <span className="inline-block text-[10px] font-medium text-neutral-400">{kindLabels[entry.kind] ?? entry.kind}</span>
+          )}
+          {hideKindLabel && showDate && (
+            <span className="text-[10px] text-neutral-300">{entry.at.slice(0, 16).replace('T', ' ')}</span>
           )}
           {editable && (
             <div className="ml-auto flex gap-2 text-[10px] text-neutral-300">

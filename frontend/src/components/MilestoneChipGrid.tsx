@@ -37,6 +37,7 @@ export default function MilestoneChipGrid({
   const [page, setPage] = useState(0)
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
+  const [noteSort, setNoteSort] = useState<'newest' | 'oldest'>('newest')
 
   if (milestones.length === 0) {
     return <p className="py-4 text-center text-xs text-neutral-400">마일스톤이 없어요</p>
@@ -88,7 +89,9 @@ export default function MilestoneChipGrid({
     setDraft('')
   }
 
-  const selectedNotes = selected ? notesByMilestone.get(selected.id) ?? [] : []
+  // 백엔드가 최신순으로 내려주므로, "오래된순"일 때만 뒤집는다.
+  const rawSelectedNotes = selected ? notesByMilestone.get(selected.id) ?? [] : []
+  const selectedNotes = noteSort === 'oldest' ? [...rawSelectedNotes].reverse() : rawSelectedNotes
 
   return (
     <div>
@@ -266,13 +269,25 @@ export default function MilestoneChipGrid({
               </div>
 
               {selectedNotes.length > 0 && (
-                <ul className="space-y-1.5">
-                  {selectedNotes.map((entry) => (
-                    <li key={`${entry.kind}-${entry.ref_id}`} className="rounded-lg bg-neutral-50 px-3 py-2">
-                      <NoteEntry entry={entry} onUpdate={onUpdateNote} onDelete={onDeleteNote} hideKindLabel />
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  {selectedNotes.length > 1 && (
+                    <div className="mb-1.5 flex justify-end">
+                      <button
+                        onClick={() => setNoteSort((s) => (s === 'newest' ? 'oldest' : 'newest'))}
+                        className="text-[10px] text-neutral-400 hover:text-neutral-600"
+                      >
+                        {noteSort === 'newest' ? '최신순' : '오래된순'}
+                      </button>
+                    </div>
+                  )}
+                  <ul className="space-y-1.5">
+                    {selectedNotes.map((entry) => (
+                      <li key={`${entry.kind}-${entry.ref_id}`} className="rounded-lg bg-neutral-50 px-3 py-2">
+                        <NoteEntry entry={entry} onUpdate={onUpdateNote} onDelete={onDeleteNote} hideKindLabel showDate />
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
             </div>
           )}
