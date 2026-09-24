@@ -1,4 +1,5 @@
 import { useState, type MouseEvent } from 'react'
+import { IconCheck } from '@tabler/icons-react'
 import type { Milestone, TimelineEntry } from '../types/project'
 import NoteEntry from './NoteEntry'
 
@@ -77,26 +78,25 @@ export default function MilestoneChipGrid({
               }
             }}
             className="relative flex aspect-square cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border p-1 pt-2.5 text-center transition-colors"
-            style={
-              expandedId === m.id
-                ? { borderColor: 'var(--cherry)', background: 'var(--cherry-bg)' }
-                : m.completed
-                  ? { borderColor: 'transparent', background: 'var(--cherry-bg)' }
-                  : { borderColor: '#E5E5E5' }
-            }
+            style={{
+              // 채우기 색은 오직 완료 여부만 나타낸다. 선택(패널이 열려있음) 표시는
+              // 링(box-shadow)으로 따로 얹어서, "완료돼서 색이 있는 건지 선택돼서
+              // 색이 있는 건지" 헷갈리지 않게 분리했다.
+              background: m.completed ? 'var(--cherry-bg)' : '#fff',
+              borderColor: m.completed ? 'transparent' : '#E5E5E5',
+              boxShadow: expandedId === m.id ? '0 0 0 2px var(--cherry)' : 'none',
+            }}
           >
             <button
               onClick={(e) => handleToggleComplete(e, m)}
               disabled={completingId === m.id}
               aria-label={m.completed ? '완료 취소' : '완료 처리'}
-              className="absolute left-1 top-1 flex h-4 w-4 items-center justify-center rounded-full border text-[9px] font-bold leading-none disabled:opacity-50"
-              style={
-                m.completed
-                  ? { background: 'var(--cherry)', borderColor: 'var(--cherry)', color: '#fff' }
-                  : { background: '#fff', borderColor: '#C9C6BC', color: 'transparent' }
-              }
+              className={`absolute left-1 top-1 flex h-4 w-4 items-center justify-center text-white disabled:opacity-50 ${
+                m.completed ? 'rounded' : 'rounded border-[1.5px] border-neutral-300 bg-white'
+              }`}
+              style={m.completed ? { background: 'var(--cherry)' } : undefined}
             >
-              {completingId === m.id ? '·' : '✓'}
+              {m.completed && <IconCheck size={10} stroke={2.5} />}
             </button>
             <span className="text-[10px] font-medium" style={{ color: m.completed ? 'var(--cherry)' : '#999' }}>
               {m.seq}
@@ -120,7 +120,7 @@ export default function MilestoneChipGrid({
 
               {!selected.completed ? (
                 <div className="mb-3 space-y-1.5">
-                  <p className="text-xs text-neutral-400">칩 왼쪽 위 동그라미를 누르면 완료 처리돼요</p>
+                  <p className="text-xs text-neutral-400">칩 왼쪽 위 체크박스를 누르면 완료 처리돼요</p>
                   <button
                     onClick={() => onSendToday(selected)}
                     disabled={sendingId === selected.id}
@@ -131,7 +131,7 @@ export default function MilestoneChipGrid({
                 </div>
               ) : (
                 <p className="mb-3 text-xs text-neutral-400">
-                  완료됨{selected.completed_at ? ` · ${selected.completed_at.slice(0, 10)}` : ''} · 동그라미를 다시 누르면 취소돼요
+                  완료됨{selected.completed_at ? ` · ${selected.completed_at.slice(0, 10)}` : ''} · 체크박스를 다시 누르면 취소돼요
                 </p>
               )}
 
