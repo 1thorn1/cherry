@@ -1,5 +1,5 @@
 import { useState, type MouseEvent } from 'react'
-import { IconCheck, IconChevronDown, IconChevronUp } from '@tabler/icons-react'
+import { IconCheck, IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 import type { Milestone, TimelineEntry } from '../types/project'
 import NoteEntry from './NoteEntry'
 
@@ -34,7 +34,7 @@ export default function MilestoneChipGrid({
 }) {
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
-  const [showAll, setShowAll] = useState(false)
+  const [page, setPage] = useState(0)
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
 
@@ -43,8 +43,9 @@ export default function MilestoneChipGrid({
   }
 
   const ROW_SIZE = 5
-  const hasMore = milestones.length > ROW_SIZE
-  const visibleMilestones = showAll ? milestones : milestones.slice(0, ROW_SIZE)
+  const pageCount = Math.ceil(milestones.length / ROW_SIZE)
+  const hasPages = pageCount > 1
+  const currentPage = Math.min(page, pageCount - 1)
 
   const selected = milestones.find((m) => m.id === expandedId) ?? null
 
@@ -70,6 +71,10 @@ export default function MilestoneChipGrid({
     setEditingTitle(false)
   }
 
+  function goToPage(next: number) {
+    setPage(Math.max(0, Math.min(pageCount - 1, next)))
+  }
+
   function handleToggleComplete(e: MouseEvent, m: Milestone) {
     e.stopPropagation()
     if (completingId) return
@@ -87,55 +92,88 @@ export default function MilestoneChipGrid({
 
   return (
     <div>
-      <div className="grid grid-cols-5 gap-1.5">
-        {visibleMilestones.map((m) => (
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={() => goToPage(currentPage - 1)}
+          disabled={!hasPages || currentPage === 0}
+          aria-label="이전 회차"
+          className="flex h-7 w-5 shrink-0 items-center justify-center text-neutral-300 disabled:opacity-0"
+        >
+          <IconChevronLeft size={16} stroke={2} />
+        </button>
+
+        <div className="flex-1 overflow-hidden">
           <div
-            key={m.id}
-            onClick={() => handleChipClick(m)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                handleChipClick(m)
-              }
-            }}
-            className="relative flex h-12 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-transparent p-1 pt-2.5 text-center transition-colors"
-            style={{
-              // 완료 여부는 채우기 색으로만 표시한다(테두리색으로 구분하지 않는다) — 완료
-              // 안 됐다고 흰 배경에 옅은 테두리만 두면 눈에 잘 안 띄어서, 명확한 회색
-              // 채우기를 기본값으로 준다. 선택(패널 열림) 표시만 링(box-shadow)으로 얹는다.
-              background: m.completed ? 'var(--cherry-bg)' : '#F1EFE8',
-              boxShadow: expandedId === m.id ? '0 0 0 2px var(--cherry)' : 'none',
-            }}
+            className="flex transition-transform duration-300 ease-out"
+            style={{ transform: `translateX(-${currentPage * 100}%)` }}
           >
-            <button
-              onClick={(e) => handleToggleComplete(e, m)}
-              disabled={completingId === m.id}
-              aria-label={m.completed ? '완료 취소' : '완료 처리'}
-              className={`absolute left-1 top-1 flex h-3.5 w-3.5 items-center justify-center text-white disabled:opacity-50 ${
-                m.completed ? 'rounded-sm' : 'rounded-sm border-[1.5px] border-neutral-300 bg-white'
-              }`}
-              style={m.completed ? { background: 'var(--cherry)' } : undefined}
-            >
-              {m.completed && <IconCheck size={8} stroke={3} />}
-            </button>
-            <span className="text-[9px] font-medium" style={{ color: m.completed ? 'var(--cherry)' : '#999' }}>
-              {m.seq}
-            </span>
-            <span className="line-clamp-1 w-full truncate text-[8px] leading-tight text-neutral-500">{m.title}</span>
+            {Array.from({ length: pageCount }).map((_, pageIndex) => (
+              <div key={pageIndex} className="grid w-full shrink-0 grid-cols-5 gap-1.5">
+                {milestones.slice(pageIndex * ROW_SIZE, pageIndex * ROW_SIZE + ROW_SIZE).map((m) => (
+                  <div
+                    key={m.id}
+                    onClick={() => handleChipClick(m)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleChipClick(m)
+                      }
+                    }}
+                    className="relative flex h-12 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-transparent p-1 pt-2.5 text-center transition-colors"
+                    style={{
+                      // 완료 여부는 채우기 색으로만 표시한다(테두리색으로 구분하지 않는다) — 완료
+                      // 안 됐다고 흰 배경에 옅은 테두리만 두면 눈에 잘 안 띄어서, 명확한 회색
+                      // 채우기를 기본값으로 준다. 선택(패널 열림) 표시만 링(box-shadow)으로 얹는다.
+                      background: m.completed ? 'var(--cherry-bg)' : '#F1EFE8',
+                      boxShadow: expandedId === m.id ? '0 0 0 2px var(--cherry)' : 'none',
+                    }}
+                  >
+                    <button
+                      onClick={(e) => handleToggleComplete(e, m)}
+                      disabled={completingId === m.id}
+                      aria-label={m.completed ? '완료 취소' : '완료 처리'}
+                      className={`absolute left-1 top-1 flex h-3.5 w-3.5 items-center justify-center text-white disabled:opacity-50 ${
+                        m.completed ? 'rounded-sm' : 'rounded-sm border-[1.5px] border-neutral-300 bg-white'
+                      }`}
+                      style={m.completed ? { background: 'var(--cherry)' } : undefined}
+                    >
+                      {m.completed && <IconCheck size={8} stroke={3} />}
+                    </button>
+                    <span className="text-[9px] font-medium" style={{ color: m.completed ? 'var(--cherry)' : '#999' }}>
+                      {m.seq}
+                    </span>
+                    <span className="line-clamp-1 w-full truncate text-[8px] leading-tight text-neutral-500">{m.title}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+
+        <button
+          onClick={() => goToPage(currentPage + 1)}
+          disabled={!hasPages || currentPage === pageCount - 1}
+          aria-label="다음 회차"
+          className="flex h-7 w-5 shrink-0 items-center justify-center text-neutral-300 disabled:opacity-0"
+        >
+          <IconChevronRight size={16} stroke={2} />
+        </button>
       </div>
 
-      {hasMore && (
-        <button
-          onClick={() => setShowAll((v) => !v)}
-          className="mt-2 inline-flex items-center gap-1 rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-600"
-        >
-          {showAll ? <IconChevronUp size={14} stroke={1.75} /> : <IconChevronDown size={14} stroke={1.75} />}
-          {showAll ? '접기' : `${milestones.length - ROW_SIZE}개 더 보기`}
-        </button>
+      {hasPages && (
+        <div className="mt-1.5 flex justify-center gap-1">
+          {Array.from({ length: pageCount }).map((_, i) => (
+            <button
+              key={i}
+              onClick={() => goToPage(i)}
+              aria-label={`${i + 1}페이지`}
+              className="h-1.5 w-1.5 rounded-full transition-colors"
+              style={{ background: i === currentPage ? 'var(--cherry)' : '#E5E1D8' }}
+            />
+          ))}
+        </div>
       )}
 
       <div
