@@ -98,32 +98,60 @@ public class TaskService {
 
     // 프로젝트 화면에서 직접 마일스톤을 완료(A-6-4 UX 보완). 오늘 화면 체크와 동일하게
     // complete()를 그대로 태워서 포인트·공원·기록이 한 줄로 흐르는 원칙을 유지한다.
-    // 이미 "오늘로 보내기"로 만들어둔 미완료 태스크가 있으면 그걸 완료하고, 없으면 오늘 날짜로 새로 만들어 바로 완료한다.
+    // 이미 "오늘 일정에 추가"로 만들어둔 미완료 태스크가 있으면 그걸 완료하고, 없으면
+    // taskDate 없이 새로 만들어 바로 완료한다 — taskDate가 없으면 오늘 화면 목록엔 안
+    // 뜨니까, 사용자가 명시적으로 "오늘 일정에 추가"한 것만 오늘 화면에 나타난다.
     @Transactional
     public TaskResponse completeMilestoneNow(Long userId, Long milestoneId) {
         Milestone milestone = milestoneRepository.findById(milestoneId)
                 .orElseThrow(MilestoneNotFoundException::new);
         Task task = taskRepository.findFirstByMilestoneIdAndUserIdAndCompletedAtIsNullAndDeletedAtIsNull(milestoneId, userId)
                 .orElseGet(() -> taskRepository.save(
-                        Task.create(userId, milestone.getTitle(), LocalDate.now(),
+                        Task.create(userId, milestone.getTitle(), null,
                                 milestone.getProjectId(), milestoneId)));
         return complete(userId, task.getId());
+    }
+
+    // "오늘 일정에 추가" 버튼. 이 milestone에 이미 미완료 태스크가 있으면(예: 체크박스로
+    // 완료했다가 취소해서 taskDate 없는 태스크가 남아있는 경우) 그걸 재사용해서 오늘
+    // 날짜로 옮기기만 한다 — 매번 새 태스크를 만들면 같은 마일스톤이 오늘 화면에
+    // 중복으로 뜬다 (실제로 이 버그로 태스크가 두 개씩 생겨있던 걸 확인함).
+    @Transactional
+    public TaskResponse scheduleMilestoneToday(Long userId, Long milestoneId) {
+        Milestone milestone = milestoneRepository.findById(milestoneId)
+                .orElseThrow(MilestoneNotFoundException::new);
+        Task task = taskRepository.findFirstByMilestoneIdAndUserIdAndCompletedAtIsNullAndDeletedAtIsNull(milestoneId, userId)
+                .orElseGet(() -> taskRepository.save(
+                        Task.create(userId, milestone.getTitle(), LocalDate.now(),
+                                milestone.getProjectId(), milestoneId)));
+        task.moveTo(LocalDate.now());
+        return TaskResponse.from(task);
+    }
+
+    // "오늘 일정에 추가"를 다시 눌러 취소. 태스크를 지우지 않고 날짜만 떼서 미지정 상태로
+    // 되돌린다 — 지우면 다음에 완료하거나 다시 추가할 때 매번 새 태스크가 생겨 중복이
+    // 재발한다.
+    @Transactional
+    public void unscheduleMilestoneToday(Long userId, Long milestoneId) {
+        taskRepository.findFirstByMilestoneIdAndUserIdAndCompletedAtIsNullAndDeletedAtIsNull(milestoneId, userId)
+                .ifPresent(task -> task.moveTo(null));
     }
 
     // 칩을 다시 눌러 완료를 취소. 이미 지급된 포인트·인구·공원 슬롯은 되돌리지 않는다 —
     // 일반 태스크 체크 해제(uncomplete())도 같은 원칙이고, 재완료 시 awardForMilestoneCompletion이
     // point_ledger 중복 지급을 막아주므로 두 번 주지도 않는다.
+    // 뒷받침하는 완료 태스크가 없어도(예: 오늘 화면에서 먼저 체크 해제했거나 지운 경우)
+    // 에러 없이 마일스톤만 되돌린다 — 예전엔 여기서 못 찾으면 예외를 던져서 트랜잭션이
+    // 롤백되고 마일스톤도 "완료됨"에 영영 갇히는 버그가 있었다.
     @Transactional
-    public TaskResponse uncompleteMilestoneNow(Long userId, Long milestoneId) {
+    public void uncompleteMilestoneNow(Long userId, Long milestoneId) {
         Milestone milestone = milestoneRepository.findById(milestoneId)
                 .orElseThrow(MilestoneNotFoundException::new);
         milestone.uncomplete();
 
-        Task task = taskRepository
+        taskRepository
                 .findFirstByMilestoneIdAndUserIdAndCompletedAtIsNotNullAndDeletedAtIsNullOrderByCompletedAtDesc(milestoneId, userId)
-                .orElseThrow(TaskNotFoundException::new);
-        task.reopen();
-        return TaskResponse.from(task);
+                .ifPresent(Task::reopen);
     }
 
     // completed_at은 체크한 물리적 시각으로 불변, effective_at이 기록·시간표·통계의 기준이 된다 (A-6-8).
@@ -152,10 +180,22 @@ public class TaskService {
         return TaskResponse.from(task);
     }
 
+    // 오늘 화면 체크박스로 완료 취소. 마일스톤에 연결된 태스크라면(milestoneId 존재) 마일스톤
+    // 완료 상태도 같이 되돌린다 — 예전엔 task.uncomplete()가 milestoneId까지 지워버려서
+    // 프로젝트 화면 칩은 "완료됨"으로 영영 고정되고, 남은 태스크는 마일스톤과 연결이
+    // 끊긴 평범한 할일처럼 보이는 버그가 있었다(그 상태에서 지우면 나중에 칩에서 완료 취소를
+    // 눌러도 태스크를 못 찾아 에러가 났다). reopen()으로 milestoneId는 보존해서, 프로젝트 칩
+    // 쪽 완료 취소(uncompleteMilestoneNow)와 완전히 같은 방식으로 동작하게 한다.
     @Transactional
     public TaskResponse uncomplete(Long userId, Long taskId) {
         Task task = findOwned(userId, taskId);
-        task.uncomplete();
+        Long milestoneId = task.getMilestoneId();
+        task.reopen();
+        if (milestoneId != null) {
+            milestoneRepository.findById(milestoneId)
+                    .filter(m -> m.getCompletedAt() != null)
+                    .ifPresent(Milestone::uncomplete);
+        }
         return TaskResponse.from(task);
     }
 

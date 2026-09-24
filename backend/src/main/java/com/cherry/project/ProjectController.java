@@ -77,6 +77,12 @@ public class ProjectController {
                 .body(projectService.addMilestone(userId, id, request));
     }
 
+    @PatchMapping("/{id}/milestones/{milestoneId}")
+    public MilestoneResponse renameMilestone(@CurrentUserId Long userId, @PathVariable Long id, @PathVariable Long milestoneId,
+                                              @Valid @RequestBody MilestoneCreateRequest request) {
+        return projectService.renameMilestone(userId, id, milestoneId, request);
+    }
+
     @PostMapping("/{id}/notes")
     public ResponseEntity<NoteResponse> addNote(@CurrentUserId Long userId, @PathVariable Long id,
                                                 @Valid @RequestBody NoteCreateRequest request) {

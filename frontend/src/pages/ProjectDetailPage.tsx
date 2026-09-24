@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Milestone, NoteKind, ProjectDetail, TimelineEntry } from '../types/project'
-import { addMilestone, addNote, completeMilestoneNow, deleteNote, deleteProject, getProject, getTimeline, uncompleteMilestoneNow, updateNote, updateProjectShared, updateProjectWorkDays } from '../api/projects'
-import { createTask } from '../api/tasks'
+import { addMilestone, addNote, completeMilestoneNow, deleteNote, deleteProject, getProject, getTimeline, renameMilestone, scheduleMilestoneToday, uncompleteMilestoneNow, unscheduleMilestoneToday, updateNote, updateProjectShared, updateProjectWorkDays } from '../api/projects'
 import MilestoneTrack from '../components/MilestoneTrack'
 import MilestoneChipGrid from '../components/MilestoneChipGrid'
 import NoteEntry from '../components/NoteEntry'
-import { getTodayStr } from '../lib/date'
 
 const kindLabels: Record<string, string> = {
   AUTO_LOG: '완료',
@@ -49,10 +47,10 @@ export default function ProjectDetailPage() {
   const [milestoneDraft, setMilestoneDraft] = useState('')
   const [addingMilestone, setAddingMilestone] = useState(false)
   const [sendingId, setSendingId] = useState<number | null>(null)
-  const [sentIds, setSentIds] = useState<Set<number>>(new Set())
   const [completingId, setCompletingId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [savingNoteId, setSavingNoteId] = useState<number | null>(null)
+  const [renamingId, setRenamingId] = useState<number | null>(null)
 
   async function loadDetail() {
     try {
@@ -78,10 +76,14 @@ export default function ProjectDetailPage() {
     if (sendingId) return
     setSendingId(milestone.id)
     try {
-      await createTask(milestone.title, getTodayStr(), projectId, milestone.id)
-      setSentIds((prev) => new Set(prev).add(milestone.id))
+      if (milestone.scheduled_today) {
+        await unscheduleMilestoneToday(milestone.id)
+      } else {
+        await scheduleMilestoneToday(milestone.id)
+      }
+      await loadDetail()
     } catch (e) {
-      setError(e instanceof Error ? e.message : '오늘 할 일로 보내지 못했습니다')
+      setError(e instanceof Error ? e.message : '오늘 일정 변경에 실패했습니다')
     } finally {
       setSendingId(null)
     }
@@ -92,11 +94,6 @@ export default function ProjectDetailPage() {
     setCompletingId(milestone.id)
     try {
       await completeMilestoneNow(milestone.id)
-      setSentIds((prev) => {
-        const next = new Set(prev)
-        next.delete(milestone.id)
-        return next
-      })
       await Promise.all([loadDetail(), loadTimeline()])
     } catch (e) {
       setError(e instanceof Error ? e.message : '완료 처리하지 못했습니다')
@@ -185,6 +182,19 @@ export default function ProjectDetailPage() {
       setError(e instanceof Error ? e.message : '마일스톤을 추가하지 못했습니다')
     } finally {
       setAddingMilestone(false)
+    }
+  }
+
+  async function handleRenameMilestone(milestoneId: number, title: string) {
+    if (renamingId) return
+    setRenamingId(milestoneId)
+    try {
+      await renameMilestone(projectId, milestoneId, title)
+      await loadDetail()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '제목을 바꾸지 못했습니다')
+    } finally {
+      setRenamingId(null)
     }
   }
 
@@ -311,7 +321,7 @@ export default function ProjectDetailPage() {
 
       {tab === 'progress' && (
         <div>
-          {detail.project.type !== 'FREE' && (
+          {detail.project.type === 'EXAM' && (
             <div className="mb-4 flex items-center gap-2">
               <span className="text-[11px] text-neutral-400">작업 요일</span>
               <div className="flex gap-1">
@@ -366,12 +376,13 @@ export default function ProjectDetailPage() {
               onComplete={handleCompleteMilestone}
               onUncomplete={handleUncompleteMilestone}
               onSendToday={handleSendToday}
+              onRename={handleRenameMilestone}
+              renamingId={renamingId}
               onAddNote={handleAddMilestoneNote}
               onUpdateNote={handleUpdateNote}
               onDeleteNote={handleDeleteNote}
               completingId={completingId}
               sendingId={sendingId}
-              sentIds={sentIds}
               savingNoteId={savingNoteId}
             />
           </div>

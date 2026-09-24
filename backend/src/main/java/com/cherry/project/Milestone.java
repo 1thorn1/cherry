@@ -53,4 +53,8 @@ public class Milestone {
     public void uncomplete() {
         this.completedAt = null;
     }
+
+    public void updateTitle(String title) {
+        this.title = title;
+    }
 }

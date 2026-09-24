@@ -53,6 +53,13 @@ export function addMilestone(projectId: number, title: string) {
   })
 }
 
+export function renameMilestone(projectId: number, milestoneId: number, title: string) {
+  return request<Milestone>(`/api/projects/${projectId}/milestones/${milestoneId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ title }),
+  })
+}
+
 export function completeMilestoneNow(milestoneId: number) {
   return request<void>(`/api/milestones/${milestoneId}/complete`, {
     method: 'PATCH',
@@ -61,6 +68,18 @@ export function completeMilestoneNow(milestoneId: number) {
 
 export function uncompleteMilestoneNow(milestoneId: number) {
   return request<void>(`/api/milestones/${milestoneId}/uncomplete`, {
+    method: 'PATCH',
+  })
+}
+
+export function scheduleMilestoneToday(milestoneId: number) {
+  return request<void>(`/api/milestones/${milestoneId}/schedule-today`, {
+    method: 'PATCH',
+  })
+}
+
+export function unscheduleMilestoneToday(milestoneId: number) {
+  return request<void>(`/api/milestones/${milestoneId}/unschedule-today`, {
     method: 'PATCH',
   })
 }
