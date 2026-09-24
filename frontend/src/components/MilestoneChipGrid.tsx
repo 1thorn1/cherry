@@ -186,19 +186,16 @@ export default function MilestoneChipGrid({
               </div>
 
               {!selected.completed ? (
-                <div className="mb-3 space-y-1.5">
-                  <p className="text-xs text-neutral-400">칩 왼쪽 위 체크박스를 누르면 완료 처리돼요</p>
-                  <button
-                    onClick={() => onSendToday(selected)}
-                    disabled={sendingId === selected.id}
-                    className="text-left text-[11px] text-neutral-400 disabled:opacity-50"
-                  >
-                    {sentIds.has(selected.id) ? '오늘 목록에 추가됨' : '오늘 일정에만 추가'}
-                  </button>
-                </div>
+                <button
+                  onClick={() => onSendToday(selected)}
+                  disabled={sendingId === selected.id}
+                  className="mb-3 inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-500 disabled:opacity-50"
+                >
+                  {sentIds.has(selected.id) ? '오늘 목록에 추가됨' : '오늘 일정에 추가'}
+                </button>
               ) : (
                 <p className="mb-3 text-xs text-neutral-400">
-                  완료됨{selected.completed_at ? ` · ${selected.completed_at.slice(0, 10)}` : ''} · 체크박스를 다시 누르면 취소돼요
+                  완료됨{selected.completed_at ? ` · ${selected.completed_at.slice(0, 10)}` : ''}
                 </p>
               )}
 

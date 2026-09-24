@@ -325,7 +325,7 @@ export default function ProjectDetailPage() {
 
       {tab === 'progress' && (
         <div>
-          {detail.project.type !== 'FREE' && (
+          {detail.project.type === 'EXAM' && (
             <div className="mb-4 flex items-center gap-2">
               <span className="text-[11px] text-neutral-400">작업 요일</span>
               <div className="flex gap-1">
