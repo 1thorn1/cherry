@@ -7,13 +7,34 @@ import { IconCheck } from '@tabler/icons-react'
 // react-markdown은 rehype-raw 없이는 원래도 마크다운에 섞인 원문 HTML(<script> 등)을
 // 렌더링하지 않지만, 스펙(B-7/B-9)이 명시한 대로 sanitize를 한 겹 더 둔다.
 // GFM 체크리스트("- [ ] ...")가 만드는 <input type="checkbox">만 기본 스키마에 추가로 허용한다.
+// data-checkbox-index는 아래 rehypeCheckboxIndex가 붙이는 값이라 같이 허용해줘야 한다.
 const schema = {
   ...defaultSchema,
   tagNames: [...(defaultSchema.tagNames ?? []), 'input'],
   attributes: {
     ...defaultSchema.attributes,
-    input: [...(defaultSchema.attributes?.input ?? []), 'type', 'checked', 'disabled'],
+    input: [...(defaultSchema.attributes?.input ?? []), 'type', 'checked', 'disabled', 'dataCheckboxIndex'],
   },
+}
+
+// 체크박스가 문서에서 몇 번째인지를 React 컴포넌트 호출 중에 변수를 증가시켜 세면 안 된다 —
+// React StrictMode(개발 모드)가 렌더 함수를 일부러 두 번씩 호출해서 부작용을 잡아내는데,
+// 그 카운터도 두 번 늘어나 실제로는 체크박스가 하나뿐이어도 index가 1로 찍히는 식으로
+// 어긋났었다(실제로 겪은 버그: 체크박스를 눌러도 반영이 안 됨). 그래서 순서를 세는 일은
+// React 렌더와 무관하게 "한 번만" 도는 rehype 트리 변환 단계에서 끝내고, 그 결과(index)를
+// data-checkbox-index 속성으로 박아서 넘겨받기만 한다.
+function rehypeCheckboxIndex() {
+  return (tree: { type: string; tagName?: string; properties?: Record<string, unknown>; children?: unknown[] }) => {
+    let index = -1
+    function visit(node: typeof tree) {
+      if (node.type === 'element' && node.tagName === 'input' && node.properties?.type === 'checkbox') {
+        index += 1
+        node.properties = { ...node.properties, dataCheckboxIndex: index }
+      }
+      node.children?.forEach((child) => visit(child as typeof tree))
+    }
+    visit(tree)
+  }
 }
 
 export default function MarkdownBody({
@@ -23,14 +44,11 @@ export default function MarkdownBody({
   children: string
   onToggleCheckbox?: (index: number) => void
 }) {
-  // input 컴포넌트가 호출되는 순서 = 문서에 체크박스가 나오는 순서. 몇 번째 체크박스인지를
-  // 여기서 세서 toggleMarkdownCheckbox(원문, index)와 짝을 맞춘다.
-  let checkboxIndex = -1
   return (
     <div className="text-sm text-neutral-700">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkBreaks]}
-        rehypePlugins={[[rehypeSanitize, schema]]}
+        rehypePlugins={[[rehypeSanitize, schema], rehypeCheckboxIndex]}
         components={{
           h1: ({ node: _node, ...rest }) => <h1 className="mb-1.5 mt-2 text-base font-semibold first:mt-0" {...rest} />,
           h2: ({ node: _node, ...rest }) => <h2 className="mb-1.5 mt-2 text-sm font-semibold first:mt-0" {...rest} />,
@@ -70,7 +88,7 @@ export default function MarkdownBody({
           // 바로 뒤집을 수 있게 한다(없으면 지금까지처럼 읽기 전용 표시만).
           input: ({ node: _node, checked, type, ...rest }) => {
             if (type !== 'checkbox') return <input type={type} {...rest} />
-            const index = ++checkboxIndex
+            const index = Number((rest as Record<string, unknown>)['data-checkbox-index'])
             const interactive = Boolean(onToggleCheckbox)
             return (
               <span

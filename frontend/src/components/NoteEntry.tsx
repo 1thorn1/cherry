@@ -65,6 +65,8 @@ export default function NoteEntry({
     setTogglingCheckbox(true)
     try {
       await onUpdate(entry.ref_id, newBody, entry.url)
+    } catch (err) {
+      console.error('체크박스 토글 저장 실패:', err)
     } finally {
       setTogglingCheckbox(false)
     }
