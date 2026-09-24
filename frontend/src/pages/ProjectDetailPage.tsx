@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Milestone, NoteKind, ProjectDetail, TimelineEntry } from '../types/project'
-import { addMilestone, addNote, completeMilestoneNow, deleteNote, deleteProject, getProject, getTimeline, uncompleteMilestoneNow, updateNote, updateProjectShared, updateProjectWorkDays } from '../api/projects'
+import { addMilestone, addNote, completeMilestoneNow, deleteNote, deleteProject, getProject, getTimeline, renameMilestone, uncompleteMilestoneNow, updateNote, updateProjectShared, updateProjectWorkDays } from '../api/projects'
 import { createTask } from '../api/tasks'
 import MilestoneTrack from '../components/MilestoneTrack'
 import MilestoneChipGrid from '../components/MilestoneChipGrid'
@@ -53,6 +53,7 @@ export default function ProjectDetailPage() {
   const [completingId, setCompletingId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [savingNoteId, setSavingNoteId] = useState<number | null>(null)
+  const [renamingId, setRenamingId] = useState<number | null>(null)
 
   async function loadDetail() {
     try {
@@ -185,6 +186,19 @@ export default function ProjectDetailPage() {
       setError(e instanceof Error ? e.message : '마일스톤을 추가하지 못했습니다')
     } finally {
       setAddingMilestone(false)
+    }
+  }
+
+  async function handleRenameMilestone(milestoneId: number, title: string) {
+    if (renamingId) return
+    setRenamingId(milestoneId)
+    try {
+      await renameMilestone(projectId, milestoneId, title)
+      await loadDetail()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '제목을 바꾸지 못했습니다')
+    } finally {
+      setRenamingId(null)
     }
   }
 
@@ -366,6 +380,8 @@ export default function ProjectDetailPage() {
               onComplete={handleCompleteMilestone}
               onUncomplete={handleUncompleteMilestone}
               onSendToday={handleSendToday}
+              onRename={handleRenameMilestone}
+              renamingId={renamingId}
               onAddNote={handleAddMilestoneNote}
               onUpdateNote={handleUpdateNote}
               onDeleteNote={handleDeleteNote}

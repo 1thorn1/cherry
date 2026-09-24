@@ -2,6 +2,7 @@ package com.cherry.project;
 
 import com.cherry.common.InvalidNoteException;
 import com.cherry.common.InvalidProjectException;
+import com.cherry.common.MilestoneNotFoundException;
 import com.cherry.common.NoteNotFoundException;
 import com.cherry.common.ProjectNotFoundException;
 import com.cherry.park.ParkService;
@@ -318,6 +319,21 @@ public class ProjectService {
         int nextSeq = existing.isEmpty() ? 1 : existing.get(existing.size() - 1).getSeq() + 1;
         Milestone milestone = Milestone.create(projectId, nextSeq, request.title().trim(), null);
         milestoneRepository.save(milestone);
+        return MilestoneResponse.from(milestone);
+    }
+
+    // 회차별·시험형은 "1강"/"1단원"처럼 제목이 자동 생성되는데, 실제로 그 회차에서 뭘
+    // 다루는지 적을 자유가 없었다. 자유형 추가와 달리 타입 제한 없이 전부 이름을 바꿀 수
+    // 있게 한다 — "1강 - 미분 기초"처럼 이어 쓰면 된다.
+    @Transactional
+    public MilestoneResponse renameMilestone(Long userId, Long projectId, Long milestoneId, MilestoneCreateRequest request) {
+        findOwned(userId, projectId);
+        Milestone milestone = milestoneRepository.findById(milestoneId)
+                .orElseThrow(MilestoneNotFoundException::new);
+        if (!milestone.getProjectId().equals(projectId)) {
+            throw new InvalidProjectException("다른 프로젝트의 마일스톤입니다");
+        }
+        milestone.updateTitle(request.title().trim());
         return MilestoneResponse.from(milestone);
     }
 

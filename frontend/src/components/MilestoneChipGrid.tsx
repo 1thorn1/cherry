@@ -9,6 +9,8 @@ export default function MilestoneChipGrid({
   onComplete,
   onUncomplete,
   onSendToday,
+  onRename,
+  renamingId,
   onAddNote,
   onUpdateNote,
   onDeleteNote,
@@ -22,6 +24,8 @@ export default function MilestoneChipGrid({
   onComplete: (m: Milestone) => void
   onUncomplete: (m: Milestone) => void
   onSendToday: (m: Milestone) => void
+  onRename: (milestoneId: number, title: string) => Promise<void>
+  renamingId: number | null
   onAddNote: (milestoneId: number, body: string) => Promise<void>
   onUpdateNote: (noteId: number, body: string | null, url: string | null) => Promise<void>
   onDeleteNote: (noteId: number) => Promise<void>
@@ -33,6 +37,8 @@ export default function MilestoneChipGrid({
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
   const [showAll, setShowAll] = useState(false)
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [titleDraft, setTitleDraft] = useState('')
 
   if (milestones.length === 0) {
     return <p className="py-4 text-center text-xs text-neutral-400">마일스톤이 없어요</p>
@@ -50,6 +56,20 @@ export default function MilestoneChipGrid({
   function handleChipClick(m: Milestone) {
     setExpandedId((prev) => (prev === m.id ? null : m.id))
     setDraft('')
+    setEditingTitle(false)
+  }
+
+  function startEditTitle(m: Milestone) {
+    setTitleDraft(m.title)
+    setEditingTitle(true)
+  }
+
+  async function handleSaveTitle() {
+    if (!selected || renamingId) return
+    const trimmed = titleDraft.trim()
+    if (!trimmed) return
+    await onRename(selected.id, trimmed)
+    setEditingTitle(false)
   }
 
   function handleToggleComplete(e: MouseEvent, m: Milestone) {
@@ -127,8 +147,41 @@ export default function MilestoneChipGrid({
         <div className="overflow-hidden">
           {selected && (
             <div className="mt-3 rounded-lg border border-neutral-200 p-3 animate-[fade-in_0.25s_ease-out]">
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-medium">{selected.title}</p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                {editingTitle ? (
+                  <div className="flex flex-1 items-center gap-1.5">
+                    <input
+                      value={titleDraft}
+                      onChange={(e) => setTitleDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.nativeEvent.isComposing) return
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleSaveTitle()
+                        }
+                      }}
+                      autoFocus
+                      placeholder="예: 1강 - 미분 기초"
+                      className="flex-1 rounded-lg border border-neutral-200 px-2 py-1 text-sm outline-none focus:border-neutral-400"
+                    />
+                    <button
+                      onClick={handleSaveTitle}
+                      disabled={renamingId === selected.id}
+                      className="text-xs font-medium disabled:opacity-50"
+                      style={{ color: 'var(--cherry)' }}
+                    >
+                      저장
+                    </button>
+                    <button onClick={() => setEditingTitle(false)} className="text-xs text-neutral-400">취소</button>
+                  </div>
+                ) : (
+                  <div className="flex flex-1 items-center gap-1.5">
+                    <p className="text-sm font-medium">{selected.title}</p>
+                    <button onClick={() => startEditTitle(selected)} className="text-[11px] text-neutral-300 hover:text-neutral-500">
+                      수정
+                    </button>
+                  </div>
+                )}
                 <button onClick={() => setExpandedId(null)} className="text-xs text-neutral-300">닫기</button>
               </div>
 
