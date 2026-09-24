@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { TimelineEntry } from '../types/project'
+import AutoGrowTextarea from './AutoGrowTextarea'
 import MarkdownBody from './MarkdownBody'
 
 const kindLabels: Record<string, string> = { AUTO_LOG: '완료', NOTE: '메모', LINK: '링크', RETRO: '회고' }
@@ -63,14 +64,14 @@ export default function NoteEntry({
             value={urlDraft}
             onChange={(e) => setUrlDraft(e.target.value)}
             placeholder="https://..."
-            className="mb-1.5 w-full rounded-lg border border-neutral-200 px-3 py-1.5 text-sm outline-none focus:border-neutral-400"
+            className="mb-1.5 w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm outline-none transition-shadow focus:border-[var(--cherry)] focus:ring-2 focus:ring-[var(--cherry-bg)]"
           />
         )}
-        <textarea
+        <AutoGrowTextarea
           value={bodyDraft}
           onChange={(e) => setBodyDraft(e.target.value)}
-          rows={entry.kind === 'LINK' ? 2 : 5}
-          className="mb-1.5 w-full resize-y rounded-lg border border-neutral-200 px-3 py-1.5 text-sm outline-none focus:border-neutral-400"
+          rows={entry.kind === 'LINK' ? 2 : 3}
+          className="mb-1.5 w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm outline-none transition-shadow focus:border-[var(--cherry)] focus:ring-2 focus:ring-[var(--cherry-bg)]"
         />
         <div className="flex justify-end gap-2 text-xs">
           <button onClick={() => setEditing(false)} className="text-neutral-400">취소</button>

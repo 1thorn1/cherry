@@ -1,6 +1,7 @@
 import { useState, type MouseEvent } from 'react'
 import { IconCheck, IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 import type { Milestone, TimelineEntry } from '../types/project'
+import AutoGrowTextarea from './AutoGrowTextarea'
 import NoteEntry from './NoteEntry'
 
 export default function MilestoneChipGrid({
@@ -242,7 +243,7 @@ export default function MilestoneChipGrid({
               )}
 
               <div className="mb-2">
-                <textarea
+                <AutoGrowTextarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => {
@@ -254,7 +255,7 @@ export default function MilestoneChipGrid({
                   }}
                   placeholder="이 구간 메모 (마크다운 지원)"
                   rows={3}
-                  className="mb-1.5 w-full resize-y rounded-lg border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-neutral-400"
+                  className="mb-1.5 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none transition-shadow focus:border-[var(--cherry)] focus:ring-2 focus:ring-[var(--cherry-bg)]"
                 />
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-neutral-300">⌘/Ctrl + Enter로 저장</span>

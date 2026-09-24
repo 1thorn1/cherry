@@ -5,6 +5,7 @@ import { addMilestone, addNote, completeMilestoneNow, deleteNote, deleteProject,
 import MilestoneTrack from '../components/MilestoneTrack'
 import MilestoneChipGrid from '../components/MilestoneChipGrid'
 import NoteEntry from '../components/NoteEntry'
+import AutoGrowTextarea from '../components/AutoGrowTextarea'
 
 const kindLabels: Record<string, string> = {
   AUTO_LOG: '완료',
@@ -414,16 +415,16 @@ export default function ProjectDetailPage() {
                 value={noteUrl}
                 onChange={(e) => setNoteUrl(e.target.value)}
                 placeholder="https://..."
-                className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+                className="mb-3 w-full rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm outline-none transition-shadow focus:border-[var(--cherry)] focus:ring-2 focus:ring-[var(--cherry-bg)]"
               />
             )}
 
-            <textarea
+            <AutoGrowTextarea
               value={noteBody}
               onChange={(e) => setNoteBody(e.target.value)}
               placeholder={noteKind === 'LINK' ? '한 줄 설명' : '결정한 것, 막힌 것, 정리... (마크다운 지원)'}
-              rows={noteKind === 'LINK' ? 3 : 6}
-              className="mb-3 w-full resize-y rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+              rows={noteKind === 'LINK' ? 2 : 4}
+              className="mb-3 w-full rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm outline-none transition-shadow focus:border-[var(--cherry)] focus:ring-2 focus:ring-[var(--cherry-bg)]"
             />
 
             <button
