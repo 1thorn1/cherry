@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { DndContext, useDraggable, type DragEndEvent } from '@dnd-kit/core'
 import { IconBell, IconCalendar, IconCheck, IconClock, IconGripVertical, IconNote, IconRepeat } from '@tabler/icons-react'
 import type { Task } from '../types/task'
@@ -246,8 +247,17 @@ export default function TodayPage() {
 
   const [park, setPark] = useState<Park | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
-  const [viewDate, setViewDate] = useState(today)
+  const [searchParams] = useSearchParams()
+  const [viewDate, setViewDate] = useState(() => searchParams.get('date') || today)
   const [showDatePicker, setShowDatePicker] = useState(false)
+
+  // 캘린더에서 특정 날짜의 일정을 눌러 "/?date=2026-09-28" 같은 링크로 들어온 경우.
+  // 이미 오늘 화면에 있는 상태에서 또 다른 날짜로 들어와도(라우트가 안 바뀌어 리마운트가
+  // 안 됨) 반영되도록 쿼리 파라미터가 바뀔 때마다 확인한다.
+  useEffect(() => {
+    const d = searchParams.get('date')
+    if (d && d !== viewDate) setViewDate(d)
+  }, [searchParams, viewDate])
 
   async function load() {
     try {
