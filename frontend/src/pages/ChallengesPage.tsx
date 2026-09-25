@@ -39,8 +39,20 @@ export default function ChallengesPage() {
   }
 
   async function handleCreate() {
+    if (saving) return
     const trimmed = title.trim()
-    if (!trimmed || saving) return
+    if (!trimmed) {
+      setError('방 이름을 입력해주세요')
+      return
+    }
+    if (mode === 'PROGRESS' && !totalUnits.trim()) {
+      setError('총 회차 수를 입력해주세요')
+      return
+    }
+    if (mode === 'EXAM' && !targetDate) {
+      setError('시험일을 입력해주세요')
+      return
+    }
 
     setSaving(true)
     try {
@@ -50,7 +62,6 @@ export default function ChallengesPage() {
         input.total_units = Number(totalUnits)
       } else if (mode === 'EXAM') {
         input.type = 'EXAM'
-        input.total_units = Number(totalUnits)
         input.target_date = targetDate
       }
       const created = await createChallenge(input)
@@ -83,9 +94,9 @@ export default function ChallengesPage() {
   }
 
   const modeOptions: { value: Mode; label: string }[] = [
-    { value: 'FREE', label: '자유롭게' },
-    { value: 'PROGRESS', label: '회차가 있어요' },
-    { value: 'EXAM', label: '시험일이 있어요' },
+    { value: 'FREE', label: '자유형' },
+    { value: 'PROGRESS', label: '회차별' },
+    { value: 'EXAM', label: '시험일' },
   ]
 
   return (
@@ -145,21 +156,12 @@ export default function ChallengesPage() {
         )}
 
         {mode === 'EXAM' && (
-          <div className="mb-3 flex gap-2">
-            <input
-              type="number"
-              value={totalUnits}
-              onChange={(e) => setTotalUnits(e.target.value)}
-              placeholder="단원 수"
-              className="flex-1 rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
-            />
-            <input
-              type="date"
-              value={targetDate}
-              onChange={(e) => setTargetDate(e.target.value)}
-              className="flex-1 rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
-            />
-          </div>
+          <input
+            type="date"
+            value={targetDate}
+            onChange={(e) => setTargetDate(e.target.value)}
+            className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+          />
         )}
 
         <button
