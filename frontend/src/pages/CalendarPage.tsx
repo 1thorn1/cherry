@@ -66,10 +66,22 @@ export default function CalendarPage() {
   const [view, setView] = usePersistedState<TimetableView>('calendar.view', 'scheduled')
   const [error, setError] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
+  // 종일 줄에서 완료된 항목이 쌓이면 지저분해 보여서, 날짜별로 접어둘 수 있게 한다
+  // (기본은 접힌 상태 — 아직 안 끝난 항목만 항상 보이고 완료는 눌러야 펼쳐짐).
+  const [expandedAllDay, setExpandedAllDay] = useState<Set<string>>(new Set())
 
   function handleSelectDate(date: Date) {
     setWeekStart(startOfWeek(date, { weekStartsOn: 1 }))
     setPeriod('week')
+  }
+
+  function toggleAllDayExpanded(date: string) {
+    setExpandedAllDay((prev) => {
+      const next = new Set(prev)
+      if (next.has(date)) next.delete(date)
+      else next.add(date)
+      return next
+    })
   }
 
   // 써놓은 일정(할 일)을 누르면 그날 투두 화면으로 바로 간다 — 아직 실제로 만들어지지
@@ -197,26 +209,44 @@ export default function CalendarPage() {
                 // 아직 안 끝난 종일 항목은 예정일(taskDate) 기준, 완료된 항목은 실제 완료일
                 // 기준으로 보여준다 — 안 그러면 이월해서 나중에 끝낸 종일 항목이 월간 완료
                 // 집계와 다른 날짜에 표시된다(시간표 타임드 블록과 같은 이유).
-                const allDayTasks = [
-                  ...day.tasks.filter((t) => !t.scheduled_start && !t.completed_at),
-                  ...day.actual_tasks.filter((t) => !t.scheduled_start),
-                ]
+                const pendingAllDay = day.tasks.filter((t) => !t.scheduled_start && !t.completed_at)
+                const completedAllDay = day.actual_tasks.filter((t) => !t.scheduled_start)
+                const isAllDayExpanded = expandedAllDay.has(day.date)
                 const allDayPreviews = day.previews.filter((p) => !p.default_time)
                 return (
                   <div
                     key={day.date}
                     className="min-h-[30px] border-b border-neutral-100 px-1 py-1"
                   >
-                    {allDayTasks.map((t) => (
+                    {pendingAllDay.map((t) => (
                       <div
                         key={t.id}
                         onClick={() => goToDayToday(day.date)}
-                        className={`mb-0.5 cursor-pointer truncate rounded px-1 text-[10px] hover:opacity-70 ${t.completed_at ? 'text-neutral-300 line-through' : ''} ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
-                        style={t.completed_at ? undefined : { background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
+                        className={`mb-0.5 cursor-pointer truncate rounded px-1 text-[10px] hover:opacity-70 ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
+                        style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
                       >
                         {t.title}
                       </div>
                     ))}
+                    {completedAllDay.length > 0 && (
+                      <>
+                        <button
+                          onClick={() => toggleAllDayExpanded(day.date)}
+                          className="mb-0.5 text-[10px] text-neutral-300 hover:text-neutral-500"
+                        >
+                          {isAllDayExpanded ? '접기 ▴' : `완료 ${completedAllDay.length}개 ▾`}
+                        </button>
+                        {isAllDayExpanded && completedAllDay.map((t) => (
+                          <div
+                            key={t.id}
+                            onClick={() => goToDayToday(day.date)}
+                            className={`mb-0.5 cursor-pointer truncate rounded px-1 text-[10px] text-neutral-300 line-through decoration-2 hover:opacity-70 ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
+                          >
+                            {t.title}
+                          </div>
+                        ))}
+                      </>
+                    )}
                     {view === 'scheduled' && allDayPreviews.map((p) => (
                       <div
                         key={p.routine_id}
@@ -285,7 +315,7 @@ export default function CalendarPage() {
                           <div
                             key={t.id}
                             onClick={() => goToDayToday(day.date)}
-                            className={`absolute cursor-pointer overflow-hidden rounded px-1 text-[10px] leading-tight hover:opacity-70 ${t.completed_at ? 'line-through' : ''} ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
+                            className={`absolute cursor-pointer overflow-hidden rounded px-1 text-[10px] leading-tight hover:opacity-70 ${t.completed_at ? 'line-through decoration-2 decoration-neutral-500' : ''} ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
                             style={{
                               ...blockStyle(b, scheduledLayout),
                               background: t.completed_at ? '#F1EFE8' : 'var(--cherry-bg)',
@@ -303,7 +333,7 @@ export default function CalendarPage() {
                           <div
                             key={t.id}
                             onClick={() => goToDayToday(day.date)}
-                            className={`absolute cursor-pointer overflow-hidden rounded px-1 text-[10px] leading-tight line-through hover:opacity-70 ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
+                            className={`absolute cursor-pointer overflow-hidden rounded px-1 text-[10px] leading-tight line-through decoration-2 decoration-neutral-500 hover:opacity-70 ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
                             style={{ ...blockStyle(b, actualLayout), background: '#F1EFE8', color: '#888780' }}
                           >
                             {t.title}
