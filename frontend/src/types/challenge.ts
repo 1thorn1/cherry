@@ -31,4 +31,5 @@ export interface ChallengeProjectLink {
   project_id: number
   challenge_id: number
   challenge_title: string
+  left: boolean
 }

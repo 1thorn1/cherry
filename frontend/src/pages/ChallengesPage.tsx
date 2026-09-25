@@ -117,8 +117,11 @@ export default function ChallengesPage() {
     { value: 'EXAM', label: '시험일' },
   ]
 
+  // 나간 방은 "참여 중"이 아니므로 여기 목록에서는 뺀다 — 아예 사라지진 않고
+  // 프로젝트 목록에 "지난 같이 하기" 태그로 남는다.
   const challengeProjects = overview
     ? challengeLinks
+        .filter((link) => !link.left)
         .map((link) => {
           const project = overview.others.find((p) => p.project_id === link.project_id)
           return project ? { project, link } : null

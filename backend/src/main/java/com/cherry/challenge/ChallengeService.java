@@ -89,9 +89,11 @@ public class ChallengeService {
                 .map(ChallengeResponse::from).toList();
     }
 
+    // 나간 방도 같이 내려준다(left=true) — 프로젝트 목록에서 "지난 같이 하기"로 표시해
+    // 정체 모를 프로젝트로 안 보이게 하려면, 나갔다는 사실 자체를 알아야 한다.
     @Transactional(readOnly = true)
     public List<ChallengeProjectLinkResponse> myProjectLinks(Long userId) {
-        List<ChallengeMember> memberships = challengeMemberRepository.findByUserIdAndLeftAtIsNull(userId);
+        List<ChallengeMember> memberships = challengeMemberRepository.findByUserId(userId);
         Map<Long, Challenge> challengesById = challengeRepository
                 .findAllById(memberships.stream().map(ChallengeMember::getChallengeId).toList())
                 .stream().collect(Collectors.toMap(Challenge::getId, c -> c));
@@ -99,7 +101,7 @@ public class ChallengeService {
         return memberships.stream()
                 .map(m -> {
                     Challenge challenge = challengesById.get(m.getChallengeId());
-                    return new ChallengeProjectLinkResponse(m.getProjectId(), challenge.getId(), challenge.getTitle());
+                    return new ChallengeProjectLinkResponse(m.getProjectId(), challenge.getId(), challenge.getTitle(), m.getLeftAt() != null);
                 })
                 .toList();
     }
@@ -141,6 +143,9 @@ public class ChallengeService {
         member.updateSharedMemo(trimmed == null || trimmed.isEmpty() ? null : trimmed);
     }
 
+    // A-6-15: 방을 나가도 내 프로젝트·진도는 그대로 남는다 — 나가는 게 무섭지 않아야 한다는
+    // 설계 의도라 여기서 프로젝트를 지우지 않는다. 대신 myProjectLinks()가 나간 방도 (지난
+    // 같이 하기로) 같이 내려줘서, 프로젝트 목록에서 정체 모를 프로젝트로 안 보이게 한다.
     @Transactional
     public void leave(Long userId, Long challengeId) {
         ChallengeMember member = challengeMemberRepository.findByChallengeIdAndUserId(challengeId, userId)

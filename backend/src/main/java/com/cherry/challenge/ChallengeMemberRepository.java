@@ -14,4 +14,6 @@ public interface ChallengeMemberRepository extends JpaRepository<ChallengeMember
     List<ChallengeMember> findByChallengeIdAndLeftAtIsNullOrderByJoinedAtAsc(Long challengeId);
 
     List<ChallengeMember> findByUserIdAndLeftAtIsNull(Long userId);
+
+    List<ChallengeMember> findByUserId(Long userId);
 }

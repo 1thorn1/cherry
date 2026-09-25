@@ -13,12 +13,16 @@ export default function ProjectListItem({
   onClick,
   onToggleStar,
   secondaryLink,
+  tag,
 }: {
   project: OtherProject
   selected: boolean
   onClick: () => void
   onToggleStar: (e: MouseEvent) => void
   secondaryLink?: { to: string; label: string }
+  // 나간 같이 하기 방처럼, 어디로도 이동은 안 되지만 출신은 표시해주고 싶을 때 쓰는
+  // 눌리지 않는 정적 라벨 — secondaryLink와 동시에 쓰지 않는다.
+  tag?: string
 }) {
   return (
     <SelectableCard selected={selected} onClick={onClick}>
@@ -43,6 +47,11 @@ export default function ProjectListItem({
             >
               {secondaryLink.label}
             </Link>
+          )}
+          {tag && (
+            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-400">
+              {tag}
+            </span>
           )}
           <span className="text-[11px] text-neutral-400">{p.key_metric}</span>
         </div>
