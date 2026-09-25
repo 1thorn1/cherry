@@ -578,23 +578,53 @@ export default function TodayPage() {
             {showBacklog && (
               <div className="mt-2 rounded-lg border border-neutral-200 p-3">
                 {backlog.map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex items-center justify-between gap-2 border-b border-neutral-100 py-2 last:border-0"
-                  >
-                    <span className="flex-1 text-sm">
-                      {task.title}
-                      <span className="ml-2 text-[11px] text-neutral-400">
-                        {task.task_date ? task.task_date.slice(5).replace('-', '/') : '이번주'}
+                  <div key={task.id} className="border-b border-neutral-100 py-2 last:border-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex-1 text-sm">
+                        {task.title}
+                        <span className="ml-2 text-[11px] text-neutral-400">
+                          {task.task_date ? task.task_date.slice(5).replace('-', '/') : '이번주'}
+                        </span>
                       </span>
-                    </span>
-                    <button
-                      onClick={() => handlePullIn(task)}
-                      className="rounded-full px-2.5 py-1 text-[11px] font-medium text-white"
-                      style={{ background: 'var(--cherry)' }}
-                    >
-                      오늘로
-                    </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handlePullIn(task)}
+                          className="rounded-full px-2.5 py-1 text-[11px] font-medium text-white"
+                          style={{ background: 'var(--cherry)' }}
+                        >
+                          오늘로
+                        </button>
+                        <button
+                          onClick={() => togglePostponeMenu(task.id)}
+                          className="text-neutral-300 hover:text-neutral-500"
+                          aria-label="다른 날로"
+                        >
+                          <IconCalendar size={14} stroke={1.75} />
+                        </button>
+                      </div>
+                    </div>
+                    {postponeMenuTaskId === task.id && (
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        <span className="mr-0.5 text-[11px] text-neutral-400">언제로 가져갈까요?</span>
+                        <button
+                          onClick={() => handlePostpone(task, tomorrowDate())}
+                          className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
+                        >
+                          내일
+                        </button>
+                        <button
+                          onClick={() => handlePostpone(task, thisWeekendDate())}
+                          className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
+                        >
+                          이번 주말
+                        </button>
+                        <input
+                          type="date"
+                          onChange={(e) => e.target.value && handlePostpone(task, e.target.value)}
+                          className="rounded-md border border-neutral-200 px-1.5 py-1 text-[11px]"
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
