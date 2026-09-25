@@ -247,7 +247,7 @@ export default function TodayPage() {
 
   const [park, setPark] = useState<Park | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [viewDate, setViewDate] = useState(() => searchParams.get('date') || today)
   const [showDatePicker, setShowDatePicker] = useState(false)
 
@@ -258,6 +258,18 @@ export default function TodayPage() {
     const d = searchParams.get('date')
     if (d && d !== viewDate) setViewDate(d)
   }, [searchParams, viewDate])
+
+  // "오늘로"/날짜 선택으로 직접 옮길 땐 URL의 date 파라미터도 같이 갱신(또는 제거)한다 —
+  // 안 그러면 위 useEffect가 "URL엔 아직 옛날 날짜가 남아있다"며 방금 옮긴 걸 바로
+  // 되돌려버린다(캘린더에서 특정 날짜로 들어온 뒤로는 오늘로도, 다른 날짜로도 못 바뀌던
+  // 버그의 원인).
+  function goToDate(date: string) {
+    setViewDate(date)
+    const next = new URLSearchParams(searchParams)
+    if (date === today) next.delete('date')
+    else next.set('date', date)
+    setSearchParams(next, { replace: true })
+  }
 
   async function load() {
     try {
@@ -305,7 +317,16 @@ export default function TodayPage() {
   useEffect(() => {
     function syncToday() {
       const fresh = getTodayStr()
-      setViewDate((prev) => (prev === today ? fresh : prev))
+      if (viewDate !== today || fresh === today) return
+      setViewDate(fresh)
+      // 새 "오늘"로 넘어가는 것뿐이니 URL에 남아있을 수 있는 옛 date 파라미터도 지운다 —
+      // 안 지우면 다음 날 자정에도 이 효과가 "특정 날짜를 보는 중"으로 오인해 다시는
+      // 자동으로 안 넘어간다.
+      if (searchParams.get('date')) {
+        const next = new URLSearchParams(searchParams)
+        next.delete('date')
+        setSearchParams(next, { replace: true })
+      }
     }
     const id = setInterval(syncToday, 60_000)
     document.addEventListener('visibilitychange', syncToday)
@@ -313,7 +334,7 @@ export default function TodayPage() {
       clearInterval(id)
       document.removeEventListener('visibilitychange', syncToday)
     }
-  }, [today])
+  }, [today, viewDate, searchParams, setSearchParams])
 
   function toggleWeekday(index: number) {
     setRoutineWeekdays((prev) => {
@@ -534,7 +555,7 @@ export default function TodayPage() {
           </button>
           {viewDate !== today && (
             <button
-              onClick={() => { setViewDate(today); setShowDatePicker(false) }}
+              onClick={() => { goToDate(today); setShowDatePicker(false) }}
               className="text-[11px] font-medium"
               style={{ color: 'var(--cherry)' }}
             >
@@ -549,7 +570,7 @@ export default function TodayPage() {
             autoFocus
             onChange={(e) => {
               if (e.target.value) {
-                setViewDate(e.target.value)
+                goToDate(e.target.value)
                 setShowDatePicker(false)
               }
             }}
