@@ -5,16 +5,8 @@ import type { OtherProject, ProjectOverview } from '../types/project'
 import { createProject, getProjectOverview, updateProjectStarred, type CreateProjectInput } from '../api/projects'
 import { getChallengeProjectLinks } from '../api/challenges'
 import type { ChallengeProjectLink } from '../types/challenge'
-import { getTodayStr } from '../lib/date'
 
 type Mode = 'FREE' | 'PROGRESS' | 'EXAM'
-
-const LANE_PALETTE = ['#4C8BF5', '#8B6FD4', '#4E8B6B', '#3B7EA1', '#D4537E', '#C97A3D']
-const GRID_DAYS = 42 // 6주
-
-function daysBetween(from: string, to: string) {
-  return Math.round((new Date(`${to}T00:00:00`).getTime() - new Date(`${from}T00:00:00`).getTime()) / 86400000)
-}
 
 export default function ProjectsPage() {
   const navigate = useNavigate()
@@ -249,44 +241,6 @@ export default function ProjectsPage() {
       {overview && overview.overlap_warning && (
         <div className="mb-6 rounded-lg px-4 py-3 text-xs" style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}>
           {overview.overlap_warning}
-        </div>
-      )}
-
-      {overview && overview.lanes.length > 0 && (
-        <div className="mb-8">
-          <div className="mb-2 grid grid-cols-6 gap-1">
-            {overview.weeks.map((w) => (
-              <p key={w} className="text-[10px] text-neutral-400">{w.slice(5).replace('-', '/')}</p>
-            ))}
-          </div>
-          <div className="relative space-y-2">
-            <div
-              className="pointer-events-none absolute inset-y-0 w-px bg-neutral-300"
-              style={{ left: `${(daysBetween(overview.weeks[0], getTodayStr()) / GRID_DAYS) * 100}%` }}
-            />
-            {overview.lanes.map((lane, i) => {
-              const start = Math.min(Math.max(daysBetween(overview.weeks[0], lane.start_date), 0), GRID_DAYS)
-              const end = lane.open_ended || !lane.end_date
-                ? GRID_DAYS
-                : Math.min(Math.max(daysBetween(overview.weeks[0], lane.end_date), 0), GRID_DAYS)
-              const left = (start / GRID_DAYS) * 100
-              const width = Math.max(((end - start) / GRID_DAYS) * 100, 2)
-              return (
-                <div key={lane.project_id} className="relative h-2">
-                  <div
-                    className="absolute h-2 rounded-full"
-                    style={{
-                      left: `${left}%`,
-                      width: `${width}%`,
-                      background: LANE_PALETTE[i % LANE_PALETTE.length],
-                      opacity: lane.open_ended ? 0.5 : 1,
-                    }}
-                    title={lane.name}
-                  />
-                </div>
-              )
-            })}
-          </div>
         </div>
       )}
 

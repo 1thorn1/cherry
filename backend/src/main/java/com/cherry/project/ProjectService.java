@@ -13,7 +13,6 @@ import com.cherry.project.dto.NoteResponse;
 import com.cherry.project.dto.OtherProjectResponse;
 import com.cherry.project.dto.ProjectCreateRequest;
 import com.cherry.project.dto.ProjectDetailResponse;
-import com.cherry.project.dto.ProjectLaneResponse;
 import com.cherry.project.dto.ProjectOverviewResponse;
 import com.cherry.project.dto.ProjectResponse;
 import com.cherry.project.dto.ProjectSharedRequest;
@@ -32,7 +31,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.IsoFields;
-import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -86,21 +84,6 @@ public class ProjectService {
     public ProjectOverviewResponse getOverview(Long userId) {
         List<Project> projects = projectRepository.findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(userId);
 
-        LocalDate thisMonday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        List<LocalDate> weeks = new ArrayList<>();
-        for (int i = 0; i < 6; i++) {
-            weeks.add(thisMonday.plusWeeks(i));
-        }
-
-        List<ProjectLaneResponse> lanes = projects.stream()
-                .map(p -> new ProjectLaneResponse(
-                        p.getId(), p.getName(), p.getColor(),
-                        p.getCreatedAt().toLocalDate(),
-                        "EXAM".equals(p.getType()) ? p.getExamDate() : null,
-                        !"EXAM".equals(p.getType())
-                ))
-                .toList();
-
         // 즐겨찾기(별표) 프로젝트를 위로 — A-6-3의 "최근 7일 완료가 가장 많은 프로젝트를
         // 자동 선정"하던 방식은 왜 그 프로젝트가 뽑혔는지 알기 어려워서, 사용자가 직접
         // 고르는 별표로 대체했다.
@@ -109,7 +92,7 @@ public class ProjectService {
                 .map(this::buildOther)
                 .toList();
 
-        return new ProjectOverviewResponse(buildOverlapWarning(projects), weeks, lanes, others);
+        return new ProjectOverviewResponse(buildOverlapWarning(projects), others);
     }
 
     private String buildOverlapWarning(List<Project> projects) {

@@ -43,15 +43,6 @@ export interface TimelineEntry {
   at: string
 }
 
-export interface ProjectLane {
-  project_id: number
-  name: string
-  color: string
-  start_date: string
-  end_date: string | null
-  open_ended: boolean
-}
-
 export interface OtherProject {
   project_id: number
   name: string
@@ -65,7 +56,5 @@ export interface OtherProject {
 
 export interface ProjectOverview {
   overlap_warning: string | null
-  weeks: string[]
-  lanes: ProjectLane[]
   others: OtherProject[]
 }
