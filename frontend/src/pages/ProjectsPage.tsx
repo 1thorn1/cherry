@@ -1,24 +1,18 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState, type MouseEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import type { ProjectOverview } from '../types/project'
-import { createProject, getProjectOverview, type CreateProjectInput } from '../api/projects'
+import { createProject, getProjectOverview, updateProjectStarred, type CreateProjectInput } from '../api/projects'
 import { getChallengeProjectLinks } from '../api/challenges'
 import type { ChallengeProjectLink } from '../types/challenge'
-import MilestoneTrack from '../components/MilestoneTrack'
-import { getTodayStr } from '../lib/date'
+import ProjectListItem from '../components/ProjectListItem'
 
 type Mode = 'FREE' | 'PROGRESS' | 'EXAM'
 
-const LANE_PALETTE = ['#4C8BF5', '#8B6FD4', '#4E8B6B', '#3B7EA1', '#D4537E', '#C97A3D']
-const GRID_DAYS = 42 // 6주
-
-function daysBetween(from: string, to: string) {
-  return Math.round((new Date(`${to}T00:00:00`).getTime() - new Date(`${from}T00:00:00`).getTime()) / 86400000)
-}
-
 export default function ProjectsPage() {
+  const navigate = useNavigate()
   const [overview, setOverview] = useState<ProjectOverview | null>(null)
   const [challengeLinks, setChallengeLinks] = useState<ChallengeProjectLink[]>([])
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [name, setName] = useState('')
   const [mode, setMode] = useState<Mode>('FREE')
@@ -42,6 +36,34 @@ export default function ProjectsPage() {
 
   useEffect(() => { load() }, [])
 
+  // 프로젝트를 눌러도 바로 들어가지 않고 일단 "선택"만 되게 하고(테두리로 표시),
+  // 선택된 걸 한 번 더 누르면 그때 상세 화면으로 들어간다 — 잘못 눌러서 바로
+  // 넘어가버리는 걸 막아달라는 요청.
+  //
+  // 아직 참여 중인 같이 하기 프로젝트는 클릭하면 내 프로젝트 화면이 아니라 챌린지 상세
+  // (다 같이 이름·진행도 보고 잠시 쉬기도 하는 곳)로 바로 들어간다 — 같이 하기 목록
+  // 카드와 똑같은 동작. 내 프로젝트 화면은 카드의 "내 프로젝트" 배지로 간다.
+  // 나간 방의 프로젝트는(link.left) 그냥 평범한 프로젝트처럼 내 프로젝트 화면으로 간다 —
+  // 나간 챌린지는 더 이상 상세를 볼 수 없기 때문.
+  function handleProjectClick(projectId: number) {
+    if (selectedProjectId === projectId) {
+      const link = challengeLinks.find((l) => l.project_id === projectId)
+      navigate(link && !link.left ? `/challenges/${link.challenge_id}` : `/projects/${projectId}`)
+    } else {
+      setSelectedProjectId(projectId)
+    }
+  }
+
+  async function handleToggleStar(e: MouseEvent, projectId: number, starred: boolean) {
+    e.stopPropagation()
+    try {
+      await updateProjectStarred(projectId, !starred)
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '즐겨찾기 설정에 실패했습니다')
+    }
+  }
+
   function handleAddMilestoneDraft() {
     const trimmed = milestoneDraft.trim()
     if (!trimmed) return
@@ -54,8 +76,20 @@ export default function ProjectsPage() {
   }
 
   async function handleCreate() {
+    if (saving) return
     const trimmed = name.trim()
-    if (!trimmed || saving) return
+    if (!trimmed) {
+      setError('프로젝트 이름을 입력해주세요')
+      return
+    }
+    if (mode === 'PROGRESS' && !totalUnits.trim()) {
+      setError('총 회차 수를 입력해주세요')
+      return
+    }
+    if (mode === 'EXAM' && !examDate) {
+      setError('시험일을 입력해주세요')
+      return
+    }
 
     setSaving(true)
     try {
@@ -65,7 +99,6 @@ export default function ProjectsPage() {
         input.total_units = Number(totalUnits)
       } else if (mode === 'EXAM') {
         input.type = 'EXAM'
-        input.total_units = Number(totalUnits)
         input.exam_date = examDate
       } else if (milestoneTitles.length > 0) {
         input.milestone_titles = milestoneTitles
@@ -92,7 +125,9 @@ export default function ProjectsPage() {
     { value: 'EXAM', label: '시험일' },
   ]
 
-  const isEmpty = overview && !overview.focus && overview.others.length === 0
+  const isEmpty = overview && overview.others.length === 0
+  const starredProjects = overview ? overview.others.filter((p) => p.starred) : []
+  const restProjects = overview ? overview.others.filter((p) => !p.starred) : []
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
@@ -139,21 +174,12 @@ export default function ProjectsPage() {
           )}
 
           {mode === 'EXAM' && (
-            <div className="mb-3 flex gap-2">
-              <input
-                type="number"
-                value={totalUnits}
-                onChange={(e) => setTotalUnits(e.target.value)}
-                placeholder="단원 수"
-                className="flex-1 rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
-              />
-              <input
-                type="date"
-                value={examDate}
-                onChange={(e) => setExamDate(e.target.value)}
-                className="flex-1 rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
-              />
-            </div>
+            <input
+              type="date"
+              value={examDate}
+              onChange={(e) => setExamDate(e.target.value)}
+              className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+            />
           )}
 
           {mode === 'FREE' && (
@@ -225,107 +251,52 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {overview && overview.lanes.length > 0 && (
+      {starredProjects.length > 0 && (
         <div className="mb-8">
-          <div className="mb-2 grid grid-cols-6 gap-1">
-            {overview.weeks.map((w) => (
-              <p key={w} className="text-[10px] text-neutral-400">{w.slice(5).replace('-', '/')}</p>
+          <p className="mb-2 text-[11px] font-medium text-neutral-400">즐겨찾기</p>
+          <div className="space-y-2">
+            {starredProjects.map((p) => (
+              <ProjectListItem
+                key={p.project_id}
+                project={p}
+                selected={selectedProjectId === p.project_id}
+                onClick={() => handleProjectClick(p.project_id)}
+                onToggleStar={(e) => handleToggleStar(e, p.project_id, p.starred)}
+                {...cardLinkProps(p.project_id, challengeLinks.find((l) => l.project_id === p.project_id))}
+              />
             ))}
           </div>
-          <div className="relative space-y-2">
-            <div
-              className="pointer-events-none absolute inset-y-0 w-px bg-neutral-300"
-              style={{ left: `${(daysBetween(overview.weeks[0], getTodayStr()) / GRID_DAYS) * 100}%` }}
-            />
-            {overview.lanes.map((lane, i) => {
-              const start = Math.min(Math.max(daysBetween(overview.weeks[0], lane.start_date), 0), GRID_DAYS)
-              const end = lane.open_ended || !lane.end_date
-                ? GRID_DAYS
-                : Math.min(Math.max(daysBetween(overview.weeks[0], lane.end_date), 0), GRID_DAYS)
-              const left = (start / GRID_DAYS) * 100
-              const width = Math.max(((end - start) / GRID_DAYS) * 100, 2)
-              return (
-                <div key={lane.project_id} className="relative h-2">
-                  <div
-                    className="absolute h-2 rounded-full"
-                    style={{
-                      left: `${left}%`,
-                      width: `${width}%`,
-                      background: LANE_PALETTE[i % LANE_PALETTE.length],
-                      opacity: lane.open_ended ? 0.5 : 1,
-                    }}
-                    title={lane.name}
-                  />
-                </div>
-              )
-            })}
-          </div>
         </div>
       )}
 
-      {overview && overview.focus && (
-        <div className="mb-8 rounded-lg border border-neutral-200 p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <Link to={`/projects/${overview.focus.project_id}`} className="text-sm font-medium">
-              {overview.focus.name}
-            </Link>
-            {challengeLinks.find((l) => l.project_id === overview.focus!.project_id) && (
-              <Link
-                to={`/challenges/${challengeLinks.find((l) => l.project_id === overview.focus!.project_id)!.challenge_id}`}
-                className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-                style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
-              >
-                같이 하기
-              </Link>
-            )}
+      {restProjects.length > 0 && (
+        <div>
+          {starredProjects.length > 0 && <p className="mb-2 text-[11px] font-medium text-neutral-400">프로젝트</p>}
+          <div className="space-y-2">
+            {restProjects.map((p) => (
+              <ProjectListItem
+                key={p.project_id}
+                project={p}
+                selected={selectedProjectId === p.project_id}
+                onClick={() => handleProjectClick(p.project_id)}
+                onToggleStar={(e) => handleToggleStar(e, p.project_id, p.starred)}
+                {...cardLinkProps(p.project_id, challengeLinks.find((l) => l.project_id === p.project_id))}
+              />
+            ))}
           </div>
-
-          <MilestoneTrack milestones={overview.focus.milestones} />
         </div>
       )}
-
-      {overview && overview.others.map((p) => {
-        const link = challengeLinks.find((l) => l.project_id === p.project_id)
-        return (
-          <div key={p.project_id} className="border-b border-neutral-100 py-3">
-            <div className="mb-1.5 flex items-center justify-between">
-              <Link to={`/projects/${p.project_id}`} className="text-sm">{p.name}</Link>
-              <div className="flex items-center gap-2">
-                {link && (
-                  <Link
-                    to={`/challenges/${link.challenge_id}`}
-                    className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-                    style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
-                  >
-                    같이 하기
-                  </Link>
-                )}
-                <span className="text-[11px] text-neutral-400">{p.key_metric}</span>
-              </div>
-            </div>
-            {p.total_milestones > 0 && (
-              p.total_milestones <= 20 ? (
-                <div className="flex gap-1">
-                  {Array.from({ length: p.total_milestones }).map((_, i) => (
-                    <span
-                      key={i}
-                      className="h-1.5 w-1.5 rounded-full"
-                      style={{ background: i < p.completed_milestones ? 'var(--cherry)' : '#E5E5E5' }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
-                  <div
-                    className="h-full rounded-full"
-                    style={{ width: `${(p.completed_milestones / p.total_milestones) * 100}%`, background: 'var(--cherry)' }}
-                  />
-                </div>
-              )
-            )}
-          </div>
-        )
-      })}
     </div>
   )
+}
+
+// 아직 참여 중인 같이 하기 프로젝트는 카드 클릭이 챌린지 상세로 가버리므로, 내 프로젝트
+// 화면(마일스톤·메모)으로 갈 수 있는 배지를 대신 붙여준다. 라벨은 "내 프로젝트"가 아니라
+// "같이하기"로 — 이 목록은 이미 전부 "내 프로젝트"라서 그 말은 정보가 없고, 이 카드가
+// 같이 하기에 연결돼 있다는 게 실제로 알려주고 싶은 정보다. 나간 경우의 "지난 같이 하기"
+// 태그와도 이름이 짝을 이룬다.
+function cardLinkProps(projectId: number, link: ChallengeProjectLink | undefined) {
+  if (!link) return {}
+  if (link.left) return { tag: '지난 같이 하기' }
+  return { secondaryLink: { to: `/projects/${projectId}`, label: '같이하기' } }
 }

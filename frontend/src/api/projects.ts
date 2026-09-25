@@ -35,6 +35,13 @@ export function updateProjectShared(id: number, shared: boolean) {
   })
 }
 
+export function updateProjectStarred(id: number, starred: boolean) {
+  return request<Project>(`/api/projects/${id}/starred`, {
+    method: 'PATCH',
+    body: JSON.stringify({ starred }),
+  })
+}
+
 export function updateProjectWorkDays(id: number, workDays: number[]) {
   return request<Project>(`/api/projects/${id}/work-days`, {
     method: 'PATCH',
@@ -94,10 +101,11 @@ export function addNote(
   body: string | null,
   url: string | null,
   milestoneId?: number | null,
+  noteDate?: string | null,
 ) {
   return request<void>(`/api/projects/${projectId}/notes`, {
     method: 'POST',
-    body: JSON.stringify({ kind, body, url, milestone_id: milestoneId ?? null }),
+    body: JSON.stringify({ kind, body, url, milestone_id: milestoneId ?? null, note_date: noteDate ?? null }),
   })
 }
 

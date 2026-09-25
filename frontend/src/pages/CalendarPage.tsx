@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   startOfWeek,
   endOfWeek,
@@ -55,6 +56,7 @@ function isNonWorkDay(projectId: number | null, isoDay: number, projects: Projec
 type Period = 'week' | 'month'
 
 export default function CalendarPage() {
+  const navigate = useNavigate()
   const [period, setPeriod] = usePersistedState<Period>('calendar.period', 'week')
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }))
   const [monthCursor, setMonthCursor] = useState(() => new Date())
@@ -68,6 +70,12 @@ export default function CalendarPage() {
   function handleSelectDate(date: Date) {
     setWeekStart(startOfWeek(date, { weekStartsOn: 1 }))
     setPeriod('week')
+  }
+
+  // 써놓은 일정(할 일)을 누르면 그날 투두 화면으로 바로 간다 — 아직 실제로 만들어지지
+  // 않은 반복 미리보기(점선 테두리)는 누를 대상이 없으니 여기 해당 안 됨.
+  function goToDayToday(dateStr: string) {
+    navigate(`/?date=${dateStr}`)
   }
 
   async function loadWeek() {
@@ -186,7 +194,13 @@ export default function CalendarPage() {
               <div className="pr-1 text-right text-[10px] text-neutral-300">종일</div>
               {days.map((day) => {
                 const isoDay = getISODay(new Date(day.date))
-                const allDayTasks = day.tasks.filter((t) => !t.scheduled_start)
+                // 아직 안 끝난 종일 항목은 예정일(taskDate) 기준, 완료된 항목은 실제 완료일
+                // 기준으로 보여준다 — 안 그러면 이월해서 나중에 끝낸 종일 항목이 월간 완료
+                // 집계와 다른 날짜에 표시된다(시간표 타임드 블록과 같은 이유).
+                const allDayTasks = [
+                  ...day.tasks.filter((t) => !t.scheduled_start && !t.completed_at),
+                  ...day.actual_tasks.filter((t) => !t.scheduled_start),
+                ]
                 const allDayPreviews = day.previews.filter((p) => !p.default_time)
                 return (
                   <div
@@ -196,7 +210,8 @@ export default function CalendarPage() {
                     {allDayTasks.map((t) => (
                       <div
                         key={t.id}
-                        className={`mb-0.5 truncate rounded px-1 text-[10px] ${t.completed_at ? 'text-neutral-300 line-through' : ''} ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
+                        onClick={() => goToDayToday(day.date)}
+                        className={`mb-0.5 cursor-pointer truncate rounded px-1 text-[10px] hover:opacity-70 ${t.completed_at ? 'text-neutral-300 line-through' : ''} ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
                         style={t.completed_at ? undefined : { background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
                       >
                         {t.title}
@@ -228,7 +243,10 @@ export default function CalendarPage() {
                 {days.map((day) => {
                   const isoDay = getISODay(new Date(day.date))
                   const scheduledTasks = day.tasks.filter((t) => t.scheduled_start)
-                  const completedTasks = day.tasks.filter((t) => t.completed_at)
+                  // actual_tasks는 예정된 날이 아니라 실제로 완료 처리한 날 기준으로 이미 묶여
+                  // 있다 — day.tasks에서 completed_at으로 거르면 이월된 태스크가 원래 예정일에
+                  // 표시돼 월간 완료 집계와 날짜가 어긋난다.
+                  const completedTasks = day.actual_tasks
                   const timedPreviews = day.previews.filter((p) => p.default_time)
 
                   const scheduledBlocks = scheduledTasks.map((t) => ({
@@ -266,7 +284,8 @@ export default function CalendarPage() {
                         return (
                           <div
                             key={t.id}
-                            className={`absolute overflow-hidden rounded px-1 text-[10px] leading-tight ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
+                            onClick={() => goToDayToday(day.date)}
+                            className={`absolute cursor-pointer overflow-hidden rounded px-1 text-[10px] leading-tight hover:opacity-70 ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
                             style={{
                               ...blockStyle(b, scheduledLayout),
                               background: t.completed_at ? '#F1EFE8' : 'var(--cherry-bg)',
@@ -283,7 +302,8 @@ export default function CalendarPage() {
                         return (
                           <div
                             key={t.id}
-                            className={`absolute overflow-hidden rounded px-1 text-[10px] leading-tight ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
+                            onClick={() => goToDayToday(day.date)}
+                            className={`absolute cursor-pointer overflow-hidden rounded px-1 text-[10px] leading-tight hover:opacity-70 ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
                             style={{ ...blockStyle(b, actualLayout), background: '#F1EFE8', color: '#888780' }}
                           >
                             {t.title}

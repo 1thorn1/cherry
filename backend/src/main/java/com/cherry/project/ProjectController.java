@@ -11,6 +11,7 @@ import com.cherry.project.dto.ProjectDetailResponse;
 import com.cherry.project.dto.ProjectOverviewResponse;
 import com.cherry.project.dto.ProjectResponse;
 import com.cherry.project.dto.ProjectSharedRequest;
+import com.cherry.project.dto.ProjectStarredRequest;
 import com.cherry.project.dto.ProjectWorkDaysRequest;
 import com.cherry.project.dto.TimelineEntryResponse;
 import jakarta.validation.Valid;
@@ -63,6 +64,11 @@ public class ProjectController {
     @PatchMapping("/{id}/shared")
     public ProjectResponse updateShared(@CurrentUserId Long userId, @PathVariable Long id, @RequestBody ProjectSharedRequest request) {
         return projectService.updateShared(userId, id, request);
+    }
+
+    @PatchMapping("/{id}/starred")
+    public ProjectResponse updateStarred(@CurrentUserId Long userId, @PathVariable Long id, @RequestBody ProjectStarredRequest request) {
+        return projectService.updateStarred(userId, id, request);
     }
 
     @PatchMapping("/{id}/work-days")

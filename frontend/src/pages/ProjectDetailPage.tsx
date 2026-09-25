@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Milestone, NoteKind, ProjectDetail, TimelineEntry } from '../types/project'
-import { addMilestone, addNote, completeMilestoneNow, deleteNote, deleteProject, getProject, getTimeline, renameMilestone, scheduleMilestoneToday, uncompleteMilestoneNow, unscheduleMilestoneToday, updateNote, updateProjectShared, updateProjectWorkDays } from '../api/projects'
+import { addMilestone, addNote, completeMilestoneNow, deleteNote, deleteProject, getProject, getTimeline, renameMilestone, scheduleMilestoneToday, uncompleteMilestoneNow, unscheduleMilestoneToday, updateNote, updateProjectShared } from '../api/projects'
+import { getChallengeProjectLinks } from '../api/challenges'
 import MilestoneTrack from '../components/MilestoneTrack'
 import MilestoneChipGrid from '../components/MilestoneChipGrid'
 import NoteEntry from '../components/NoteEntry'
+import AutoGrowTextarea from '../components/AutoGrowTextarea'
 
 const kindLabels: Record<string, string> = {
   AUTO_LOG: '완료',
@@ -12,16 +14,6 @@ const kindLabels: Record<string, string> = {
   LINK: '링크',
   RETRO: '회고',
 }
-
-const WORK_DAY_LABELS: { day: number; label: string }[] = [
-  { day: 1, label: '월' },
-  { day: 2, label: '화' },
-  { day: 3, label: '수' },
-  { day: 4, label: '목' },
-  { day: 5, label: '금' },
-  { day: 6, label: '토' },
-  { day: 7, label: '일' },
-]
 
 function daysBetween(startIso: string, endIso: string): number {
   const days = (new Date(endIso).getTime() - new Date(startIso).getTime()) / 86400000
@@ -37,13 +29,15 @@ export default function ProjectDetailPage() {
   const [detail, setDetail] = useState<ProjectDetail | null>(null)
   const [timeline, setTimeline] = useState<TimelineEntry[]>([])
   const [error, setError] = useState('')
+  // 같이 하기로 만든(아직 참여 중인) 프로젝트는 "← 프로젝트" 대신 "← 같이 하기"로
+  // 돌아가야 자연스럽다 — 애초에 이 프로젝트로 들어온 맥락이 같이 하기 쪽이라서.
+  const [challengeId, setChallengeId] = useState<number | null>(null)
 
   const [noteKind, setNoteKind] = useState<NoteKind>('NOTE')
   const [noteBody, setNoteBody] = useState('')
   const [noteUrl, setNoteUrl] = useState('')
   const [saving, setSaving] = useState(false)
   const [sharingToggle, setSharingToggle] = useState(false)
-  const [workDaysSaving, setWorkDaysSaving] = useState(false)
   const [milestoneDraft, setMilestoneDraft] = useState('')
   const [addingMilestone, setAddingMilestone] = useState(false)
   const [sendingId, setSendingId] = useState<number | null>(null)
@@ -54,7 +48,9 @@ export default function ProjectDetailPage() {
 
   async function loadDetail() {
     try {
-      setDetail(await getProject(projectId))
+      const [project, links] = await Promise.all([getProject(projectId), getChallengeProjectLinks()])
+      setDetail(project)
+      setChallengeId(links.find((l) => l.project_id === projectId && !l.left)?.challenge_id ?? null)
       setError('')
     } catch (e) {
       setError(e instanceof Error ? e.message : '불러오지 못했습니다')
@@ -115,11 +111,11 @@ export default function ProjectDetailPage() {
     }
   }
 
-  async function handleAddMilestoneNote(milestoneId: number, body: string) {
+  async function handleAddMilestoneNote(milestoneId: number, body: string, noteDate?: string) {
     if (savingNoteId) return
     setSavingNoteId(milestoneId)
     try {
-      await addNote(projectId, 'NOTE', body, null, milestoneId)
+      await addNote(projectId, 'NOTE', body, null, milestoneId, noteDate)
       await loadTimeline()
     } catch (e) {
       setError(e instanceof Error ? e.message : '기록하지 못했습니다')
@@ -151,22 +147,6 @@ export default function ProjectDetailPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : '삭제하지 못했습니다')
       setDeleting(false)
-    }
-  }
-
-  async function handleToggleWorkDay(day: number) {
-    if (!detail || workDaysSaving) return
-    const current = detail.project.work_days
-    const next = current.includes(day) ? current.filter((d) => d !== day) : [...current, day]
-    if (next.length === 0) return
-    setWorkDaysSaving(true)
-    try {
-      const updated = await updateProjectWorkDays(projectId, next)
-      setDetail({ ...detail, project: updated })
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '작업 요일을 저장하지 못했습니다')
-    } finally {
-      setWorkDaysSaving(false)
     }
   }
 
@@ -258,9 +238,11 @@ export default function ProjectDetailPage() {
     [],
   )
 
+  // 완료 여부는 칩 자체(체크박스 + "완료됨" 문구)에서 이미 보여주므로, 마일스톤 패널의
+  // 메모 목록엔 자동 완료 기록(AUTO_LOG)까지 또 띄우지 않고 사용자가 직접 남긴 메모만 둔다.
   const notesByMilestone = new Map<number, TimelineEntry[]>()
   for (const entry of timeline) {
-    if (entry.milestone_id === null) continue
+    if (entry.milestone_id === null || entry.kind === 'AUTO_LOG') continue
     const list = notesByMilestone.get(entry.milestone_id) ?? []
     list.push(entry)
     notesByMilestone.set(entry.milestone_id, list)
@@ -276,7 +258,11 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
-      <Link to="/projects" className="text-xs text-neutral-400">← 프로젝트</Link>
+      {challengeId ? (
+        <Link to={`/challenges/${challengeId}`} className="text-xs text-neutral-400">← 같이 하기</Link>
+      ) : (
+        <Link to="/projects" className="text-xs text-neutral-400">← 프로젝트</Link>
+      )}
       <div className="mb-6 mt-2 flex items-center justify-between">
         <h1 className="text-xl font-medium tracking-tight">{detail.project.name}</h1>
         <div className="flex items-center gap-2">
@@ -321,30 +307,7 @@ export default function ProjectDetailPage() {
 
       {tab === 'progress' && (
         <div>
-          {detail.project.type === 'EXAM' && (
-            <div className="mb-4 flex items-center gap-2">
-              <span className="text-[11px] text-neutral-400">작업 요일</span>
-              <div className="flex gap-1">
-                {WORK_DAY_LABELS.map(({ day, label }) => {
-                  const active = detail.project.work_days.includes(day)
-                  return (
-                    <button
-                      key={day}
-                      onClick={() => handleToggleWorkDay(day)}
-                      disabled={workDaysSaving}
-                      className="h-6 w-6 rounded-full text-[10px] font-medium disabled:opacity-50"
-                      style={active
-                        ? { background: 'var(--cherry-bg)', color: 'var(--cherry)' }
-                        : { background: '#F1EFE8', color: '#B8B6AC' }}
-                    >
-                      {label}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-          <MilestoneTrack milestones={detail.milestones} />
+          {detail.milestones.length > 0 && <MilestoneTrack milestones={detail.milestones} />}
           {detail.project.type === 'FREE' && (
             <div className="mt-3 flex gap-2">
               <input
@@ -412,16 +375,16 @@ export default function ProjectDetailPage() {
                 value={noteUrl}
                 onChange={(e) => setNoteUrl(e.target.value)}
                 placeholder="https://..."
-                className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+                className="mb-3 w-full rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm outline-none transition-shadow focus:border-[var(--cherry)] focus:ring-2 focus:ring-[var(--cherry-bg)]"
               />
             )}
 
-            <textarea
+            <AutoGrowTextarea
               value={noteBody}
               onChange={(e) => setNoteBody(e.target.value)}
-              placeholder={noteKind === 'LINK' ? '한 줄 설명' : '결정한 것, 막힌 것, 정리... (마크다운 지원 — # 제목, - 목록, **굵게**...)'}
-              rows={noteKind === 'LINK' ? 3 : 6}
-              className="mb-3 w-full resize-y rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+              placeholder={noteKind === 'LINK' ? '한 줄 설명' : '결정한 것, 막힌 것, 정리... (마크다운 지원)'}
+              rows={noteKind === 'LINK' ? 2 : 4}
+              className="mb-3 w-full rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm outline-none transition-shadow focus:border-[var(--cherry)] focus:ring-2 focus:ring-[var(--cherry-bg)]"
             />
 
             <button

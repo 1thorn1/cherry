@@ -9,6 +9,9 @@ export interface RoutinePreview {
 export interface CalendarDay {
   date: string
   tasks: Task[]
+  // "실제" 탭 전용 — 예정된 날(taskDate)이 아니라 실제로 완료 처리한 날 기준으로 묶인 목록.
+  // 이월된 태스크를 나중에 완료하면 tasks(taskDate 기준)와 이 목록에 담기는 날짜가 갈린다.
+  actual_tasks: Task[]
   previews: RoutinePreview[]
 }
 

@@ -15,6 +15,7 @@ public record ProjectResponse(
         LocalDate examDate,
         String status,
         boolean shared,
+        boolean starred,
         List<Integer> workDays,
         LocalDateTime createdAt
 ) {
@@ -28,6 +29,7 @@ public record ProjectResponse(
                 project.getExamDate(),
                 project.getStatus(),
                 project.isShared(),
+                project.isStarred(),
                 project.getWorkDaysList(),
                 project.getCreatedAt()
         );

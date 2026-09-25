@@ -6,19 +6,17 @@ import com.cherry.common.MilestoneNotFoundException;
 import com.cherry.common.NoteNotFoundException;
 import com.cherry.common.ProjectNotFoundException;
 import com.cherry.park.ParkService;
-import com.cherry.project.dto.FocusProjectResponse;
 import com.cherry.project.dto.MilestoneCreateRequest;
 import com.cherry.project.dto.MilestoneResponse;
-import com.cherry.project.dto.MilestoneTrackResponse;
 import com.cherry.project.dto.NoteCreateRequest;
 import com.cherry.project.dto.NoteResponse;
 import com.cherry.project.dto.OtherProjectResponse;
 import com.cherry.project.dto.ProjectCreateRequest;
 import com.cherry.project.dto.ProjectDetailResponse;
-import com.cherry.project.dto.ProjectLaneResponse;
 import com.cherry.project.dto.ProjectOverviewResponse;
 import com.cherry.project.dto.ProjectResponse;
 import com.cherry.project.dto.ProjectSharedRequest;
+import com.cherry.project.dto.ProjectStarredRequest;
 import com.cherry.project.dto.ProjectWorkDaysRequest;
 import com.cherry.project.dto.NoteUpdateRequest;
 import com.cherry.project.dto.TimelineEntryResponse;
@@ -31,10 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.IsoFields;
-import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -88,29 +84,15 @@ public class ProjectService {
     public ProjectOverviewResponse getOverview(Long userId) {
         List<Project> projects = projectRepository.findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(userId);
 
-        LocalDate thisMonday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        List<LocalDate> weeks = new ArrayList<>();
-        for (int i = 0; i < 6; i++) {
-            weeks.add(thisMonday.plusWeeks(i));
-        }
-
-        List<ProjectLaneResponse> lanes = projects.stream()
-                .map(p -> new ProjectLaneResponse(
-                        p.getId(), p.getName(), p.getColor(),
-                        p.getCreatedAt().toLocalDate(),
-                        "EXAM".equals(p.getType()) ? p.getExamDate() : null,
-                        !"EXAM".equals(p.getType())
-                ))
-                .toList();
-
-        Project focusProject = selectFocusProject(projects);
-        FocusProjectResponse focus = focusProject == null ? null : buildFocus(focusProject);
+        // 즐겨찾기(별표) 프로젝트를 위로 — A-6-3의 "최근 7일 완료가 가장 많은 프로젝트를
+        // 자동 선정"하던 방식은 왜 그 프로젝트가 뽑혔는지 알기 어려워서, 사용자가 직접
+        // 고르는 별표로 대체했다.
         List<OtherProjectResponse> others = projects.stream()
-                .filter(p -> focusProject == null || !p.getId().equals(focusProject.getId()))
+                .sorted(Comparator.comparing(Project::isStarred).reversed())
                 .map(this::buildOther)
                 .toList();
 
-        return new ProjectOverviewResponse(buildOverlapWarning(projects), weeks, lanes, focus, others);
+        return new ProjectOverviewResponse(buildOverlapWarning(projects), others);
     }
 
     private String buildOverlapWarning(List<Project> projects) {
@@ -131,35 +113,6 @@ public class ProjectService {
         return date.getMonthValue() + "월 " + weekOfMonth + "주";
     }
 
-    private Project selectFocusProject(List<Project> projects) {
-        if (projects.isEmpty()) return null;
-
-        LocalDateTime start = LocalDate.now().minusDays(6).atStartOfDay();
-        LocalDateTime end = LocalDate.now().atTime(LocalTime.MAX);
-
-        Project best = null;
-        int bestCount = -1;
-        for (Project p : projects) {
-            int count = taskRepository
-                    .findByProjectIdAndCompletedAtBetweenAndDeletedAtIsNull(p.getId(), start, end)
-                    .size();
-            if (count > bestCount) {
-                bestCount = count;
-                best = p;
-            }
-        }
-        return best;
-    }
-
-    private FocusProjectResponse buildFocus(Project project) {
-        List<Milestone> milestones = milestoneRepository.findByProjectIdOrderBySeqAsc(project.getId());
-        List<MilestoneTrackResponse> track = milestones.stream()
-                .map(m -> new MilestoneTrackResponse(m.getSeq(), m.getTitle(), m.getCompletedAt() != null))
-                .toList();
-        int cartIndex = (int) milestones.stream().filter(m -> m.getCompletedAt() != null).count();
-        return new FocusProjectResponse(project.getId(), project.getName(), project.getType(), track, cartIndex);
-    }
-
     private OtherProjectResponse buildOther(Project project) {
         List<Milestone> milestones = milestoneRepository.findByProjectIdOrderBySeqAsc(project.getId());
         int total = milestones.size();
@@ -168,7 +121,7 @@ public class ProjectService {
                 ? "D" + formatDday(project.getExamDate())
                 : completed + "/" + total;
         return new OtherProjectResponse(project.getId(), project.getName(), project.getType(), project.getColor(),
-                completed, total, keyMetric);
+                completed, total, keyMetric, project.isStarred());
     }
 
     private String formatDday(LocalDate examDate) {
@@ -237,7 +190,7 @@ public class ProjectService {
                         .map(Milestone::getId)
                         .orElse(null);
 
-        ProjectNote note = ProjectNote.create(userId, project.getId(), milestoneId,
+        ProjectNote note = ProjectNote.create(userId, project.getId(), milestoneId, request.noteDate(),
                 request.kind(), request.body(), request.url());
         projectNoteRepository.save(note);
         return NoteResponse.from(note);
@@ -300,6 +253,13 @@ public class ProjectService {
         return ProjectResponse.from(project);
     }
 
+    @Transactional
+    public ProjectResponse updateStarred(Long userId, Long projectId, ProjectStarredRequest request) {
+        Project project = findOwned(userId, projectId);
+        project.updateStarred(request.starred());
+        return ProjectResponse.from(project);
+    }
+
     // 소프트 삭제만 한다. 마일스톤·태스크·기록은 그대로 둔다 — 완료 기록은 통계·공원 보상의
     // 근거라 프로젝트를 지웠다고 같이 사라지면 안 된다. 목록·개요 조회는 deletedAtIsNull로
     // 이미 걸러지므로 삭제된 프로젝트는 자연히 안 보인다.
@@ -351,13 +311,8 @@ public class ProjectService {
         if ("PROGRESS".equals(type) && (totalUnits == null || totalUnits <= 0)) {
             throw new InvalidProjectException("총 회차 수를 입력해주세요");
         }
-        if ("EXAM".equals(type)) {
-            if (totalUnits == null || totalUnits <= 0) {
-                throw new InvalidProjectException("단원 수를 입력해주세요");
-            }
-            if (examDate == null) {
-                throw new InvalidProjectException("시험일을 입력해주세요");
-            }
+        if ("EXAM".equals(type) && examDate == null) {
+            throw new InvalidProjectException("시험일을 입력해주세요");
         }
     }
 
@@ -380,27 +335,27 @@ public class ProjectService {
         return milestones;
     }
 
+    // 단원 수 없이, 오늘부터 시험일까지 남은 주(week) 수만큼 "N주차 (M/d~M/d)"로 만든다.
+    // 세부 계획은 사용자가 제목을 직접 고쳐 쓰면 된다(마일스톤 제목은 타입 상관없이 수정 가능).
     private List<Milestone> generateExamMilestones(Project project) {
         List<Milestone> milestones = new ArrayList<>();
-        int totalUnits = project.getTotalUnits();
 
         LocalDate todayWeekStart = LocalDate.now().with(DayOfWeek.MONDAY);
         LocalDate examWeekStart = project.getExamDate().with(DayOfWeek.MONDAY);
         long weeksRemaining = Math.max(1, ChronoUnit.WEEKS.between(todayWeekStart, examWeekStart) + 1);
-        int unitsPerWeek = (int) Math.ceil((double) totalUnits / weeksRemaining);
 
-        int seq = 1;
-        int unit = 1;
         LocalDate weekCursor = todayWeekStart;
-        while (unit <= totalUnits) {
-            int end = Math.min(unit + unitsPerWeek - 1, totalUnits);
-            String title = (unit == end) ? unit + "단원" : unit + "~" + end + "단원";
+        for (int seq = 1; seq <= weeksRemaining; seq++) {
+            LocalDate weekEnd = weekCursor.plusDays(6);
+            String title = seq + "주차 (" + formatMonthDay(weekCursor) + "~" + formatMonthDay(weekEnd) + ")";
             milestones.add(Milestone.create(project.getId(), seq, title, isoWeekString(weekCursor)));
-            unit = end + 1;
-            seq++;
             weekCursor = weekCursor.plusWeeks(1);
         }
         return milestones;
+    }
+
+    private String formatMonthDay(LocalDate date) {
+        return date.getMonthValue() + "/" + date.getDayOfMonth();
     }
 
     private String isoWeekString(LocalDate date) {

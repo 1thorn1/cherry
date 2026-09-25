@@ -1,5 +1,5 @@
 import { useDroppable } from '@dnd-kit/core'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { IconCheck } from '@tabler/icons-react'
 import type { Task } from '../types/task'
 import {
@@ -42,13 +42,15 @@ function range(task: Task, view: TimetableView) {
   return { startMin, endMin: startMin + Math.max(durationMin, 20) }
 }
 
-function HourRow({ hour, disabled }: { hour: number; disabled: boolean }) {
+function HourRow({ hour, disabled, isCurrentHour }: { hour: number; disabled: boolean; isCurrentHour: boolean }) {
   const { setNodeRef, isOver } = useDroppable({ id: hourDroppableId(hour), disabled })
   return (
     <div
       ref={setNodeRef}
       className={`relative border-t border-neutral-100 ${isOver ? 'bg-[var(--cherry-bg)]' : ''}`}
-      style={{ height: ROW_HEIGHT }}
+      // 드래그 중 드롭 대상 표시(isOver)가 우선이고, 현재 시간대 표시는 그게 없을 때만
+      // 얹는다 — 둘 다 배경색이라 겹치면 드롭 피드백이 가려진다.
+      style={{ height: ROW_HEIGHT, background: !isOver && isCurrentHour ? 'rgba(212, 83, 126, 0.08)' : undefined }}
     >
       <span className="absolute -top-2 left-0 bg-white pr-2 text-[10px] text-neutral-400">
         {hour}
@@ -67,9 +69,24 @@ export default function Timetable({ tasks, view, onUnschedule }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const hours = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i)
   const visible = tasks.filter((t) => anchorTime(t, view))
+  const [currentHour, setCurrentHour] = useState(() => new Date().getHours())
 
   useEffect(() => {
     scrollToCurrentHour(scrollRef.current)
+  }, [])
+
+  // 시간이 지나면(특히 정각을 넘기면) 반투명 표시도 같이 옮겨가야 하니 1분마다,
+  // 탭이 다시 보일 때마다 갱신한다 — TodayPage의 날짜 갱신과 같은 패턴.
+  useEffect(() => {
+    function sync() {
+      setCurrentHour(new Date().getHours())
+    }
+    const id = setInterval(sync, 60_000)
+    document.addEventListener('visibilitychange', sync)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', sync)
+    }
   }, [])
 
   const layouts = layoutOverlaps(
@@ -83,10 +100,12 @@ export default function Timetable({ tasks, view, onUnschedule }: Props) {
   const layoutByKey = new Map(layouts.map((l) => [l.key, l]))
 
   return (
-    <div ref={scrollRef} className="overflow-y-auto" style={{ maxHeight: VISIBLE_HEIGHT }}>
+    // pt-2: 0시 줄의 시각 레이블이 -top-2로 줄 위쪽에 떠 있는데, 스크롤 컨테이너 맨 위라
+    // 여백 없이는 그 위로 나갈 자리가 없어 잘려 보였다. 패딩으로 숨 쉴 자리를 준다.
+    <div ref={scrollRef} className="overflow-y-auto pt-2" style={{ maxHeight: VISIBLE_HEIGHT }}>
       <div className="relative">
         {hours.map((h) => (
-          <HourRow key={h} hour={h} disabled={view === 'actual'} />
+          <HourRow key={h} hour={h} disabled={view === 'actual'} isCurrentHour={h === currentHour} />
         ))}
 
         {visible.map((task) => {

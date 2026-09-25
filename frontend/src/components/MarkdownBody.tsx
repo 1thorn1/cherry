@@ -2,41 +2,120 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
+import { IconCheck } from '@tabler/icons-react'
 
 // react-markdown은 rehype-raw 없이는 원래도 마크다운에 섞인 원문 HTML(<script> 등)을
 // 렌더링하지 않지만, 스펙(B-7/B-9)이 명시한 대로 sanitize를 한 겹 더 둔다.
 // GFM 체크리스트("- [ ] ...")가 만드는 <input type="checkbox">만 기본 스키마에 추가로 허용한다.
+// data-checkbox-index는 아래 rehypeCheckboxIndex가 붙이는 값이라 같이 허용해줘야 한다.
 const schema = {
   ...defaultSchema,
   tagNames: [...(defaultSchema.tagNames ?? []), 'input'],
   attributes: {
     ...defaultSchema.attributes,
-    input: [...(defaultSchema.attributes?.input ?? []), 'type', 'checked', 'disabled'],
+    input: [...(defaultSchema.attributes?.input ?? []), 'type', 'checked', 'disabled', 'dataCheckboxIndex'],
   },
 }
 
-export default function MarkdownBody({ children }: { children: string }) {
+// 체크박스가 문서에서 몇 번째인지를 React 컴포넌트 호출 중에 변수를 증가시켜 세면 안 된다 —
+// React StrictMode(개발 모드)가 렌더 함수를 일부러 두 번씩 호출해서 부작용을 잡아내는데,
+// 그 카운터도 두 번 늘어나 실제로는 체크박스가 하나뿐이어도 index가 1로 찍히는 식으로
+// 어긋났었다(실제로 겪은 버그: 체크박스를 눌러도 반영이 안 됨). 그래서 순서를 세는 일은
+// React 렌더와 무관하게 "한 번만" 도는 rehype 트리 변환 단계에서 끝내고, 그 결과(index)를
+// data-checkbox-index 속성으로 박아서 넘겨받기만 한다.
+function rehypeCheckboxIndex() {
+  return (tree: { type: string; tagName?: string; properties?: Record<string, unknown>; children?: unknown[] }) => {
+    let index = -1
+    function visit(node: typeof tree) {
+      if (node.type === 'element' && node.tagName === 'input' && node.properties?.type === 'checkbox') {
+        index += 1
+        node.properties = { ...node.properties, dataCheckboxIndex: index }
+      }
+      node.children?.forEach((child) => visit(child as typeof tree))
+    }
+    visit(tree)
+  }
+}
+
+export default function MarkdownBody({
+  children,
+  onToggleCheckbox,
+}: {
+  children: string
+  onToggleCheckbox?: (index: number) => void
+}) {
   return (
     <div className="text-sm text-neutral-700">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkBreaks]}
-        rehypePlugins={[[rehypeSanitize, schema]]}
+        rehypePlugins={[[rehypeSanitize, schema], rehypeCheckboxIndex]}
         components={{
-          h1: (p) => <h1 className="mb-1.5 mt-2 text-base font-semibold first:mt-0" {...p} />,
-          h2: (p) => <h2 className="mb-1.5 mt-2 text-sm font-semibold first:mt-0" {...p} />,
-          h3: (p) => <h3 className="mb-1 mt-2 text-sm font-medium first:mt-0" {...p} />,
-          p: (p) => <p className="mb-2 whitespace-pre-wrap leading-relaxed last:mb-0" {...p} />,
-          ul: (p) => <ul className="mb-2 list-disc space-y-0.5 pl-5 last:mb-0" {...p} />,
-          ol: (p) => <ol className="mb-2 list-decimal space-y-0.5 pl-5 last:mb-0" {...p} />,
-          li: (p) => <li {...p} />,
-          a: (p) => <a className="underline" style={{ color: 'var(--cherry)' }} target="_blank" rel="noreferrer" {...p} />,
-          code: (p) => <code className="rounded bg-neutral-100 px-1 py-0.5 text-[12px]" {...p} />,
-          pre: (p) => <pre className="mb-2 overflow-x-auto rounded-lg bg-neutral-100 p-2 text-[12px] last:mb-0" {...p} />,
-          blockquote: (p) => (
-            <blockquote className="mb-2 border-l-2 pl-2 text-neutral-500 last:mb-0" style={{ borderColor: 'var(--cherry)' }} {...p} />
+          h1: ({ node: _node, ...rest }) => <h1 className="mb-1.5 mt-2 text-base font-semibold first:mt-0" {...rest} />,
+          h2: ({ node: _node, ...rest }) => <h2 className="mb-1.5 mt-2 text-sm font-semibold first:mt-0" {...rest} />,
+          h3: ({ node: _node, ...rest }) => <h3 className="mb-1 mt-2 text-sm font-medium first:mt-0" {...rest} />,
+          p: ({ node: _node, ...rest }) => <p className="mb-2 whitespace-pre-wrap leading-relaxed last:mb-0" {...rest} />,
+          // GFM 체크리스트("- [ ] ...")는 remark-gfm이 이 <ul>에 className="contains-task-list"를
+          // 붙여서 넘겨준다. 예전엔 이 className이 우리가 준 list-disc 등을 그대로 덮어써서
+          // 체크리스트만 여백·불릿 스타일이 통째로 날아가 있었다(체크박스 자체는 떴지만
+          // 지저분해 보였음) — 이제 이 경우를 따로 분기해서 불릿 없이 정리된 형태로 준다.
+          ul: ({ node: _node, className, ...rest }) => (
+            <ul
+              className={
+                className === 'contains-task-list'
+                  ? 'mb-2 space-y-1 last:mb-0'
+                  : 'mb-2 list-disc space-y-0.5 pl-5 last:mb-0'
+              }
+              {...rest}
+            />
           ),
-          strong: (p) => <strong className="font-semibold" {...p} />,
-          input: (p) => <input disabled className="mr-1.5 align-middle" {...p} />,
+          ol: ({ node: _node, ...rest }) => <ol className="mb-2 list-decimal space-y-0.5 pl-5 last:mb-0" {...rest} />,
+          li: ({ node: _node, className, ...rest }) => (
+            <li className={className === 'task-list-item' ? 'flex list-none items-start gap-1.5' : undefined} {...rest} />
+          ),
+          a: ({ node: _node, ...rest }) => (
+            <a className="underline" style={{ color: 'var(--cherry)' }} target="_blank" rel="noreferrer" {...rest} />
+          ),
+          code: ({ node: _node, ...rest }) => <code className="rounded bg-neutral-100 px-1 py-0.5 text-[12px]" {...rest} />,
+          pre: ({ node: _node, ...rest }) => (
+            <pre className="mb-2 overflow-x-auto rounded-lg bg-neutral-100 p-2 text-[12px] last:mb-0" {...rest} />
+          ),
+          blockquote: ({ node: _node, ...rest }) => (
+            <blockquote className="mb-2 border-l-2 pl-2 text-neutral-500 last:mb-0" style={{ borderColor: 'var(--cherry)' }} {...rest} />
+          ),
+          strong: ({ node: _node, ...rest }) => <strong className="font-semibold" {...rest} />,
+          // 브라우저마다 다르게 생긴 기본 input[type=checkbox] 대신 앱 다른 곳(마일스톤 칩)과
+          // 같은 모양의 체크박스로 그린다. onToggleCheckbox가 있으면 눌러서 원문의 [ ]/[x]를
+          // 바로 뒤집을 수 있게 한다(없으면 지금까지처럼 읽기 전용 표시만).
+          input: ({ node: _node, checked, type, ...rest }) => {
+            if (type !== 'checkbox') return <input type={type} {...rest} />
+            const index = Number((rest as Record<string, unknown>)['data-checkbox-index'])
+            const interactive = Boolean(onToggleCheckbox)
+            return (
+              <span
+                role={interactive ? 'checkbox' : undefined}
+                aria-checked={interactive ? Boolean(checked) : undefined}
+                tabIndex={interactive ? 0 : undefined}
+                onClick={interactive ? () => onToggleCheckbox?.(index) : undefined}
+                onKeyDown={
+                  interactive
+                    ? (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          onToggleCheckbox?.(index)
+                        }
+                      }
+                    : undefined
+                }
+                className={`mr-0.5 mt-0.5 inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm ${interactive ? 'cursor-pointer' : ''}`}
+                style={{
+                  background: checked ? 'var(--cherry)' : 'white',
+                  border: checked ? 'none' : '1.5px solid #D4D0C4',
+                }}
+              >
+                {checked && <IconCheck size={9} stroke={3} color="white" />}
+              </span>
+            )
+          },
         }}
       >
         {children}

@@ -9,6 +9,7 @@ export interface Project {
   exam_date: string | null
   status: string
   shared: boolean
+  starred: boolean
   work_days: number[]
   created_at: string
 }
@@ -38,30 +39,8 @@ export interface TimelineEntry {
   url: string | null
   count: number | null
   milestone_id: number | null
+  note_date: string | null
   at: string
-}
-
-export interface ProjectLane {
-  project_id: number
-  name: string
-  color: string
-  start_date: string
-  end_date: string | null
-  open_ended: boolean
-}
-
-export interface MilestoneTrack {
-  seq: number
-  title: string
-  completed: boolean
-}
-
-export interface FocusProject {
-  project_id: number
-  name: string
-  type: ProjectType
-  milestones: MilestoneTrack[]
-  cart_index: number
 }
 
 export interface OtherProject {
@@ -72,12 +51,10 @@ export interface OtherProject {
   completed_milestones: number
   total_milestones: number
   key_metric: string
+  starred: boolean
 }
 
 export interface ProjectOverview {
   overlap_warning: string | null
-  weeks: string[]
-  lanes: ProjectLane[]
-  focus: FocusProject | null
   others: OtherProject[]
 }

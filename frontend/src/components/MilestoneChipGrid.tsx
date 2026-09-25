@@ -1,7 +1,9 @@
 import { useState, type MouseEvent } from 'react'
 import { IconCheck, IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 import type { Milestone, TimelineEntry } from '../types/project'
+import AutoGrowTextarea from './AutoGrowTextarea'
 import NoteEntry from './NoteEntry'
+import WeekDayAccordion from './WeekDayAccordion'
 
 export default function MilestoneChipGrid({
   milestones,
@@ -25,7 +27,7 @@ export default function MilestoneChipGrid({
   onSendToday: (m: Milestone) => void
   onRename: (milestoneId: number, title: string) => Promise<void>
   renamingId: number | null
-  onAddNote: (milestoneId: number, body: string) => Promise<void>
+  onAddNote: (milestoneId: number, body: string, noteDate?: string) => Promise<void>
   onUpdateNote: (noteId: number, body: string | null, url: string | null) => Promise<void>
   onDeleteNote: (noteId: number) => Promise<void>
   completingId: number | null
@@ -37,6 +39,7 @@ export default function MilestoneChipGrid({
   const [page, setPage] = useState(0)
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
+  const [noteSort, setNoteSort] = useState<'newest' | 'oldest'>('newest')
 
   if (milestones.length === 0) {
     return <p className="py-4 text-center text-xs text-neutral-400">마일스톤이 없어요</p>
@@ -88,7 +91,9 @@ export default function MilestoneChipGrid({
     setDraft('')
   }
 
-  const selectedNotes = selected ? notesByMilestone.get(selected.id) ?? [] : []
+  // 백엔드가 최신순으로 내려주므로, "오래된순"일 때만 뒤집는다.
+  const rawSelectedNotes = selected ? notesByMilestone.get(selected.id) ?? [] : []
+  const selectedNotes = noteSort === 'oldest' ? [...rawSelectedNotes].reverse() : rawSelectedNotes
 
   return (
     <div>
@@ -126,8 +131,10 @@ export default function MilestoneChipGrid({
                       // 완료 여부는 채우기 색으로만 표시한다(테두리색으로 구분하지 않는다) — 완료
                       // 안 됐다고 흰 배경에 옅은 테두리만 두면 눈에 잘 안 띄어서, 명확한 회색
                       // 채우기를 기본값으로 준다. 선택(패널 열림) 표시만 링(box-shadow)으로 얹는다.
+                      // inset을 써서 칩 박스 안쪽으로만 그린다 — 바깥쪽 링은 페이지 캐러셀의
+                      // overflow-hidden에 가장자리 칩(첫/끝 칸)의 테두리가 잘려 보이는 문제가 있었다.
                       background: m.completed ? 'var(--cherry-bg)' : '#F1EFE8',
-                      boxShadow: expandedId === m.id ? '0 0 0 2px var(--cherry)' : 'none',
+                      boxShadow: expandedId === m.id ? 'inset 0 0 0 2px var(--cherry)' : 'none',
                     }}
                   >
                     <button
@@ -238,41 +245,67 @@ export default function MilestoneChipGrid({
                 </p>
               )}
 
-              <div className="mb-2">
-                <textarea
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.nativeEvent.isComposing) return
-                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                      e.preventDefault()
-                      handleSubmitNote()
-                    }
-                  }}
-                  placeholder={'이 구간에 남길 메모 (마크다운 지원 — # 제목, - 목록, **굵게**, [ ] 체크박스...)'}
-                  rows={6}
-                  className="mb-1.5 w-full resize-y rounded-lg border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-neutral-400"
+              {selected.target_week ? (
+                <WeekDayAccordion
+                  milestoneId={selected.id}
+                  targetWeek={selected.target_week}
+                  notes={rawSelectedNotes}
+                  onAddNote={onAddNote}
+                  onUpdateNote={onUpdateNote}
+                  onDeleteNote={onDeleteNote}
+                  savingNoteId={savingNoteId}
                 />
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-neutral-300">⌘/Ctrl + Enter로 저장</span>
-                  <button
-                    onClick={handleSubmitNote}
-                    disabled={savingNoteId === selected.id}
-                    className="rounded-lg border border-neutral-200 px-3 py-1 text-xs font-medium text-neutral-500 disabled:opacity-50"
-                  >
-                    {savingNoteId === selected.id ? '저장 중...' : '기록'}
-                  </button>
-                </div>
-              </div>
+              ) : (
+                <>
+                  <div className="mb-2">
+                    <AutoGrowTextarea
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.nativeEvent.isComposing) return
+                        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                          e.preventDefault()
+                          handleSubmitNote()
+                        }
+                      }}
+                      placeholder="이 구간 메모 (마크다운 지원)"
+                      rows={3}
+                      className="mb-1.5 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none transition-shadow focus:border-[var(--cherry)] focus:ring-2 focus:ring-[var(--cherry-bg)]"
+                    />
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-neutral-300">⌘/Ctrl + Enter로 저장</span>
+                      <button
+                        onClick={handleSubmitNote}
+                        disabled={savingNoteId === selected.id}
+                        className="rounded-lg border border-neutral-200 px-3 py-1 text-xs font-medium text-neutral-500 disabled:opacity-50"
+                      >
+                        {savingNoteId === selected.id ? '저장 중...' : '기록'}
+                      </button>
+                    </div>
+                  </div>
 
-              {selectedNotes.length > 0 && (
-                <ul className="space-y-1.5">
-                  {selectedNotes.map((entry) => (
-                    <li key={`${entry.kind}-${entry.ref_id}`} className="rounded-lg bg-neutral-50 px-3 py-2">
-                      <NoteEntry entry={entry} onUpdate={onUpdateNote} onDelete={onDeleteNote} />
-                    </li>
-                  ))}
-                </ul>
+                  {selectedNotes.length > 0 && (
+                    <>
+                      {selectedNotes.length > 1 && (
+                        <div className="mb-1.5 flex justify-end">
+                          <button
+                            onClick={() => setNoteSort((s) => (s === 'newest' ? 'oldest' : 'newest'))}
+                            className="text-[10px] text-neutral-400 hover:text-neutral-600"
+                          >
+                            {noteSort === 'newest' ? '최신순' : '오래된순'}
+                          </button>
+                        </div>
+                      )}
+                      <ul className="space-y-1.5">
+                        {selectedNotes.map((entry) => (
+                          <li key={`${entry.kind}-${entry.ref_id}`} className="rounded-lg bg-neutral-50 px-3 py-2">
+                            <NoteEntry entry={entry} onUpdate={onUpdateNote} onDelete={onDeleteNote} hideKindLabel showDate />
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </>
               )}
             </div>
           )}

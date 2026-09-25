@@ -8,6 +8,7 @@ import java.util.List;
 public record CalendarDayResponse(
         LocalDate date,
         List<TaskResponse> tasks,
+        List<TaskResponse> actualTasks,
         List<RoutinePreviewResponse> previews
 ) {
 }

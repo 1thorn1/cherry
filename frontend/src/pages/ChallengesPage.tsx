@@ -1,13 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import type { Challenge } from '../types/challenge'
-import { createChallenge, getChallenges, joinChallenge, type CreateChallengeInput } from '../api/challenges'
+import { createChallenge, getChallengeProjectLinks, joinChallenge, type CreateChallengeInput } from '../api/challenges'
+import { getProjectOverview, updateProjectStarred } from '../api/projects'
+import type { ChallengeProjectLink } from '../types/challenge'
+import type { ProjectOverview } from '../types/project'
+import ProjectListItem from '../components/ProjectListItem'
 
 type Mode = 'FREE' | 'PROGRESS' | 'EXAM'
 
 export default function ChallengesPage() {
   const navigate = useNavigate()
-  const [challenges, setChallenges] = useState<Challenge[]>([])
+  // 같이 하기 목록도 프로젝트 목록과 같은 데이터(내 프로젝트 전체 + 챌린지 연결 정보)에서
+  // "챌린지에 연결된 것만" 걸러서 보여준다 — 두 화면이 서로 다른 API를 따로 불러서
+  // 카드 모양도, 진행률 표시도 다 달랐던 게 "연동이 안 된" 느낌의 원인이었다.
+  const [overview, setOverview] = useState<ProjectOverview | null>(null)
+  const [challengeLinks, setChallengeLinks] = useState<ChallengeProjectLink[]>([])
   const [title, setTitle] = useState('')
   const [mode, setMode] = useState<Mode>('FREE')
   const [totalUnits, setTotalUnits] = useState('')
@@ -16,10 +23,13 @@ export default function ChallengesPage() {
   const [saving, setSaving] = useState(false)
   const [joining, setJoining] = useState(false)
   const [error, setError] = useState('')
+  const [selectedChallengeId, setSelectedChallengeId] = useState<number | null>(null)
 
   async function load() {
     try {
-      setChallenges(await getChallenges())
+      const [projectOverview, links] = await Promise.all([getProjectOverview(), getChallengeProjectLinks()])
+      setOverview(projectOverview)
+      setChallengeLinks(links)
       setError('')
     } catch (e) {
       setError(e instanceof Error ? e.message : '불러오지 못했습니다')
@@ -28,9 +38,39 @@ export default function ChallengesPage() {
 
   useEffect(() => { load() }, [])
 
+  function handleChallengeClick(id: number) {
+    if (selectedChallengeId === id) {
+      navigate(`/challenges/${id}`)
+    } else {
+      setSelectedChallengeId(id)
+    }
+  }
+
+  async function handleToggleStar(e: MouseEvent, projectId: number, starred: boolean) {
+    e.stopPropagation()
+    try {
+      await updateProjectStarred(projectId, !starred)
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '즐겨찾기 설정에 실패했습니다')
+    }
+  }
+
   async function handleCreate() {
+    if (saving) return
     const trimmed = title.trim()
-    if (!trimmed || saving) return
+    if (!trimmed) {
+      setError('방 이름을 입력해주세요')
+      return
+    }
+    if (mode === 'PROGRESS' && !totalUnits.trim()) {
+      setError('총 회차 수를 입력해주세요')
+      return
+    }
+    if (mode === 'EXAM' && !targetDate) {
+      setError('시험일을 입력해주세요')
+      return
+    }
 
     setSaving(true)
     try {
@@ -40,7 +80,6 @@ export default function ChallengesPage() {
         input.total_units = Number(totalUnits)
       } else if (mode === 'EXAM') {
         input.type = 'EXAM'
-        input.total_units = Number(totalUnits)
         input.target_date = targetDate
       }
       const created = await createChallenge(input)
@@ -73,10 +112,22 @@ export default function ChallengesPage() {
   }
 
   const modeOptions: { value: Mode; label: string }[] = [
-    { value: 'FREE', label: '자유롭게' },
-    { value: 'PROGRESS', label: '회차가 있어요' },
-    { value: 'EXAM', label: '시험일이 있어요' },
+    { value: 'FREE', label: '자유형' },
+    { value: 'PROGRESS', label: '회차별' },
+    { value: 'EXAM', label: '시험일' },
   ]
+
+  // 나간 방은 "참여 중"이 아니므로 여기 목록에서는 뺀다 — 아예 사라지진 않고
+  // 프로젝트 목록에 "지난 같이 하기" 태그로 남는다.
+  const challengeProjects = overview
+    ? challengeLinks
+        .filter((link) => !link.left)
+        .map((link) => {
+          const project = overview.others.find((p) => p.project_id === link.project_id)
+          return project ? { project, link } : null
+        })
+        .filter((entry): entry is { project: (typeof overview.others)[number]; link: ChallengeProjectLink } => entry !== null)
+    : []
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
@@ -135,21 +186,12 @@ export default function ChallengesPage() {
         )}
 
         {mode === 'EXAM' && (
-          <div className="mb-3 flex gap-2">
-            <input
-              type="number"
-              value={totalUnits}
-              onChange={(e) => setTotalUnits(e.target.value)}
-              placeholder="단원 수"
-              className="flex-1 rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
-            />
-            <input
-              type="date"
-              value={targetDate}
-              onChange={(e) => setTargetDate(e.target.value)}
-              className="flex-1 rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
-            />
-          </div>
+          <input
+            type="date"
+            value={targetDate}
+            onChange={(e) => setTargetDate(e.target.value)}
+            className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+          />
         )}
 
         <button
@@ -166,19 +208,27 @@ export default function ChallengesPage() {
         <p className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-xs text-red-600">{error}</p>
       )}
 
-      {challenges.length === 0 ? (
+      {!overview && !error && (
+        <p className="py-8 text-center text-xs text-neutral-400">불러오는 중...</p>
+      )}
+
+      {overview && challengeProjects.length === 0 && (
         <p className="py-8 text-center text-xs text-neutral-400">아직 참여 중인 방이 없어요</p>
-      ) : (
-        challenges.map((challenge) => (
-          <Link
-            key={challenge.id}
-            to={`/challenges/${challenge.id}`}
-            className="flex items-center justify-between border-b border-neutral-100 py-3 text-sm"
-          >
-            <span>{challenge.title}</span>
-            <span className="text-[11px] text-neutral-400">{challenge.invite_code}</span>
-          </Link>
-        ))
+      )}
+
+      {challengeProjects.length > 0 && (
+        <div className="space-y-2">
+          {challengeProjects.map(({ project: p, link }) => (
+            <ProjectListItem
+              key={p.project_id}
+              project={p}
+              selected={selectedChallengeId === link.challenge_id}
+              onClick={() => handleChallengeClick(link.challenge_id)}
+              onToggleStar={(e) => handleToggleStar(e, p.project_id, p.starred)}
+              secondaryLink={{ to: `/projects/${p.project_id}`, label: '내 프로젝트' }}
+            />
+          ))}
+        </div>
       )}
     </div>
   )

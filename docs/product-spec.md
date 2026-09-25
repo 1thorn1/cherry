@@ -151,12 +151,14 @@
 1. **겹침 경고 배너** — "10월 2주에 두 개가 같이 끝나요. 하나를 당기거나 미루는 게 좋아요"
    카드 목록으로는 절대 볼 수 없는 정보. 이 탭에 들어올 이유가 된다.
 2. **압축 레인 타임라인** — 프로젝트별 막대를 6주 격자 위에 표시. 오늘 위치 세로선
-3. **포커스 카드 (1개)** — 롤러코스터 트랙으로 진행 표현
-   - 마일스톤 1개 = 트랙 1구간
-   - 완공 구간은 실선 + 기둥, 남은 구간은 점선
-   - 현재 위치에 카트 표시
-   - 포커스 대상은 **최근 7일 완료가 가장 많은 프로젝트를 앱이 자동 선정** (사용자 설정 아님)
-4. **나머지 프로젝트** — 축약 행. 진행 도트 + 핵심 지표
+3. **즐겨찾기** — 사용자가 프로젝트 카드의 별표를 직접 눌러서 고른다. 즐겨찾기한
+   프로젝트가 목록 맨 위 "즐겨찾기" 구간에, 나머지는 "프로젝트" 구간에 모인다
+   (2026-09-25 변경 — 원래는 "최근 7일 완료가 가장 많은 프로젝트를 앱이 자동 선정"하는
+   포커스 카드 1개 + 롤러코스터 트랙 표시였는데, 왜 그 프로젝트가 뽑혔는지 사용자가
+   알기 어렵다는 피드백으로 사용자가 직접 고르는 별표 방식으로 교체)
+4. **프로젝트 카드** — 이름 + 별표 + 진행 도트/막대 + 핵심 지표. 한 번 누르면 선택(테두리
+   강조)만 되고, 선택된 카드를 한 번 더 누르면 상세 화면으로 들어간다(실수로 바로
+   들어가버리는 걸 방지)
 
 ### A-6-4. 프로젝트 — 상세
 
@@ -538,6 +540,8 @@ A-6-14(친구)는 공원만 보여주고 일정은 감춘다. **여기는 반대
 
 > **이 구조의 이점: 방을 나가도 내 진도는 그대로 남는다.**
 > 오픽 준비를 혼자 계속하면 된다. 나가는 것이 무섭지 않아진다.
+
+나간 뒤에도 프로젝트 목록(A-6-3)에 정체 모를 프로젝트로 남지 않도록, 나간 방의 프로젝트는 "지난 같이 하기" 태그로만 구분해 보여준다(2026-09-25). 초대 코드(방 자체)로 재참여하면 예전 프로젝트가 아니라 새 프로젝트가 다시 생긴다.
 
 #### 공유되는 것
 
@@ -1374,7 +1378,7 @@ WHERE user_id = ? AND occurred_on = ? AND amount > 0;
 | `POST` | `/api/challenges/join` | *(v2)* 초대 코드로 참여. 프로젝트 복제 생성 |
 | `GET` | `/api/challenges/{id}` | *(v2)* 멤버별 진도 + 최근 7일 |
 | `PATCH` | `/api/challenges/{id}/pause` | *(v2)* 잠시 쉬기 / 재개 |
-| `DELETE` | `/api/challenges/{id}/leave` | *(v2)* 조용히 나가기. 내 프로젝트는 유지 |
+| `DELETE` | `/api/challenges/{id}/leave` | *(v2)* 조용히 나가기. 내 프로젝트는 유지(A-6-15의 설계 의도), 프로젝트 목록에는 "지난 같이 하기" 태그로 구분 표시 |
 | `PATCH` | `/api/tasks/{id}/reminder` | *(v1.1)* 알림 시점 변경 (0/10/30/해제) |
 | `POST` | `/api/push/subscribe` | *(v1.1)* 기기 구독 등록 |
 | `DELETE` | `/api/push/subscribe` | *(v1.1)* 구독 해제 |
@@ -1619,6 +1623,13 @@ WHERE MATCH(body) AGAINST('그리드' IN BOOLEAN MODE);
 | 2026-09-23 | `frontend/src/pages/TodayPage.tsx`, `ProjectsPage.tsx`, `ProjectDetailPage.tsx` (`today`/`getTodayStr` 각각 직접 계산) | `new Date().toISOString().slice(0, 10)`은 UTC 기준이라 KST(UTC+9) 자정~오전 9시 사이엔 하루 전 날짜를 돌려준다. 게다가 `TodayPage.tsx`는 이 값을 모듈 최상단에서 상수로 한 번만 계산해, 탭을 자정 넘겨 켜둔 채로 있으면 "오늘"이 영원히 그 날짜에 고정됐다(2026-09-22 B-11에 기록된 `tomorrowDate()` UTC 버그와 같은 패턴이 다른 곳에도 남아있던 것). "캘린더는 24일인데 투두만 23일로 나온다"는 리포트로 발견 — 캘린더는 `date-fns`의 `format()`(로컬 기준)을 써서 이 버그가 없었다 | 수정 완료 — 같은 작업(2026-09-23) 중 `frontend/src/lib/date.ts`에 `getFullYear/getMonth/getDate` 기반 `getTodayStr()`를 만들어 세 파일 모두 교체. `TodayPage`엔 1분 간격 + 탭 재활성화 시 날짜 갱신 로직도 추가 |
 | 2026-09-23 | 프로젝트 전체 (Spring Boot 4.1.1) | `application.yml`에 `spring.session.store-type: jdbc`를 설정했지만 실제로는 조용히 무시되고 인메모리 세션(`JSESSIONID`)을 계속 사용 중이었음. 이 Spring Boot 버전의 `spring-boot-autoconfigure` jar 안에 세션 관련 자동설정이 단 하나도 없었음(`AutoConfiguration.imports`를 직접 열어 확인) — Boot 자동설정에 세션 지원이 아직 없는 것으로 보임. "재시작하면 로그인이 풀린다"는 리포트를 검증하다가 `SPRING_SESSION` 테이블이 계속 0행인 것으로 발견 | 수정 완료 — 같은 작업(2026-09-23) 중 `com.cherry.auth.SessionConfig`에서 `@EnableJdbcHttpSession`으로 직접 배선(Boot 자동설정에 기대지 않음), 쿠키 `Max-Age`도 직접 30일로 설정 |
 | 2026-09-24 | `backend/src/main/java/com/cherry/task/Task.java`, `TaskService.java` (마일스톤-태스크 연동, V15~ 작업에서 도입) | 오늘 화면 체크박스로 완료 취소할 때 쓰는 `Task.uncomplete()`가 `milestoneId`까지 `null`로 지워버리고 마일스톤 쪽 완료 상태는 건드리지 않음. 그래서 프로젝트 칩에서 완료한 마일스톤을 오늘 화면 체크박스로 취소하면, 태스크는 마일스톤과 연결이 끊긴 채 미완료로 남고(겉보기엔 그냥 평범한 할 일) 마일스톤은 "완료됨"에 영영 갇힘. 게다가 `uncompleteMilestoneNow()`는 뒷받침하는 완료 태스크를 못 찾으면 예외를 던져 트랜잭션이 롤백되므로, 그 상태에서 태스크를 지우면 나중에 칩에서 완료 취소를 눌러도 계속 실패함. "투두에서 1강 2강 지우니까 태스크가 날아갔다"는 리포트로 발견, DB에서 milestone_id별 태스크 이력을 직접 대조해 확인 | 수정 완료 — `TaskService.uncomplete()`가 `reopen()`으로 `milestoneId`를 보존하고 마일스톤도 같이 `uncomplete()`시키도록 변경, `uncompleteMilestoneNow()`는 뒷받침 태스크가 없어도 예외 없이 마일스톤만 정상 처리하도록 변경. 이 버그로 이미 고아 상태가 된 마일스톤 2개(project 38의 "2강", "6강")는 데이터로 직접 정리 |
+| 2026-09-25 | `frontend/src/pages/ChallengesPage.tsx` (같이 하기 방 만들기 폼, V4 프로젝트 기능과 별도로 관리됨) | 프로젝트 만들기 폼(A-6-3)에서 시험형(`EXAM`)의 "단원 수" 입력을 없애고 모드 라벨을 "자유형/회차별/시험일"로 바꿨는데, 같은 생성 로직을 그대로 재사용하는 같이 하기 방 만들기 폼은 손대지 않아서 옛 라벨("자유롭게/회차가 있어요/시험일이 있어요")과 "단원 수" 입력이 그대로 남아 있었음. 시험형 방을 만들면 백엔드가 요구하지 않는 값을 프론트가 계속 요구하는 상태. "자유형, 회차형, 시험일 이거도 안바뀌었어" 리포트로 발견 | 수정 완료 — 같은 작업(2026-09-25) 중 `ChallengesPage.tsx`의 라벨과 EXAM 입력을 `ProjectsPage.tsx`와 동일하게 맞춤. 필수값 누락 시 조용히 무시되던 것도 에러 배너로 안내하도록 같이 수정 |
+| 2026-09-25 | `frontend/src/pages/ProjectDetailPage.tsx` (마일스톤 없을 때 화면) | "진행" 탭에서 마일스톤이 하나도 없으면 `MilestoneTrack`과 `MilestoneChipGrid`가 각자 독립적으로 빈 상태를 검사해서 둘 다 "마일스톤이 없어요"를 렌더링 — 같은 문구가 위아래로 두 번 찍힘. 방금 만든 자유형 프로젝트(마일스톤 0개)에서 항상 재현됨. "마일스톤이 없어요 탭이 2개야" 리포트로 발견 | 수정 완료 — 같은 작업(2026-09-25) 중 마일스톤이 있을 때만 `MilestoneTrack`을 렌더링하도록 변경, 빈 상태 문구는 `MilestoneChipGrid` 한 곳에서만 보여줌 |
+| 2026-09-25 | `backend/src/main/java/com/cherry/challenge/ChallengeService.java` (`join`, `detail`), `ChallengeMemberRepository.java` (V4 같이 하기 기능에서 도입) | `challenge_member`는 `(challenge_id, user_id)` 복합키라 한 번 나간(leftAt 설정) 챌린지도 행이 그대로 남는데, 재참여 가능 여부를 확인하는 `existsByChallengeIdAndUserId()`가 `left_at`을 보지 않고 "그 행이 존재하는가"만 확인함. 그래서 챌린지를 나간 뒤 같은 초대 코드로 다시 들어가려 하면 실제로는 멤버가 아닌데도 `AlreadyChallengeMemberException`(이미 참여 중)이 떠서 영원히 재참여할 수 없었음. "잠시 쉬기 하고 나가면 다시 재개가 안되는 거 같아" 리포트를 받고, curl로 직접 재참여를 호출해 같은 에러를 재현해 확인 | 수정 완료 — 같은 작업(2026-09-25) 중 `existsByChallengeIdAndUserIdAndLeftAtIsNull()`로 교체(가입 여부·상세 조회 권한 둘 다). 복합키가 그대로 있으므로 재참여 시 `save()`가 merge를 통해 기존 행을 되살려 `left_at`/`paused`/`shared_memo`를 초기화하고 새 프로젝트로 연결함 — 실제 계정으로 재현 후 정상 동작 확인 |
+| 2026-09-25 | `frontend/src/components/Timetable.tsx` (오늘 화면 시간표, v1 도입 이후 쭉 있던 구조) | 각 시간 줄의 시각 레이블을 줄 위쪽(`-top-2`)에 띄우는 구조라, 맨 위 0시 줄은 스크롤 컨테이너 상단 바깥으로 나갈 자리가 없어 레이블이 잘려 보였음(스크롤이 맨 위일 때만 재현). "시간표에서 0시 짤리는거" 리포트로 발견 | 수정 완료 — 같은 작업(2026-09-25) 중 스크롤 컨테이너에 `pt-2` 추가로 여백 확보(절대 위치 자식들의 좌표 기준은 영향 없어 다른 줄 정렬은 그대로) |
+| 2026-09-25 | `frontend/src/components/MilestoneChipGrid.tsx` (마일스톤 칩 선택 표시, 이번 세션 카드 UI 정리 중 도입) | 칩을 눌렀을 때 선택 표시로 쓰는 바깥쪽 `box-shadow` 링이 회차 페이지 캐러셀 wrapper의 `overflow-hidden`에 걸려, 각 페이지 5칸 중 첫/끝 칸 칩을 누르면 그쪽 테두리가 잘려 보였음. "프로젝트 마일스톤 만들어서 클릭하면 테두리 짤리는 거" 리포트로 발견 | 수정 완료 — 같은 작업(2026-09-25) 중 `box-shadow`를 `inset`으로 바꿔 칩 박스 안쪽에 그리도록 수정, 레이아웃 변경 없이 클리핑만 제거 |
+| 2026-09-25 | `backend/src/main/java/com/cherry/calendar/CalendarService.java` (`getWeek`, v1 캘린더 기능에서 도입) | 주간 캘린더의 "실제" 탭은 완료된 태스크를 예정일(`taskDate`) 기준으로 묶어 보여줬는데, 월간 캘린더의 "이번 달 완료" 집계는 스펙(A-6-8 `COALESCE(effective_at, completed_at)` 기준)대로 실제 완료일 기준으로 묶는다. 이월된 태스크(예: 9/23에 할 일로 잡아놓고 9/24~25에 완료)는 주간에선 9/23에, 월간에선 9/24·25에 표시돼 두 화면 숫자가 안 맞았음. "월간이랑 주간의 스케줄이 일치 안하는 거 같은데" 리포트로 발견, DB에서 `task_date != DATE(COALESCE(effective_at, completed_at))`인 실사용자 데이터 3건으로 재현 확인 | 수정 완료 — 같은 작업(2026-09-25) 중 `CalendarDayResponse`에 `actualTasks`(완료일 기준으로 별도로 묶은 목록)를 추가하고, 프론트 "실제" 탭·종일 완료 항목 모두 이 목록을 쓰도록 변경. 월간 집계와 다시 curl로 대조해 날짜별 숫자·제목이 정확히 일치하는 것 확인 |
+| 2026-09-25 | `backend/src/main/java/com/cherry/task/TaskService.java` (`getToday`, v1 오늘 화면부터 있던 구조) | 위 캘린더 수정 뒤에도 "완료한 날 투두에 없다"는 후속 리포트로 발견 — 오늘 화면의 "완료" 목록도 `taskDate` 기준이라 실제 완료일과 다른 날에 잡혀 있던 태스크는 완료해도 그 날 목록에 남지 않고 원래 예정일 쪽 완료 목록에 그대로 남아 있었음(투두는 taskDate 기준, 캘린더/월간은 완료일 기준이라 셋이 서로 다른 이야기를 하고 있었음). 이번엔 taskDate 범위로 먼저 걸러서 그 안에서 완료일로 재배치하던 이전 방식의 한계(taskDate가 조회 범위 밖이면 아예 못 찾음)도 같이 발견 | 수정 완료 — 같은 작업(2026-09-25) 중 `TaskRepository`에 완료일(`COALESCE`) 범위로 직접 조회하는 `findByUserIdAndEffectiveDateBetween()`을 추가해 `getToday()`의 "완료" 목록·`getWeek()`의 `actualTasks`·`getMonth()`의 일별 집계 세 곳 모두 이걸로 교체(taskDate 범위 제약 없이 완료일만으로 정확히 조회). 투두·주간·월간 세 화면을 같은 날짜로 다시 대조해 완전히 일치하는 것 확인 |
 
 ---
 
