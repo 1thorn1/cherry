@@ -54,8 +54,20 @@ export default function ProjectsPage() {
   }
 
   async function handleCreate() {
+    if (saving) return
     const trimmed = name.trim()
-    if (!trimmed || saving) return
+    if (!trimmed) {
+      setError('프로젝트 이름을 입력해주세요')
+      return
+    }
+    if (mode === 'PROGRESS' && !totalUnits.trim()) {
+      setError('총 회차 수를 입력해주세요')
+      return
+    }
+    if (mode === 'EXAM' && !examDate) {
+      setError('시험일을 입력해주세요')
+      return
+    }
 
     setSaving(true)
     try {
