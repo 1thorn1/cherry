@@ -297,7 +297,7 @@ export default function ProjectDetailPage() {
 
       {tab === 'progress' && (
         <div>
-          <MilestoneTrack milestones={detail.milestones} />
+          {detail.milestones.length > 0 && <MilestoneTrack milestones={detail.milestones} />}
           {detail.project.type === 'FREE' && (
             <div className="mt-3 flex gap-2">
               <input

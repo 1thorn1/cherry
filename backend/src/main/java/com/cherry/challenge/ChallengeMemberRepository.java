@@ -7,7 +7,7 @@ import java.util.Optional;
 
 public interface ChallengeMemberRepository extends JpaRepository<ChallengeMember, ChallengeMemberId> {
 
-    boolean existsByChallengeIdAndUserId(Long challengeId, Long userId);
+    boolean existsByChallengeIdAndUserIdAndLeftAtIsNull(Long challengeId, Long userId);
 
     Optional<ChallengeMember> findByChallengeIdAndUserId(Long challengeId, Long userId);
 

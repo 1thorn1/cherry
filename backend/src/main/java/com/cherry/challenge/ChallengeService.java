@@ -66,7 +66,7 @@ public class ChallengeService {
                 .filter(c -> c.getClosedAt() == null)
                 .orElseThrow(ChallengeNotFoundException::new);
 
-        if (challengeMemberRepository.existsByChallengeIdAndUserId(challenge.getId(), userId)) {
+        if (challengeMemberRepository.existsByChallengeIdAndUserIdAndLeftAtIsNull(challenge.getId(), userId)) {
             throw new AlreadyChallengeMemberException();
         }
 
@@ -108,7 +108,7 @@ public class ChallengeService {
     public ChallengeDetailResponse detail(Long userId, Long challengeId) {
         Challenge challenge = challengeRepository.findById(challengeId)
                 .orElseThrow(ChallengeNotFoundException::new);
-        if (!challengeMemberRepository.existsByChallengeIdAndUserId(challengeId, userId)) {
+        if (!challengeMemberRepository.existsByChallengeIdAndUserIdAndLeftAtIsNull(challengeId, userId)) {
             throw new ChallengeNotFoundException();
         }
 
