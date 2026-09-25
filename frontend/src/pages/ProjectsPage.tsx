@@ -1,10 +1,11 @@
-import { useEffect, useState, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { IconChevronRight, IconStar, IconStarFilled } from '@tabler/icons-react'
+import { IconStar, IconStarFilled } from '@tabler/icons-react'
 import type { OtherProject, ProjectOverview } from '../types/project'
 import { createProject, getProjectOverview, updateProjectStarred, type CreateProjectInput } from '../api/projects'
 import { getChallengeProjectLinks } from '../api/challenges'
 import type { ChallengeProjectLink } from '../types/challenge'
+import { SelectableCard, SelectableCardHint } from '../components/SelectableCard'
 
 type Mode = 'FREE' | 'PROGRESS' | 'EXAM'
 
@@ -298,7 +299,7 @@ function ProjectListItem({
   challengeLink?: ChallengeProjectLink
 }) {
   return (
-    <ProjectCard selected={selected} onClick={onClick}>
+    <SelectableCard selected={selected} onClick={onClick}>
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5">
           <button onClick={onToggleStar} aria-label={p.starred ? '즐겨찾기 해제' : '즐겨찾기 추가'} className="shrink-0">
@@ -344,51 +345,7 @@ function ProjectListItem({
           </div>
         )
       )}
-      <ProjectCardHint selected={selected} />
-    </ProjectCard>
-  )
-}
-
-// 프로젝트를 눌러도 바로 안 들어가고 일단 선택(테두리 강조)만 되게, 선택된 걸 한 번 더
-// 눌러야 상세로 들어가는 카드. 예전엔 이름 텍스트만 작은 링크라 눌러야 할 곳이 잘 안
-// 보였는데, 카드 전체를 누를 수 있게 하고 hover·선택 상태를 명확히 준다.
-function ProjectCard({
-  children,
-  selected,
-  onClick,
-}: {
-  children: ReactNode
-  selected: boolean
-  onClick: () => void
-}) {
-  return (
-    <div
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onClick()
-        }
-      }}
-      className="cursor-pointer rounded-lg border p-4 transition-colors hover:bg-neutral-50"
-      style={{
-        borderColor: selected ? 'var(--cherry)' : '#E5E5E5',
-        boxShadow: selected ? '0 0 0 1px var(--cherry)' : 'none',
-      }}
-    >
-      {children}
-    </div>
-  )
-}
-
-function ProjectCardHint({ selected }: { selected: boolean }) {
-  if (!selected) return null
-  return (
-    <div className="mt-2 flex items-center justify-end gap-0.5 text-[11px] font-medium" style={{ color: 'var(--cherry)' }}>
-      한 번 더 누르면 들어가요
-      <IconChevronRight size={13} stroke={2} />
-    </div>
+      <SelectableCardHint selected={selected} />
+    </SelectableCard>
   )
 }

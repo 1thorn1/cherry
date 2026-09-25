@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { Challenge } from '../types/challenge'
 import { createChallenge, getChallenges, joinChallenge, type CreateChallengeInput } from '../api/challenges'
+import { SelectableCard, SelectableCardHint } from '../components/SelectableCard'
 
 type Mode = 'FREE' | 'PROGRESS' | 'EXAM'
 
@@ -16,6 +17,7 @@ export default function ChallengesPage() {
   const [saving, setSaving] = useState(false)
   const [joining, setJoining] = useState(false)
   const [error, setError] = useState('')
+  const [selectedChallengeId, setSelectedChallengeId] = useState<number | null>(null)
 
   async function load() {
     try {
@@ -27,6 +29,14 @@ export default function ChallengesPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  function handleChallengeClick(id: number) {
+    if (selectedChallengeId === id) {
+      navigate(`/challenges/${id}`)
+    } else {
+      setSelectedChallengeId(id)
+    }
+  }
 
   async function handleCreate() {
     const trimmed = title.trim()
@@ -169,16 +179,21 @@ export default function ChallengesPage() {
       {challenges.length === 0 ? (
         <p className="py-8 text-center text-xs text-neutral-400">아직 참여 중인 방이 없어요</p>
       ) : (
-        challenges.map((challenge) => (
-          <Link
-            key={challenge.id}
-            to={`/challenges/${challenge.id}`}
-            className="flex items-center justify-between border-b border-neutral-100 py-3 text-sm"
-          >
-            <span>{challenge.title}</span>
-            <span className="text-[11px] text-neutral-400">{challenge.invite_code}</span>
-          </Link>
-        ))
+        <div className="space-y-2">
+          {challenges.map((challenge) => (
+            <SelectableCard
+              key={challenge.id}
+              selected={selectedChallengeId === challenge.id}
+              onClick={() => handleChallengeClick(challenge.id)}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-sm">{challenge.title}</span>
+                <span className="shrink-0 text-[11px] text-neutral-400">{challenge.invite_code}</span>
+              </div>
+              <SelectableCardHint selected={selectedChallengeId === challenge.id} />
+            </SelectableCard>
+          ))}
+        </div>
       )}
     </div>
   )
