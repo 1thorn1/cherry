@@ -44,9 +44,16 @@ public class CalendarService {
             routineService.generateDueTasksForUser(userId, today);
         }
 
-        Map<LocalDate, List<Task>> tasksByDate = taskRepository
-                .findByUserIdAndTaskDateBetweenAndDeletedAtIsNull(userId, start, end)
-                .stream().collect(Collectors.groupingBy(Task::getTaskDate));
+        List<Task> tasksInRange = taskRepository.findByUserIdAndTaskDateBetweenAndDeletedAtIsNull(userId, start, end);
+        Map<LocalDate, List<Task>> tasksByDate = tasksInRange.stream()
+                .collect(Collectors.groupingBy(Task::getTaskDate));
+        // "실제" 탭은 예정된 날(taskDate)이 아니라 실제로 완료 처리한 날(COALESCE(effective_at,
+        // completed_at)) 기준으로 보여준다 — 월간 요약(getMonth)도 같은 기준을 쓴다(A-6-8).
+        // 이월된 태스크를 나중에 완료하면 taskDate와 완료일이 갈리는데, 여기를 taskDate로
+        // 묶으면 "예정" 탭과는 맞지만 월간 완료 집계와는 다른 날짜에 표시돼 불일치로 보인다.
+        Map<LocalDate, List<Task>> actualByDate = tasksInRange.stream()
+                .filter(t -> t.getCompletedAt() != null)
+                .collect(Collectors.groupingBy(this::effectiveDate));
 
         List<Routine> routines = routineRepository
                 .findByUserIdAndPausedFalseAndDeletedAtIsNullOrderByCreatedAtAsc(userId);
@@ -57,12 +64,14 @@ public class CalendarService {
 
             List<TaskResponse> tasks = tasksByDate.getOrDefault(date, List.of())
                     .stream().map(TaskResponse::from).toList();
+            List<TaskResponse> actualTasks = actualByDate.getOrDefault(date, List.of())
+                    .stream().map(TaskResponse::from).toList();
 
             List<RoutinePreviewResponse> previews = date.isAfter(today)
                     ? previewsFor(routines, date)
                     : List.of();
 
-            days.add(new CalendarDayResponse(date, tasks, previews));
+            days.add(new CalendarDayResponse(date, tasks, actualTasks, previews));
         }
         return days;
     }
