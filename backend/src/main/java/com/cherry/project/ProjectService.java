@@ -237,7 +237,7 @@ public class ProjectService {
                         .map(Milestone::getId)
                         .orElse(null);
 
-        ProjectNote note = ProjectNote.create(userId, project.getId(), milestoneId,
+        ProjectNote note = ProjectNote.create(userId, project.getId(), milestoneId, request.noteDate(),
                 request.kind(), request.body(), request.url());
         projectNoteRepository.save(note);
         return NoteResponse.from(note);

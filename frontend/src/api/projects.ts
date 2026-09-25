@@ -94,10 +94,11 @@ export function addNote(
   body: string | null,
   url: string | null,
   milestoneId?: number | null,
+  noteDate?: string | null,
 ) {
   return request<void>(`/api/projects/${projectId}/notes`, {
     method: 'POST',
-    body: JSON.stringify({ kind, body, url, milestone_id: milestoneId ?? null }),
+    body: JSON.stringify({ kind, body, url, milestone_id: milestoneId ?? null, note_date: noteDate ?? null }),
   })
 }
 

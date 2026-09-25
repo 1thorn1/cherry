@@ -105,11 +105,11 @@ export default function ProjectDetailPage() {
     }
   }
 
-  async function handleAddMilestoneNote(milestoneId: number, body: string) {
+  async function handleAddMilestoneNote(milestoneId: number, body: string, noteDate?: string) {
     if (savingNoteId) return
     setSavingNoteId(milestoneId)
     try {
-      await addNote(projectId, 'NOTE', body, null, milestoneId)
+      await addNote(projectId, 'NOTE', body, null, milestoneId, noteDate)
       await loadTimeline()
     } catch (e) {
       setError(e instanceof Error ? e.message : '기록하지 못했습니다')

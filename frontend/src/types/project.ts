@@ -38,6 +38,7 @@ export interface TimelineEntry {
   url: string | null
   count: number | null
   milestone_id: number | null
+  note_date: string | null
   at: string
 }
 

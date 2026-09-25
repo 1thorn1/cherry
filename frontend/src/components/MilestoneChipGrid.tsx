@@ -3,6 +3,7 @@ import { IconCheck, IconChevronLeft, IconChevronRight } from '@tabler/icons-reac
 import type { Milestone, TimelineEntry } from '../types/project'
 import AutoGrowTextarea from './AutoGrowTextarea'
 import NoteEntry from './NoteEntry'
+import WeekDayAccordion from './WeekDayAccordion'
 
 export default function MilestoneChipGrid({
   milestones,
@@ -26,7 +27,7 @@ export default function MilestoneChipGrid({
   onSendToday: (m: Milestone) => void
   onRename: (milestoneId: number, title: string) => Promise<void>
   renamingId: number | null
-  onAddNote: (milestoneId: number, body: string) => Promise<void>
+  onAddNote: (milestoneId: number, body: string, noteDate?: string) => Promise<void>
   onUpdateNote: (noteId: number, body: string | null, url: string | null) => Promise<void>
   onDeleteNote: (noteId: number) => Promise<void>
   completingId: number | null
@@ -242,52 +243,66 @@ export default function MilestoneChipGrid({
                 </p>
               )}
 
-              <div className="mb-2">
-                <AutoGrowTextarea
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.nativeEvent.isComposing) return
-                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                      e.preventDefault()
-                      handleSubmitNote()
-                    }
-                  }}
-                  placeholder="이 구간 메모 (마크다운 지원)"
-                  rows={3}
-                  className="mb-1.5 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none transition-shadow focus:border-[var(--cherry)] focus:ring-2 focus:ring-[var(--cherry-bg)]"
+              {selected.target_week ? (
+                <WeekDayAccordion
+                  milestoneId={selected.id}
+                  targetWeek={selected.target_week}
+                  notes={rawSelectedNotes}
+                  onAddNote={onAddNote}
+                  onUpdateNote={onUpdateNote}
+                  onDeleteNote={onDeleteNote}
+                  savingNoteId={savingNoteId}
                 />
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-neutral-300">⌘/Ctrl + Enter로 저장</span>
-                  <button
-                    onClick={handleSubmitNote}
-                    disabled={savingNoteId === selected.id}
-                    className="rounded-lg border border-neutral-200 px-3 py-1 text-xs font-medium text-neutral-500 disabled:opacity-50"
-                  >
-                    {savingNoteId === selected.id ? '저장 중...' : '기록'}
-                  </button>
-                </div>
-              </div>
-
-              {selectedNotes.length > 0 && (
+              ) : (
                 <>
-                  {selectedNotes.length > 1 && (
-                    <div className="mb-1.5 flex justify-end">
+                  <div className="mb-2">
+                    <AutoGrowTextarea
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.nativeEvent.isComposing) return
+                        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                          e.preventDefault()
+                          handleSubmitNote()
+                        }
+                      }}
+                      placeholder="이 구간 메모 (마크다운 지원)"
+                      rows={3}
+                      className="mb-1.5 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none transition-shadow focus:border-[var(--cherry)] focus:ring-2 focus:ring-[var(--cherry-bg)]"
+                    />
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-neutral-300">⌘/Ctrl + Enter로 저장</span>
                       <button
-                        onClick={() => setNoteSort((s) => (s === 'newest' ? 'oldest' : 'newest'))}
-                        className="text-[10px] text-neutral-400 hover:text-neutral-600"
+                        onClick={handleSubmitNote}
+                        disabled={savingNoteId === selected.id}
+                        className="rounded-lg border border-neutral-200 px-3 py-1 text-xs font-medium text-neutral-500 disabled:opacity-50"
                       >
-                        {noteSort === 'newest' ? '최신순' : '오래된순'}
+                        {savingNoteId === selected.id ? '저장 중...' : '기록'}
                       </button>
                     </div>
+                  </div>
+
+                  {selectedNotes.length > 0 && (
+                    <>
+                      {selectedNotes.length > 1 && (
+                        <div className="mb-1.5 flex justify-end">
+                          <button
+                            onClick={() => setNoteSort((s) => (s === 'newest' ? 'oldest' : 'newest'))}
+                            className="text-[10px] text-neutral-400 hover:text-neutral-600"
+                          >
+                            {noteSort === 'newest' ? '최신순' : '오래된순'}
+                          </button>
+                        </div>
+                      )}
+                      <ul className="space-y-1.5">
+                        {selectedNotes.map((entry) => (
+                          <li key={`${entry.kind}-${entry.ref_id}`} className="rounded-lg bg-neutral-50 px-3 py-2">
+                            <NoteEntry entry={entry} onUpdate={onUpdateNote} onDelete={onDeleteNote} hideKindLabel showDate />
+                          </li>
+                        ))}
+                      </ul>
+                    </>
                   )}
-                  <ul className="space-y-1.5">
-                    {selectedNotes.map((entry) => (
-                      <li key={`${entry.kind}-${entry.ref_id}`} className="rounded-lg bg-neutral-50 px-3 py-2">
-                        <NoteEntry entry={entry} onUpdate={onUpdateNote} onDelete={onDeleteNote} hideKindLabel showDate />
-                      </li>
-                    ))}
-                  </ul>
                 </>
               )}
             </div>
