@@ -39,9 +39,14 @@ export default function ProjectsPage() {
   // 프로젝트를 눌러도 바로 들어가지 않고 일단 "선택"만 되게 하고(테두리로 표시),
   // 선택된 걸 한 번 더 누르면 그때 상세 화면으로 들어간다 — 잘못 눌러서 바로
   // 넘어가버리는 걸 막아달라는 요청.
+  //
+  // 같이 하기로 만든 프로젝트는 클릭하면 내 프로젝트 화면이 아니라 챌린지 상세
+  // (다 같이 이름·진행도 보고 잠시 쉬기도 하는 곳)로 바로 들어간다 — 같이 하기
+  // 목록 카드와 똑같은 동작. 내 프로젝트 화면은 카드의 "내 프로젝트" 배지로 간다.
   function handleProjectClick(projectId: number) {
     if (selectedProjectId === projectId) {
-      navigate(`/projects/${projectId}`)
+      const link = challengeLinks.find((l) => l.project_id === projectId)
+      navigate(link ? `/challenges/${link.challenge_id}` : `/projects/${projectId}`)
     } else {
       setSelectedProjectId(projectId)
     }
@@ -255,7 +260,7 @@ export default function ProjectsPage() {
                 selected={selectedProjectId === p.project_id}
                 onClick={() => handleProjectClick(p.project_id)}
                 onToggleStar={(e) => handleToggleStar(e, p.project_id, p.starred)}
-                secondaryLink={toChallengeLink(challengeLinks.find((l) => l.project_id === p.project_id))}
+                secondaryLink={toProjectBadge(p.project_id, challengeLinks.find((l) => l.project_id === p.project_id))}
               />
             ))}
           </div>
@@ -273,7 +278,7 @@ export default function ProjectsPage() {
                 selected={selectedProjectId === p.project_id}
                 onClick={() => handleProjectClick(p.project_id)}
                 onToggleStar={(e) => handleToggleStar(e, p.project_id, p.starred)}
-                secondaryLink={toChallengeLink(challengeLinks.find((l) => l.project_id === p.project_id))}
+                secondaryLink={toProjectBadge(p.project_id, challengeLinks.find((l) => l.project_id === p.project_id))}
               />
             ))}
           </div>
@@ -283,6 +288,9 @@ export default function ProjectsPage() {
   )
 }
 
-function toChallengeLink(link: ChallengeProjectLink | undefined) {
-  return link ? { to: `/challenges/${link.challenge_id}`, label: '같이 하기' } : undefined
+// 같이 하기로 만든 프로젝트는 카드 클릭이 챌린지 상세로 가버리므로, 내 프로젝트
+// 화면(마일스톤·메모)으로 갈 수 있는 배지를 대신 붙여준다 — 같이 하기 목록 카드의
+// "내 프로젝트" 배지와 반대 방향으로 짝을 이룬다.
+function toProjectBadge(projectId: number, link: ChallengeProjectLink | undefined) {
+  return link ? { to: `/projects/${projectId}`, label: '내 프로젝트' } : undefined
 }
