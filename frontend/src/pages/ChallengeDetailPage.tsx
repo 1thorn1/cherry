@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { IconChevronRight } from '@tabler/icons-react'
 import type { ChallengeDetail } from '../types/challenge'
-import { getChallenge, leaveChallenge, setChallengeMemo, setChallengePaused } from '../api/challenges'
+import { getChallenge, getChallengeProjectLinks, leaveChallenge, setChallengeMemo, setChallengePaused } from '../api/challenges'
 
 export default function ChallengeDetailPage() {
   const { id } = useParams()
@@ -9,6 +10,7 @@ export default function ChallengeDetailPage() {
   const navigate = useNavigate()
 
   const [detail, setDetail] = useState<ChallengeDetail | null>(null)
+  const [myProjectId, setMyProjectId] = useState<number | null>(null)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -18,7 +20,9 @@ export default function ChallengeDetailPage() {
 
   async function load() {
     try {
-      setDetail(await getChallenge(challengeId))
+      const [challengeDetail, links] = await Promise.all([getChallenge(challengeId), getChallengeProjectLinks()])
+      setDetail(challengeDetail)
+      setMyProjectId(links.find((l) => l.challenge_id === challengeId)?.project_id ?? null)
       setError('')
     } catch (e) {
       setError(e instanceof Error ? e.message : '불러오지 못했습니다')
@@ -117,10 +121,22 @@ export default function ChallengeDetailPage() {
         {detail.members.map((member) => (
           <div key={member.nickname} className="rounded-lg border border-neutral-200 p-4">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium">
-                {member.nickname}
-                {member.me && <span className="ml-1 text-[11px] text-neutral-400">(나)</span>}
-              </span>
+              {member.me && myProjectId ? (
+                <button
+                  onClick={() => navigate(`/projects/${myProjectId}`)}
+                  className="flex items-center gap-0.5 text-sm font-medium hover:underline"
+                  style={{ color: 'var(--cherry)' }}
+                >
+                  {member.nickname}
+                  <span className="text-[11px] font-normal text-neutral-400">(나)</span>
+                  <IconChevronRight size={14} stroke={2} />
+                </button>
+              ) : (
+                <span className="text-sm font-medium">
+                  {member.nickname}
+                  {member.me && <span className="ml-1 text-[11px] text-neutral-400">(나)</span>}
+                </span>
+              )}
               <div className="flex items-center gap-2">
                 {member.paused && (
                   <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-500">
