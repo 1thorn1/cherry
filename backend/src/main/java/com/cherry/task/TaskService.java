@@ -53,8 +53,11 @@ public class TaskService {
                 .findByUserIdAndTaskDateAndCompletedAtIsNullAndDeletedAtIsNullOrderBySortOrderAsc(userId, date)
                 .stream().map(TaskResponse::from).toList();
 
+        // "완료" 목록은 taskDate(원래 예정일)가 아니라 실제로 완료한 날 기준이다 — 며칠 전
+        // 잡아둔 태스크를 오늘 끝내면 오늘 완료 목록에 뜨고, 원래 예정일 쪽엔 더 안 남는다.
+        // 캘린더 실제 탭·월간 요약과 같은 기준(A-6-8).
         List<TaskResponse> done = taskRepository
-                .findByUserIdAndTaskDateAndCompletedAtIsNotNullAndDeletedAtIsNullOrderByCompletedAtDesc(userId, date)
+                .findByUserIdAndEffectiveDateBetween(userId, date.atStartOfDay(), date.plusDays(1).atStartOfDay())
                 .stream().map(TaskResponse::from).toList();
 
         // "당겨오기" 대상 풀은 오늘 화면에서만 의미가 있다 (A-11 미완료 이월 상세).

@@ -44,16 +44,16 @@ public class CalendarService {
             routineService.generateDueTasksForUser(userId, today);
         }
 
-        List<Task> tasksInRange = taskRepository.findByUserIdAndTaskDateBetweenAndDeletedAtIsNull(userId, start, end);
-        Map<LocalDate, List<Task>> tasksByDate = tasksInRange.stream()
-                .collect(Collectors.groupingBy(Task::getTaskDate));
+        Map<LocalDate, List<Task>> tasksByDate = taskRepository
+                .findByUserIdAndTaskDateBetweenAndDeletedAtIsNull(userId, start, end)
+                .stream().collect(Collectors.groupingBy(Task::getTaskDate));
         // "실제" 탭은 예정된 날(taskDate)이 아니라 실제로 완료 처리한 날(COALESCE(effective_at,
-        // completed_at)) 기준으로 보여준다 — 월간 요약(getMonth)도 같은 기준을 쓴다(A-6-8).
-        // 이월된 태스크를 나중에 완료하면 taskDate와 완료일이 갈리는데, 여기를 taskDate로
-        // 묶으면 "예정" 탭과는 맞지만 월간 완료 집계와는 다른 날짜에 표시돼 불일치로 보인다.
-        Map<LocalDate, List<Task>> actualByDate = tasksInRange.stream()
-                .filter(t -> t.getCompletedAt() != null)
-                .collect(Collectors.groupingBy(this::effectiveDate));
+        // completed_at)) 기준으로 보여준다 — 오늘 화면의 "완료" 목록, 월간 요약(getMonth)도
+        // 같은 기준(A-6-8)이라 taskDate 범위가 아니라 완료일 범위로 따로 조회해야, taskDate가
+        // 이 주 바깥인 태스크(예: 몇 주 전에 잡아둔 걸 이번 주에 완료)까지 놓치지 않는다.
+        Map<LocalDate, List<Task>> actualByDate = taskRepository
+                .findByUserIdAndEffectiveDateBetween(userId, start.atStartOfDay(), end.plusDays(1).atStartOfDay())
+                .stream().collect(Collectors.groupingBy(this::effectiveDate));
 
         List<Routine> routines = routineRepository
                 .findByUserIdAndPausedFalseAndDeletedAtIsNullOrderByCreatedAtAsc(userId);
@@ -81,10 +81,11 @@ public class CalendarService {
         LocalDate start = month.atDay(1);
         LocalDate end = month.atEndOfMonth();
 
+        // taskDate가 아니라 완료일(COALESCE) 범위로 조회 — taskDate가 이번 달 밖인 태스크(예:
+        // 지난달에 잡아둔 걸 이번 달에 완료)까지 놓치지 않는다. 주간 "실제" 탭과 같은 기준.
         Map<LocalDate, List<String>> titlesByDate = taskRepository
-                .findByUserIdAndTaskDateBetweenAndDeletedAtIsNull(userId, start, end)
+                .findByUserIdAndEffectiveDateBetween(userId, start.atStartOfDay(), end.plusDays(1).atStartOfDay())
                 .stream()
-                .filter(t -> t.getCompletedAt() != null)
                 .collect(Collectors.groupingBy(this::effectiveDate, Collectors.mapping(Task::getTitle, Collectors.toList())));
 
         List<MonthSummaryResponse.DailyCount> dailyCounts = new ArrayList<>();
