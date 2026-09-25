@@ -83,7 +83,9 @@ export default function Timetable({ tasks, view, onUnschedule }: Props) {
   const layoutByKey = new Map(layouts.map((l) => [l.key, l]))
 
   return (
-    <div ref={scrollRef} className="overflow-y-auto" style={{ maxHeight: VISIBLE_HEIGHT }}>
+    // pt-2: 0시 줄의 시각 레이블이 -top-2로 줄 위쪽에 떠 있는데, 스크롤 컨테이너 맨 위라
+    // 여백 없이는 그 위로 나갈 자리가 없어 잘려 보였다. 패딩으로 숨 쉴 자리를 준다.
+    <div ref={scrollRef} className="overflow-y-auto pt-2" style={{ maxHeight: VISIBLE_HEIGHT }}>
       <div className="relative">
         {hours.map((h) => (
           <HourRow key={h} hour={h} disabled={view === 'actual'} />

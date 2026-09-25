@@ -131,8 +131,10 @@ export default function MilestoneChipGrid({
                       // 완료 여부는 채우기 색으로만 표시한다(테두리색으로 구분하지 않는다) — 완료
                       // 안 됐다고 흰 배경에 옅은 테두리만 두면 눈에 잘 안 띄어서, 명확한 회색
                       // 채우기를 기본값으로 준다. 선택(패널 열림) 표시만 링(box-shadow)으로 얹는다.
+                      // inset을 써서 칩 박스 안쪽으로만 그린다 — 바깥쪽 링은 페이지 캐러셀의
+                      // overflow-hidden에 가장자리 칩(첫/끝 칸)의 테두리가 잘려 보이는 문제가 있었다.
                       background: m.completed ? 'var(--cherry-bg)' : '#F1EFE8',
-                      boxShadow: expandedId === m.id ? '0 0 0 2px var(--cherry)' : 'none',
+                      boxShadow: expandedId === m.id ? 'inset 0 0 0 2px var(--cherry)' : 'none',
                     }}
                   >
                     <button
