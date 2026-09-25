@@ -285,7 +285,7 @@ export default function CalendarPage() {
                           <div
                             key={t.id}
                             onClick={() => goToDayToday(day.date)}
-                            className={`absolute cursor-pointer overflow-hidden rounded px-1 text-[10px] leading-tight hover:opacity-70 ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
+                            className={`absolute cursor-pointer overflow-hidden rounded px-1 text-[10px] leading-tight hover:opacity-70 ${t.completed_at ? 'line-through' : ''} ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
                             style={{
                               ...blockStyle(b, scheduledLayout),
                               background: t.completed_at ? '#F1EFE8' : 'var(--cherry-bg)',
