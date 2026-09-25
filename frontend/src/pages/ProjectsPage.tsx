@@ -291,12 +291,12 @@ export default function ProjectsPage() {
 }
 
 // 아직 참여 중인 같이 하기 프로젝트는 카드 클릭이 챌린지 상세로 가버리므로, 내 프로젝트
-// 화면(마일스톤·메모)으로 갈 수 있는 배지를 대신 붙여준다 — 같이 하기 목록 카드의
-// "내 프로젝트" 배지와 반대 방향으로 짝을 이룬다.
-// 나간 방의 프로젝트는 어디로도 이동하지 않는 정적 태그로만 출신을 표시한다 — 나간
-// 챌린지는 더 이상 상세를 볼 수 없어서 링크를 걸 곳이 없다.
+// 화면(마일스톤·메모)으로 갈 수 있는 배지를 대신 붙여준다. 라벨은 "내 프로젝트"가 아니라
+// "같이하기"로 — 이 목록은 이미 전부 "내 프로젝트"라서 그 말은 정보가 없고, 이 카드가
+// 같이 하기에 연결돼 있다는 게 실제로 알려주고 싶은 정보다. 나간 경우의 "지난 같이 하기"
+// 태그와도 이름이 짝을 이룬다.
 function cardLinkProps(projectId: number, link: ChallengeProjectLink | undefined) {
   if (!link) return {}
   if (link.left) return { tag: '지난 같이 하기' }
-  return { secondaryLink: { to: `/projects/${projectId}`, label: '내 프로젝트' } }
+  return { secondaryLink: { to: `/projects/${projectId}`, label: '같이하기' } }
 }
