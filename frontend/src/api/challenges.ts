@@ -8,10 +8,6 @@ export interface CreateChallengeInput {
   target_date?: string
 }
 
-export function getChallenges() {
-  return request<Challenge[]>('/api/challenges')
-}
-
 export function getChallengeProjectLinks() {
   return request<ChallengeProjectLink[]>('/api/challenges/project-links')
 }

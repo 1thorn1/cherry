@@ -1,11 +1,10 @@
 import { useEffect, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { IconStar, IconStarFilled } from '@tabler/icons-react'
-import type { OtherProject, ProjectOverview } from '../types/project'
+import type { ProjectOverview } from '../types/project'
 import { createProject, getProjectOverview, updateProjectStarred, type CreateProjectInput } from '../api/projects'
 import { getChallengeProjectLinks } from '../api/challenges'
 import type { ChallengeProjectLink } from '../types/challenge'
-import { SelectableCard, SelectableCardHint } from '../components/SelectableCard'
+import ProjectListItem from '../components/ProjectListItem'
 
 type Mode = 'FREE' | 'PROGRESS' | 'EXAM'
 
@@ -256,7 +255,7 @@ export default function ProjectsPage() {
                 selected={selectedProjectId === p.project_id}
                 onClick={() => handleProjectClick(p.project_id)}
                 onToggleStar={(e) => handleToggleStar(e, p.project_id, p.starred)}
-                challengeLink={challengeLinks.find((l) => l.project_id === p.project_id)}
+                secondaryLink={toChallengeLink(challengeLinks.find((l) => l.project_id === p.project_id))}
               />
             ))}
           </div>
@@ -274,7 +273,7 @@ export default function ProjectsPage() {
                 selected={selectedProjectId === p.project_id}
                 onClick={() => handleProjectClick(p.project_id)}
                 onToggleStar={(e) => handleToggleStar(e, p.project_id, p.starred)}
-                challengeLink={challengeLinks.find((l) => l.project_id === p.project_id)}
+                secondaryLink={toChallengeLink(challengeLinks.find((l) => l.project_id === p.project_id))}
               />
             ))}
           </div>
@@ -284,68 +283,6 @@ export default function ProjectsPage() {
   )
 }
 
-// 별표는 카드 클릭(선택/진입)과 별개의 동작이라 stopPropagation으로 분리한다.
-function ProjectListItem({
-  project: p,
-  selected,
-  onClick,
-  onToggleStar,
-  challengeLink,
-}: {
-  project: OtherProject
-  selected: boolean
-  onClick: () => void
-  onToggleStar: (e: MouseEvent) => void
-  challengeLink?: ChallengeProjectLink
-}) {
-  return (
-    <SelectableCard selected={selected} onClick={onClick}>
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <button onClick={onToggleStar} aria-label={p.starred ? '즐겨찾기 해제' : '즐겨찾기 추가'} className="shrink-0">
-            {p.starred ? (
-              <IconStarFilled size={16} style={{ color: 'var(--cherry)' }} />
-            ) : (
-              <IconStar size={16} stroke={1.75} className="text-neutral-300" />
-            )}
-          </button>
-          <span className="truncate text-sm">{p.name}</span>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {challengeLink && (
-            <Link
-              to={`/challenges/${challengeLink.challenge_id}`}
-              onClick={(e) => e.stopPropagation()}
-              className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-              style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
-            >
-              같이 하기
-            </Link>
-          )}
-          <span className="text-[11px] text-neutral-400">{p.key_metric}</span>
-        </div>
-      </div>
-      {p.total_milestones > 0 && (
-        p.total_milestones <= 20 ? (
-          <div className="flex gap-1">
-            {Array.from({ length: p.total_milestones }).map((_, i) => (
-              <span
-                key={i}
-                className="h-1.5 w-1.5 rounded-full"
-                style={{ background: i < p.completed_milestones ? 'var(--cherry)' : '#E5E5E5' }}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
-            <div
-              className="h-full rounded-full"
-              style={{ width: `${(p.completed_milestones / p.total_milestones) * 100}%`, background: 'var(--cherry)' }}
-            />
-          </div>
-        )
-      )}
-      <SelectableCardHint selected={selected} />
-    </SelectableCard>
-  )
+function toChallengeLink(link: ChallengeProjectLink | undefined) {
+  return link ? { to: `/challenges/${link.challenge_id}`, label: '같이 하기' } : undefined
 }

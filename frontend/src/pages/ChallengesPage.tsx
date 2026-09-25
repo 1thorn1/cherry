@@ -1,14 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import type { Challenge } from '../types/challenge'
-import { createChallenge, getChallenges, joinChallenge, type CreateChallengeInput } from '../api/challenges'
-import { SelectableCard, SelectableCardHint } from '../components/SelectableCard'
+import { createChallenge, getChallengeProjectLinks, joinChallenge, type CreateChallengeInput } from '../api/challenges'
+import { getProjectOverview, updateProjectStarred } from '../api/projects'
+import type { ChallengeProjectLink } from '../types/challenge'
+import type { ProjectOverview } from '../types/project'
+import ProjectListItem from '../components/ProjectListItem'
 
 type Mode = 'FREE' | 'PROGRESS' | 'EXAM'
 
 export default function ChallengesPage() {
   const navigate = useNavigate()
-  const [challenges, setChallenges] = useState<Challenge[]>([])
+  // 같이 하기 목록도 프로젝트 목록과 같은 데이터(내 프로젝트 전체 + 챌린지 연결 정보)에서
+  // "챌린지에 연결된 것만" 걸러서 보여준다 — 두 화면이 서로 다른 API를 따로 불러서
+  // 카드 모양도, 진행률 표시도 다 달랐던 게 "연동이 안 된" 느낌의 원인이었다.
+  const [overview, setOverview] = useState<ProjectOverview | null>(null)
+  const [challengeLinks, setChallengeLinks] = useState<ChallengeProjectLink[]>([])
   const [title, setTitle] = useState('')
   const [mode, setMode] = useState<Mode>('FREE')
   const [totalUnits, setTotalUnits] = useState('')
@@ -21,7 +27,9 @@ export default function ChallengesPage() {
 
   async function load() {
     try {
-      setChallenges(await getChallenges())
+      const [projectOverview, links] = await Promise.all([getProjectOverview(), getChallengeProjectLinks()])
+      setOverview(projectOverview)
+      setChallengeLinks(links)
       setError('')
     } catch (e) {
       setError(e instanceof Error ? e.message : '불러오지 못했습니다')
@@ -35,6 +43,16 @@ export default function ChallengesPage() {
       navigate(`/challenges/${id}`)
     } else {
       setSelectedChallengeId(id)
+    }
+  }
+
+  async function handleToggleStar(e: MouseEvent, projectId: number, starred: boolean) {
+    e.stopPropagation()
+    try {
+      await updateProjectStarred(projectId, !starred)
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '즐겨찾기 설정에 실패했습니다')
     }
   }
 
@@ -98,6 +116,15 @@ export default function ChallengesPage() {
     { value: 'PROGRESS', label: '회차별' },
     { value: 'EXAM', label: '시험일' },
   ]
+
+  const challengeProjects = overview
+    ? challengeLinks
+        .map((link) => {
+          const project = overview.others.find((p) => p.project_id === link.project_id)
+          return project ? { project, link } : null
+        })
+        .filter((entry): entry is { project: (typeof overview.others)[number]; link: ChallengeProjectLink } => entry !== null)
+    : []
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
@@ -178,22 +205,25 @@ export default function ChallengesPage() {
         <p className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-xs text-red-600">{error}</p>
       )}
 
-      {challenges.length === 0 ? (
+      {!overview && !error && (
+        <p className="py-8 text-center text-xs text-neutral-400">불러오는 중...</p>
+      )}
+
+      {overview && challengeProjects.length === 0 && (
         <p className="py-8 text-center text-xs text-neutral-400">아직 참여 중인 방이 없어요</p>
-      ) : (
+      )}
+
+      {challengeProjects.length > 0 && (
         <div className="space-y-2">
-          {challenges.map((challenge) => (
-            <SelectableCard
-              key={challenge.id}
-              selected={selectedChallengeId === challenge.id}
-              onClick={() => handleChallengeClick(challenge.id)}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-sm">{challenge.title}</span>
-                <span className="shrink-0 text-[11px] text-neutral-400">{challenge.invite_code}</span>
-              </div>
-              <SelectableCardHint selected={selectedChallengeId === challenge.id} />
-            </SelectableCard>
+          {challengeProjects.map(({ project: p, link }) => (
+            <ProjectListItem
+              key={p.project_id}
+              project={p}
+              selected={selectedChallengeId === link.challenge_id}
+              onClick={() => handleChallengeClick(link.challenge_id)}
+              onToggleStar={(e) => handleToggleStar(e, p.project_id, p.starred)}
+              secondaryLink={{ to: `/projects/${p.project_id}`, label: '내 프로젝트' }}
+            />
           ))}
         </div>
       )}
