@@ -210,7 +210,13 @@ export default function CalendarPage() {
                 // 기준으로 보여준다 — 안 그러면 이월해서 나중에 끝낸 종일 항목이 월간 완료
                 // 집계와 다른 날짜에 표시된다(시간표 타임드 블록과 같은 이유).
                 const pendingAllDay = day.tasks.filter((t) => !t.scheduled_start && !t.completed_at)
-                const completedAllDay = day.actual_tasks.filter((t) => !t.scheduled_start)
+                const completedAllDayOnly = day.actual_tasks.filter((t) => !t.scheduled_start)
+                const completedTimed = day.actual_tasks.filter((t) => t.scheduled_start)
+                // "예정" 탭에서는 완료된 시간 있는 항목도 시간표에서 빼고 여기 같이 모아
+                // 보여준다 — 완료된 게 많아지면 시간표까지 지저분해지는 걸 막는다. "실제"
+                // 탭은 시간표 자체가 "언제 했는지" 보여주는 화면이라 그대로 두고, 종일 줄엔
+                // 원래대로 종일 항목만 모은다(안 그러면 실제 탭 시간표와 중복 표시된다).
+                const completedAllDay = view === 'scheduled' ? [...completedAllDayOnly, ...completedTimed] : completedAllDayOnly
                 const isAllDayExpanded = expandedAllDay.has(day.date)
                 const allDayPreviews = day.previews.filter((p) => !p.default_time)
                 return (
@@ -272,7 +278,8 @@ export default function CalendarPage() {
 
                 {days.map((day) => {
                   const isoDay = getISODay(new Date(day.date))
-                  const scheduledTasks = day.tasks.filter((t) => t.scheduled_start)
+                  // 완료된 항목은 종일 줄의 "완료 N개" 토글로 옮겨서(위 참고) 여기서는 뺀다.
+                  const scheduledTasks = day.tasks.filter((t) => t.scheduled_start && !t.completed_at)
                   // actual_tasks는 예정된 날이 아니라 실제로 완료 처리한 날 기준으로 이미 묶여
                   // 있다 — day.tasks에서 completed_at으로 거르면 이월된 태스크가 원래 예정일에
                   // 표시돼 월간 완료 집계와 날짜가 어긋난다.
@@ -315,11 +322,11 @@ export default function CalendarPage() {
                           <div
                             key={t.id}
                             onClick={() => goToDayToday(day.date)}
-                            className={`absolute cursor-pointer overflow-hidden rounded px-1 text-[10px] leading-tight hover:opacity-70 ${t.completed_at ? 'line-through decoration-2 decoration-neutral-500' : ''} ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
+                            className={`absolute cursor-pointer overflow-hidden rounded px-1 text-[10px] leading-tight hover:opacity-70 ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
                             style={{
                               ...blockStyle(b, scheduledLayout),
-                              background: t.completed_at ? '#F1EFE8' : 'var(--cherry-bg)',
-                              color: t.completed_at ? '#888780' : 'var(--cherry)',
+                              background: 'var(--cherry-bg)',
+                              color: 'var(--cherry)',
                             }}
                           >
                             {t.title}
