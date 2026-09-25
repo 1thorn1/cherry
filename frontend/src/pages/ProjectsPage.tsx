@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState, type ReactNode } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { IconChevronRight } from '@tabler/icons-react'
 import type { ProjectOverview } from '../types/project'
 import { createProject, getProjectOverview, type CreateProjectInput } from '../api/projects'
 import { getChallengeProjectLinks } from '../api/challenges'
@@ -17,8 +18,10 @@ function daysBetween(from: string, to: string) {
 }
 
 export default function ProjectsPage() {
+  const navigate = useNavigate()
   const [overview, setOverview] = useState<ProjectOverview | null>(null)
   const [challengeLinks, setChallengeLinks] = useState<ChallengeProjectLink[]>([])
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [name, setName] = useState('')
   const [mode, setMode] = useState<Mode>('FREE')
@@ -41,6 +44,17 @@ export default function ProjectsPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  // 프로젝트를 눌러도 바로 들어가지 않고 일단 "선택"만 되게 하고(테두리로 표시),
+  // 선택된 걸 한 번 더 누르면 그때 상세 화면으로 들어간다 — 잘못 눌러서 바로
+  // 넘어가버리는 걸 막아달라는 요청.
+  function handleProjectClick(projectId: number) {
+    if (selectedProjectId === projectId) {
+      navigate(`/projects/${projectId}`)
+    } else {
+      setSelectedProjectId(projectId)
+    }
+  }
 
   function handleAddMilestoneDraft() {
     const trimmed = milestoneDraft.trim()
@@ -266,68 +280,132 @@ export default function ProjectsPage() {
       )}
 
       {overview && overview.focus && (
-        <div className="mb-8 rounded-lg border border-neutral-200 p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <Link to={`/projects/${overview.focus.project_id}`} className="text-sm font-medium">
-              {overview.focus.name}
-            </Link>
-            {challengeLinks.find((l) => l.project_id === overview.focus!.project_id) && (
-              <Link
-                to={`/challenges/${challengeLinks.find((l) => l.project_id === overview.focus!.project_id)!.challenge_id}`}
-                className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-                style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
-              >
-                같이 하기
-              </Link>
-            )}
-          </div>
+        <div className="mb-8">
+          <p className="mb-2 text-[11px] font-medium text-neutral-400">지금 집중 중</p>
+          <ProjectCard
+            selected={selectedProjectId === overview.focus.project_id}
+            onClick={() => handleProjectClick(overview.focus!.project_id)}
+          >
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">{overview.focus.name}</p>
+              {challengeLinks.find((l) => l.project_id === overview.focus!.project_id) && (
+                <Link
+                  to={`/challenges/${challengeLinks.find((l) => l.project_id === overview.focus!.project_id)!.challenge_id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
+                  style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
+                >
+                  같이 하기
+                </Link>
+              )}
+            </div>
 
-          <MilestoneTrack milestones={overview.focus.milestones} />
+            <MilestoneTrack milestones={overview.focus.milestones} />
+
+            <ProjectCardHint selected={selectedProjectId === overview.focus.project_id} />
+          </ProjectCard>
         </div>
       )}
 
-      {overview && overview.others.map((p) => {
-        const link = challengeLinks.find((l) => l.project_id === p.project_id)
-        return (
-          <div key={p.project_id} className="border-b border-neutral-100 py-3">
-            <div className="mb-1.5 flex items-center justify-between">
-              <Link to={`/projects/${p.project_id}`} className="text-sm">{p.name}</Link>
-              <div className="flex items-center gap-2">
-                {link && (
-                  <Link
-                    to={`/challenges/${link.challenge_id}`}
-                    className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-                    style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
-                  >
-                    같이 하기
-                  </Link>
-                )}
-                <span className="text-[11px] text-neutral-400">{p.key_metric}</span>
-              </div>
-            </div>
-            {p.total_milestones > 0 && (
-              p.total_milestones <= 20 ? (
-                <div className="flex gap-1">
-                  {Array.from({ length: p.total_milestones }).map((_, i) => (
-                    <span
-                      key={i}
-                      className="h-1.5 w-1.5 rounded-full"
-                      style={{ background: i < p.completed_milestones ? 'var(--cherry)' : '#E5E5E5' }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
-                  <div
-                    className="h-full rounded-full"
-                    style={{ width: `${(p.completed_milestones / p.total_milestones) * 100}%`, background: 'var(--cherry)' }}
-                  />
-                </div>
+      {overview && overview.others.length > 0 && (
+        <div>
+          <p className="mb-2 text-[11px] font-medium text-neutral-400">다른 프로젝트</p>
+          <div className="space-y-2">
+            {overview.others.map((p) => {
+              const link = challengeLinks.find((l) => l.project_id === p.project_id)
+              return (
+                <ProjectCard
+                  key={p.project_id}
+                  selected={selectedProjectId === p.project_id}
+                  onClick={() => handleProjectClick(p.project_id)}
+                >
+                  <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <span className="text-sm">{p.name}</span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {link && (
+                        <Link
+                          to={`/challenges/${link.challenge_id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                          style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
+                        >
+                          같이 하기
+                        </Link>
+                      )}
+                      <span className="text-[11px] text-neutral-400">{p.key_metric}</span>
+                    </div>
+                  </div>
+                  {p.total_milestones > 0 && (
+                    p.total_milestones <= 20 ? (
+                      <div className="flex gap-1">
+                        {Array.from({ length: p.total_milestones }).map((_, i) => (
+                          <span
+                            key={i}
+                            className="h-1.5 w-1.5 rounded-full"
+                            style={{ background: i < p.completed_milestones ? 'var(--cherry)' : '#E5E5E5' }}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
+                        <div
+                          className="h-full rounded-full"
+                          style={{ width: `${(p.completed_milestones / p.total_milestones) * 100}%`, background: 'var(--cherry)' }}
+                        />
+                      </div>
+                    )
+                  )}
+                  <ProjectCardHint selected={selectedProjectId === p.project_id} />
+                </ProjectCard>
               )
-            )}
+            })}
           </div>
-        )
-      })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// 프로젝트를 눌러도 바로 안 들어가고 일단 선택(테두리 강조)만 되게, 선택된 걸 한 번 더
+// 눌러야 상세로 들어가는 카드. 예전엔 이름 텍스트만 작은 링크라 눌러야 할 곳이 잘 안
+// 보였는데, 카드 전체를 누를 수 있게 하고 hover·선택 상태를 명확히 준다.
+function ProjectCard({
+  children,
+  selected,
+  onClick,
+}: {
+  children: ReactNode
+  selected: boolean
+  onClick: () => void
+}) {
+  return (
+    <div
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick()
+        }
+      }}
+      className="cursor-pointer rounded-lg border p-4 transition-colors hover:bg-neutral-50"
+      style={{
+        borderColor: selected ? 'var(--cherry)' : '#E5E5E5',
+        boxShadow: selected ? '0 0 0 1px var(--cherry)' : 'none',
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+function ProjectCardHint({ selected }: { selected: boolean }) {
+  if (!selected) return null
+  return (
+    <div className="mt-2 flex items-center justify-end gap-0.5 text-[11px] font-medium" style={{ color: 'var(--cherry)' }}>
+      한 번 더 누르면 들어가요
+      <IconChevronRight size={13} stroke={2} />
     </div>
   )
 }
