@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Milestone, NoteKind, ProjectDetail, TimelineEntry } from '../types/project'
 import { addMilestone, addNote, completeMilestoneNow, deleteNote, deleteProject, getProject, getTimeline, renameMilestone, scheduleMilestoneToday, uncompleteMilestoneNow, unscheduleMilestoneToday, updateNote, updateProjectShared } from '../api/projects'
+import { getChallengeProjectLinks } from '../api/challenges'
 import MilestoneTrack from '../components/MilestoneTrack'
 import MilestoneChipGrid from '../components/MilestoneChipGrid'
 import NoteEntry from '../components/NoteEntry'
@@ -28,6 +29,9 @@ export default function ProjectDetailPage() {
   const [detail, setDetail] = useState<ProjectDetail | null>(null)
   const [timeline, setTimeline] = useState<TimelineEntry[]>([])
   const [error, setError] = useState('')
+  // 같이 하기로 만든(아직 참여 중인) 프로젝트는 "← 프로젝트" 대신 "← 같이 하기"로
+  // 돌아가야 자연스럽다 — 애초에 이 프로젝트로 들어온 맥락이 같이 하기 쪽이라서.
+  const [challengeId, setChallengeId] = useState<number | null>(null)
 
   const [noteKind, setNoteKind] = useState<NoteKind>('NOTE')
   const [noteBody, setNoteBody] = useState('')
@@ -44,7 +48,9 @@ export default function ProjectDetailPage() {
 
   async function loadDetail() {
     try {
-      setDetail(await getProject(projectId))
+      const [project, links] = await Promise.all([getProject(projectId), getChallengeProjectLinks()])
+      setDetail(project)
+      setChallengeId(links.find((l) => l.project_id === projectId && !l.left)?.challenge_id ?? null)
       setError('')
     } catch (e) {
       setError(e instanceof Error ? e.message : '불러오지 못했습니다')
@@ -252,7 +258,11 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
-      <Link to="/projects" className="text-xs text-neutral-400">← 프로젝트</Link>
+      {challengeId ? (
+        <Link to={`/challenges/${challengeId}`} className="text-xs text-neutral-400">← 같이 하기</Link>
+      ) : (
+        <Link to="/projects" className="text-xs text-neutral-400">← 프로젝트</Link>
+      )}
       <div className="mb-6 mt-2 flex items-center justify-between">
         <h1 className="text-xl font-medium tracking-tight">{detail.project.name}</h1>
         <div className="flex items-center gap-2">
