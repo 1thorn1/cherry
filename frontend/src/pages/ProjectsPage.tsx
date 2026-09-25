@@ -65,7 +65,6 @@ export default function ProjectsPage() {
         input.total_units = Number(totalUnits)
       } else if (mode === 'EXAM') {
         input.type = 'EXAM'
-        input.total_units = Number(totalUnits)
         input.exam_date = examDate
       } else if (milestoneTitles.length > 0) {
         input.milestone_titles = milestoneTitles
@@ -139,21 +138,12 @@ export default function ProjectsPage() {
           )}
 
           {mode === 'EXAM' && (
-            <div className="mb-3 flex gap-2">
-              <input
-                type="number"
-                value={totalUnits}
-                onChange={(e) => setTotalUnits(e.target.value)}
-                placeholder="단원 수"
-                className="flex-1 rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
-              />
-              <input
-                type="date"
-                value={examDate}
-                onChange={(e) => setExamDate(e.target.value)}
-                className="flex-1 rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
-              />
-            </div>
+            <input
+              type="date"
+              value={examDate}
+              onChange={(e) => setExamDate(e.target.value)}
+              className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+            />
           )}
 
           {mode === 'FREE' && (

@@ -351,13 +351,8 @@ public class ProjectService {
         if ("PROGRESS".equals(type) && (totalUnits == null || totalUnits <= 0)) {
             throw new InvalidProjectException("총 회차 수를 입력해주세요");
         }
-        if ("EXAM".equals(type)) {
-            if (totalUnits == null || totalUnits <= 0) {
-                throw new InvalidProjectException("단원 수를 입력해주세요");
-            }
-            if (examDate == null) {
-                throw new InvalidProjectException("시험일을 입력해주세요");
-            }
+        if ("EXAM".equals(type) && examDate == null) {
+            throw new InvalidProjectException("시험일을 입력해주세요");
         }
     }
 
@@ -380,27 +375,27 @@ public class ProjectService {
         return milestones;
     }
 
+    // 단원 수 없이, 오늘부터 시험일까지 남은 주(week) 수만큼 "N주차 (M/d~M/d)"로 만든다.
+    // 세부 계획은 사용자가 제목을 직접 고쳐 쓰면 된다(마일스톤 제목은 타입 상관없이 수정 가능).
     private List<Milestone> generateExamMilestones(Project project) {
         List<Milestone> milestones = new ArrayList<>();
-        int totalUnits = project.getTotalUnits();
 
         LocalDate todayWeekStart = LocalDate.now().with(DayOfWeek.MONDAY);
         LocalDate examWeekStart = project.getExamDate().with(DayOfWeek.MONDAY);
         long weeksRemaining = Math.max(1, ChronoUnit.WEEKS.between(todayWeekStart, examWeekStart) + 1);
-        int unitsPerWeek = (int) Math.ceil((double) totalUnits / weeksRemaining);
 
-        int seq = 1;
-        int unit = 1;
         LocalDate weekCursor = todayWeekStart;
-        while (unit <= totalUnits) {
-            int end = Math.min(unit + unitsPerWeek - 1, totalUnits);
-            String title = (unit == end) ? unit + "단원" : unit + "~" + end + "단원";
+        for (int seq = 1; seq <= weeksRemaining; seq++) {
+            LocalDate weekEnd = weekCursor.plusDays(6);
+            String title = seq + "주차 (" + formatMonthDay(weekCursor) + "~" + formatMonthDay(weekEnd) + ")";
             milestones.add(Milestone.create(project.getId(), seq, title, isoWeekString(weekCursor)));
-            unit = end + 1;
-            seq++;
             weekCursor = weekCursor.plusWeeks(1);
         }
         return milestones;
+    }
+
+    private String formatMonthDay(LocalDate date) {
+        return date.getMonthValue() + "/" + date.getDayOfMonth();
     }
 
     private String isoWeekString(LocalDate date) {
