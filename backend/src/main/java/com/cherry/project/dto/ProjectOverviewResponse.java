@@ -7,7 +7,6 @@ public record ProjectOverviewResponse(
         String overlapWarning,
         List<LocalDate> weeks,
         List<ProjectLaneResponse> lanes,
-        FocusProjectResponse focus,
         List<OtherProjectResponse> others
 ) {
 }

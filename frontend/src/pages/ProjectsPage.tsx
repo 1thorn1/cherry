@@ -1,11 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type MouseEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { IconChevronRight } from '@tabler/icons-react'
-import type { ProjectOverview } from '../types/project'
-import { createProject, getProjectOverview, type CreateProjectInput } from '../api/projects'
+import { IconChevronRight, IconStar, IconStarFilled } from '@tabler/icons-react'
+import type { OtherProject, ProjectOverview } from '../types/project'
+import { createProject, getProjectOverview, updateProjectStarred, type CreateProjectInput } from '../api/projects'
 import { getChallengeProjectLinks } from '../api/challenges'
 import type { ChallengeProjectLink } from '../types/challenge'
-import MilestoneTrack from '../components/MilestoneTrack'
 import { getTodayStr } from '../lib/date'
 
 type Mode = 'FREE' | 'PROGRESS' | 'EXAM'
@@ -53,6 +52,16 @@ export default function ProjectsPage() {
       navigate(`/projects/${projectId}`)
     } else {
       setSelectedProjectId(projectId)
+    }
+  }
+
+  async function handleToggleStar(e: MouseEvent, projectId: number, starred: boolean) {
+    e.stopPropagation()
+    try {
+      await updateProjectStarred(projectId, !starred)
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '즐겨찾기 설정에 실패했습니다')
     }
   }
 
@@ -117,7 +126,9 @@ export default function ProjectsPage() {
     { value: 'EXAM', label: '시험일' },
   ]
 
-  const isEmpty = overview && !overview.focus && overview.others.length === 0
+  const isEmpty = overview && overview.others.length === 0
+  const starredProjects = overview ? overview.others.filter((p) => p.starred) : []
+  const restProjects = overview ? overview.others.filter((p) => !p.starred) : []
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
@@ -279,90 +290,108 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {overview && overview.focus && (
+      {starredProjects.length > 0 && (
         <div className="mb-8">
-          <p className="mb-2 text-[11px] font-medium text-neutral-400">지금 집중 중</p>
-          <ProjectCard
-            selected={selectedProjectId === overview.focus.project_id}
-            onClick={() => handleProjectClick(overview.focus!.project_id)}
-          >
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <p className="text-sm font-medium">{overview.focus.name}</p>
-              {challengeLinks.find((l) => l.project_id === overview.focus!.project_id) && (
-                <Link
-                  to={`/challenges/${challengeLinks.find((l) => l.project_id === overview.focus!.project_id)!.challenge_id}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
-                  style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
-                >
-                  같이 하기
-                </Link>
-              )}
-            </div>
-
-            <MilestoneTrack milestones={overview.focus.milestones} />
-
-            <ProjectCardHint selected={selectedProjectId === overview.focus.project_id} />
-          </ProjectCard>
+          <p className="mb-2 text-[11px] font-medium text-neutral-400">즐겨찾기</p>
+          <div className="space-y-2">
+            {starredProjects.map((p) => (
+              <ProjectListItem
+                key={p.project_id}
+                project={p}
+                selected={selectedProjectId === p.project_id}
+                onClick={() => handleProjectClick(p.project_id)}
+                onToggleStar={(e) => handleToggleStar(e, p.project_id, p.starred)}
+                challengeLink={challengeLinks.find((l) => l.project_id === p.project_id)}
+              />
+            ))}
+          </div>
         </div>
       )}
 
-      {overview && overview.others.length > 0 && (
+      {restProjects.length > 0 && (
         <div>
-          <p className="mb-2 text-[11px] font-medium text-neutral-400">다른 프로젝트</p>
+          {starredProjects.length > 0 && <p className="mb-2 text-[11px] font-medium text-neutral-400">프로젝트</p>}
           <div className="space-y-2">
-            {overview.others.map((p) => {
-              const link = challengeLinks.find((l) => l.project_id === p.project_id)
-              return (
-                <ProjectCard
-                  key={p.project_id}
-                  selected={selectedProjectId === p.project_id}
-                  onClick={() => handleProjectClick(p.project_id)}
-                >
-                  <div className="mb-1.5 flex items-center justify-between gap-2">
-                    <span className="text-sm">{p.name}</span>
-                    <div className="flex shrink-0 items-center gap-2">
-                      {link && (
-                        <Link
-                          to={`/challenges/${link.challenge_id}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-                          style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
-                        >
-                          같이 하기
-                        </Link>
-                      )}
-                      <span className="text-[11px] text-neutral-400">{p.key_metric}</span>
-                    </div>
-                  </div>
-                  {p.total_milestones > 0 && (
-                    p.total_milestones <= 20 ? (
-                      <div className="flex gap-1">
-                        {Array.from({ length: p.total_milestones }).map((_, i) => (
-                          <span
-                            key={i}
-                            className="h-1.5 w-1.5 rounded-full"
-                            style={{ background: i < p.completed_milestones ? 'var(--cherry)' : '#E5E5E5' }}
-                          />
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
-                        <div
-                          className="h-full rounded-full"
-                          style={{ width: `${(p.completed_milestones / p.total_milestones) * 100}%`, background: 'var(--cherry)' }}
-                        />
-                      </div>
-                    )
-                  )}
-                  <ProjectCardHint selected={selectedProjectId === p.project_id} />
-                </ProjectCard>
-              )
-            })}
+            {restProjects.map((p) => (
+              <ProjectListItem
+                key={p.project_id}
+                project={p}
+                selected={selectedProjectId === p.project_id}
+                onClick={() => handleProjectClick(p.project_id)}
+                onToggleStar={(e) => handleToggleStar(e, p.project_id, p.starred)}
+                challengeLink={challengeLinks.find((l) => l.project_id === p.project_id)}
+              />
+            ))}
           </div>
         </div>
       )}
     </div>
+  )
+}
+
+// 별표는 카드 클릭(선택/진입)과 별개의 동작이라 stopPropagation으로 분리한다.
+function ProjectListItem({
+  project: p,
+  selected,
+  onClick,
+  onToggleStar,
+  challengeLink,
+}: {
+  project: OtherProject
+  selected: boolean
+  onClick: () => void
+  onToggleStar: (e: MouseEvent) => void
+  challengeLink?: ChallengeProjectLink
+}) {
+  return (
+    <ProjectCard selected={selected} onClick={onClick}>
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <button onClick={onToggleStar} aria-label={p.starred ? '즐겨찾기 해제' : '즐겨찾기 추가'} className="shrink-0">
+            {p.starred ? (
+              <IconStarFilled size={16} style={{ color: 'var(--cherry)' }} />
+            ) : (
+              <IconStar size={16} stroke={1.75} className="text-neutral-300" />
+            )}
+          </button>
+          <span className="truncate text-sm">{p.name}</span>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {challengeLink && (
+            <Link
+              to={`/challenges/${challengeLink.challenge_id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+              style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
+            >
+              같이 하기
+            </Link>
+          )}
+          <span className="text-[11px] text-neutral-400">{p.key_metric}</span>
+        </div>
+      </div>
+      {p.total_milestones > 0 && (
+        p.total_milestones <= 20 ? (
+          <div className="flex gap-1">
+            {Array.from({ length: p.total_milestones }).map((_, i) => (
+              <span
+                key={i}
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ background: i < p.completed_milestones ? 'var(--cherry)' : '#E5E5E5' }}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
+            <div
+              className="h-full rounded-full"
+              style={{ width: `${(p.completed_milestones / p.total_milestones) * 100}%`, background: 'var(--cherry)' }}
+            />
+          </div>
+        )
+      )}
+      <ProjectCardHint selected={selected} />
+    </ProjectCard>
   )
 }
 

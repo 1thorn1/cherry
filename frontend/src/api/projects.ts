@@ -35,6 +35,13 @@ export function updateProjectShared(id: number, shared: boolean) {
   })
 }
 
+export function updateProjectStarred(id: number, starred: boolean) {
+  return request<Project>(`/api/projects/${id}/starred`, {
+    method: 'PATCH',
+    body: JSON.stringify({ starred }),
+  })
+}
+
 export function updateProjectWorkDays(id: number, workDays: number[]) {
   return request<Project>(`/api/projects/${id}/work-days`, {
     method: 'PATCH',

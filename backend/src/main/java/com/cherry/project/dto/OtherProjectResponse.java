@@ -7,6 +7,7 @@ public record OtherProjectResponse(
         String color,
         int completedMilestones,
         int totalMilestones,
-        String keyMetric
+        String keyMetric,
+        boolean starred
 ) {
 }

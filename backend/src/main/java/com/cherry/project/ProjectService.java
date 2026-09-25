@@ -6,10 +6,8 @@ import com.cherry.common.MilestoneNotFoundException;
 import com.cherry.common.NoteNotFoundException;
 import com.cherry.common.ProjectNotFoundException;
 import com.cherry.park.ParkService;
-import com.cherry.project.dto.FocusProjectResponse;
 import com.cherry.project.dto.MilestoneCreateRequest;
 import com.cherry.project.dto.MilestoneResponse;
-import com.cherry.project.dto.MilestoneTrackResponse;
 import com.cherry.project.dto.NoteCreateRequest;
 import com.cherry.project.dto.NoteResponse;
 import com.cherry.project.dto.OtherProjectResponse;
@@ -19,6 +17,7 @@ import com.cherry.project.dto.ProjectLaneResponse;
 import com.cherry.project.dto.ProjectOverviewResponse;
 import com.cherry.project.dto.ProjectResponse;
 import com.cherry.project.dto.ProjectSharedRequest;
+import com.cherry.project.dto.ProjectStarredRequest;
 import com.cherry.project.dto.ProjectWorkDaysRequest;
 import com.cherry.project.dto.NoteUpdateRequest;
 import com.cherry.project.dto.TimelineEntryResponse;
@@ -31,7 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.IsoFields;
 import java.time.temporal.TemporalAdjusters;
@@ -103,14 +101,15 @@ public class ProjectService {
                 ))
                 .toList();
 
-        Project focusProject = selectFocusProject(projects);
-        FocusProjectResponse focus = focusProject == null ? null : buildFocus(focusProject);
+        // 즐겨찾기(별표) 프로젝트를 위로 — A-6-3의 "최근 7일 완료가 가장 많은 프로젝트를
+        // 자동 선정"하던 방식은 왜 그 프로젝트가 뽑혔는지 알기 어려워서, 사용자가 직접
+        // 고르는 별표로 대체했다.
         List<OtherProjectResponse> others = projects.stream()
-                .filter(p -> focusProject == null || !p.getId().equals(focusProject.getId()))
+                .sorted(Comparator.comparing(Project::isStarred).reversed())
                 .map(this::buildOther)
                 .toList();
 
-        return new ProjectOverviewResponse(buildOverlapWarning(projects), weeks, lanes, focus, others);
+        return new ProjectOverviewResponse(buildOverlapWarning(projects), weeks, lanes, others);
     }
 
     private String buildOverlapWarning(List<Project> projects) {
@@ -131,35 +130,6 @@ public class ProjectService {
         return date.getMonthValue() + "월 " + weekOfMonth + "주";
     }
 
-    private Project selectFocusProject(List<Project> projects) {
-        if (projects.isEmpty()) return null;
-
-        LocalDateTime start = LocalDate.now().minusDays(6).atStartOfDay();
-        LocalDateTime end = LocalDate.now().atTime(LocalTime.MAX);
-
-        Project best = null;
-        int bestCount = -1;
-        for (Project p : projects) {
-            int count = taskRepository
-                    .findByProjectIdAndCompletedAtBetweenAndDeletedAtIsNull(p.getId(), start, end)
-                    .size();
-            if (count > bestCount) {
-                bestCount = count;
-                best = p;
-            }
-        }
-        return best;
-    }
-
-    private FocusProjectResponse buildFocus(Project project) {
-        List<Milestone> milestones = milestoneRepository.findByProjectIdOrderBySeqAsc(project.getId());
-        List<MilestoneTrackResponse> track = milestones.stream()
-                .map(m -> new MilestoneTrackResponse(m.getSeq(), m.getTitle(), m.getCompletedAt() != null))
-                .toList();
-        int cartIndex = (int) milestones.stream().filter(m -> m.getCompletedAt() != null).count();
-        return new FocusProjectResponse(project.getId(), project.getName(), project.getType(), track, cartIndex);
-    }
-
     private OtherProjectResponse buildOther(Project project) {
         List<Milestone> milestones = milestoneRepository.findByProjectIdOrderBySeqAsc(project.getId());
         int total = milestones.size();
@@ -168,7 +138,7 @@ public class ProjectService {
                 ? "D" + formatDday(project.getExamDate())
                 : completed + "/" + total;
         return new OtherProjectResponse(project.getId(), project.getName(), project.getType(), project.getColor(),
-                completed, total, keyMetric);
+                completed, total, keyMetric, project.isStarred());
     }
 
     private String formatDday(LocalDate examDate) {
@@ -297,6 +267,13 @@ public class ProjectService {
     public ProjectResponse updateShared(Long userId, Long projectId, ProjectSharedRequest request) {
         Project project = findOwned(userId, projectId);
         project.updateShared(request.shared());
+        return ProjectResponse.from(project);
+    }
+
+    @Transactional
+    public ProjectResponse updateStarred(Long userId, Long projectId, ProjectStarredRequest request) {
+        Project project = findOwned(userId, projectId);
+        project.updateStarred(request.starred());
         return ProjectResponse.from(project);
     }
 

@@ -48,6 +48,11 @@ public class Project {
     @Column(name = "is_shared", nullable = false)
     private boolean shared = false;
 
+    // A-6-3의 "최근 7일 완료가 가장 많은 프로젝트를 자동 선정" 규칙 대신, 사용자가 직접
+    // 별표로 고른다 — 자동 선정은 왜 이 프로젝트가 뽑혔는지 사용자가 알기 어려웠다.
+    @Column(nullable = false)
+    private boolean starred = false;
+
     private LocalDateTime archivedAt;
 
     private LocalDateTime deletedAt;
@@ -73,6 +78,10 @@ public class Project {
 
     public void updateShared(boolean shared) {
         this.shared = shared;
+    }
+
+    public void updateStarred(boolean starred) {
+        this.starred = starred;
     }
 
     public void delete() {
