@@ -210,13 +210,10 @@ export default function CalendarPage() {
                 // 기준으로 보여준다 — 안 그러면 이월해서 나중에 끝낸 종일 항목이 월간 완료
                 // 집계와 다른 날짜에 표시된다(시간표 타임드 블록과 같은 이유).
                 const pendingAllDay = day.tasks.filter((t) => !t.scheduled_start && !t.completed_at)
-                const completedAllDayOnly = day.actual_tasks.filter((t) => !t.scheduled_start)
-                const completedTimed = day.actual_tasks.filter((t) => t.scheduled_start)
-                // "예정" 탭에서는 완료된 시간 있는 항목도 시간표에서 빼고 여기 같이 모아
-                // 보여준다 — 완료된 게 많아지면 시간표까지 지저분해지는 걸 막는다. "실제"
-                // 탭은 시간표 자체가 "언제 했는지" 보여주는 화면이라 그대로 두고, 종일 줄엔
-                // 원래대로 종일 항목만 모은다(안 그러면 실제 탭 시간표와 중복 표시된다).
-                const completedAllDay = view === 'scheduled' ? [...completedAllDayOnly, ...completedTimed] : completedAllDayOnly
+                // "완료 N개" 토글은 그날 끝낸 것의 총합이라 예정/실제 탭과 상관없이 항상
+                // 같은 값이어야 한다 — 탭에 따라 개수가 달라지면(예: 예정 4개, 실제 2개)
+                // 어느 쪽이 맞는지 헷갈린다. 시간표에 완료 항목이 같이 보이는 것과는 별개다.
+                const completedAllDay = day.actual_tasks
                 const isAllDayExpanded = expandedAllDay.has(day.date)
                 const allDayPreviews = day.previews.filter((p) => !p.default_time)
                 return (
