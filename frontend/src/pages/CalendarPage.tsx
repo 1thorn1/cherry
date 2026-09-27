@@ -278,8 +278,7 @@ export default function CalendarPage() {
 
                 {days.map((day) => {
                   const isoDay = getISODay(new Date(day.date))
-                  // 완료된 항목은 종일 줄의 "완료 N개" 토글로 옮겨서(위 참고) 여기서는 뺀다.
-                  const scheduledTasks = day.tasks.filter((t) => t.scheduled_start && !t.completed_at)
+                  const scheduledTasks = day.tasks.filter((t) => t.scheduled_start)
                   // actual_tasks는 예정된 날이 아니라 실제로 완료 처리한 날 기준으로 이미 묶여
                   // 있다 — day.tasks에서 completed_at으로 거르면 이월된 태스크가 원래 예정일에
                   // 표시돼 월간 완료 집계와 날짜가 어긋난다.
@@ -325,8 +324,8 @@ export default function CalendarPage() {
                             className={`absolute cursor-pointer overflow-hidden rounded px-1 text-[10px] leading-tight hover:opacity-70 ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
                             style={{
                               ...blockStyle(b, scheduledLayout),
-                              background: 'var(--cherry-bg)',
-                              color: 'var(--cherry)',
+                              background: t.completed_at ? '#F1EFE8' : 'var(--cherry-bg)',
+                              color: t.completed_at ? '#888780' : 'var(--cherry)',
                             }}
                           >
                             {t.title}
