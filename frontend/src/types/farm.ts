@@ -42,6 +42,8 @@ export interface VillagerRequest {
   created_at: string
 }
 
+export type Season = 'SPRING' | 'SUMMER' | 'FALL' | 'WINTER'
+
 export interface Farm {
   plots: FarmPlot[]
   inventory: Record<string, number>
@@ -49,4 +51,5 @@ export interface Farm {
   pending_productions: Production[]
   discoveries: RecipeDiscovery[]
   villager_requests: VillagerRequest[]
+  season: Season
 }

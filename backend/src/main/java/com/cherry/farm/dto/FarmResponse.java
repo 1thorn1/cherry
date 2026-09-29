@@ -9,6 +9,7 @@ public record FarmResponse(
         List<RecipeResponse> recipes,
         List<ProductionResponse> pendingProductions,
         List<RecipeDiscoveryResponse> discoveries,
-        List<VillagerRequestResponse> villagerRequests
+        List<VillagerRequestResponse> villagerRequests,
+        String season
 ) {
 }

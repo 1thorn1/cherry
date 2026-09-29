@@ -74,6 +74,13 @@ function minutesLeft(doneAt: string) {
   return Math.max(0, Math.ceil((new Date(doneAt).getTime() - Date.now()) / 60000))
 }
 
+const seasonLabels: Record<string, string> = {
+  SPRING: '봄',
+  SUMMER: '여름',
+  FALL: '가을',
+  WINTER: '겨울',
+}
+
 const categoryLabels: Record<CosmeticCategory, string> = {
   THEME: '테마',
   FONT: '폰트',
@@ -183,7 +190,7 @@ export default function ParkPage() {
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
       <h1 className="text-xl font-medium tracking-tight">농장</h1>
-      <p className="mb-6 text-xs text-neutral-400">프로젝트가 자라는 곳</p>
+      <p className="mb-6 text-xs text-neutral-400">프로젝트가 자라는 곳 · 지금은 {seasonLabels[farm.season]}</p>
 
       <div className="mb-8 grid grid-cols-3 gap-3">
         {[

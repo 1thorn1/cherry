@@ -42,6 +42,13 @@ public class FarmService {
     private static final int VILLAGER_ROTATE_AFTER_HOURS = 48;
     // 좋아하는 걸 만들면 "값을 더 쳐준다" — 스펙에 숫자가 없어 판매가의 50%를 보너스로 임시 고정.
     private static final double VILLAGER_BONUS_RATE = 0.5;
+    // 스펙 6절 계절 보너스 — 전부 숫자 없는 방향성 서술이라 임시값. 어떤 계절도
+    // 수확이 0이 되진 않는다(원칙 4번, 기본값 3에서 -1 해도 2라 안전).
+    private static final int SPRING_PLANT_BONUS = 1; // "심기 좋은 계절. 새 프로젝트 보너스"
+    private static final int FALL_HARVEST_BONUS = 1; // "가을 | 수확 보너스"
+    private static final int WINTER_HARVEST_PENALTY = 1; // "겨울 | 밭은 쉬고 가공에 집중"
+    private static final double SUMMER_PRODUCTION_SPEED = 0.8; // "여름 | 성장 빠름"
+    private static final double WINTER_SELL_BONUS = 1.1; // 겨울엔 수확 대신 가공에 힘 싣기
 
     private static final Map<String, String> CROP_BY_PROJECT_TYPE = Map.of(
             "FREE", "cherry_tree",
@@ -70,6 +77,12 @@ public class FarmService {
         int index = farmPlotRepository.findByUserId(userId).size();
         farmPlotRepository.save(FarmPlot.create(
                 userId, cropCode, projectId, (byte) (index % GRID_WIDTH), (byte) (index / GRID_WIDTH)));
+
+        if (Season.of(LocalDate.now()) == Season.SPRING) {
+            inventoryRepository.findByUserIdAndItemCode(userId, "cherry")
+                    .orElseGet(() -> inventoryRepository.save(Inventory.create(userId, "cherry")))
+                    .add(SPRING_PLANT_BONUS);
+        }
     }
 
     // 마일스톤 완료(수확) — TaskService.complete()에서 호출된다.
@@ -77,7 +90,13 @@ public class FarmService {
     public void harvest(Long userId, Long projectId) {
         Inventory cherry = inventoryRepository.findByUserIdAndItemCode(userId, "cherry")
                 .orElseGet(() -> inventoryRepository.save(Inventory.create(userId, "cherry")));
-        cherry.add(CHERRY_PER_HARVEST);
+
+        int amount = switch (Season.of(LocalDate.now())) {
+            case FALL -> CHERRY_PER_HARVEST + FALL_HARVEST_BONUS;
+            case WINTER -> CHERRY_PER_HARVEST - WINTER_HARVEST_PENALTY;
+            default -> CHERRY_PER_HARVEST;
+        };
+        cherry.add(amount);
 
         if (projectId == null) return;
         farmPlotRepository.findByUserIdAndProjectId(userId, projectId).ifPresent(plot -> {
@@ -124,8 +143,11 @@ public class FarmService {
                     .ifPresent(inv -> inv.add(-ingredient.getAmount()));
         }
 
+        int minutes = Season.of(LocalDate.now()) == Season.SUMMER
+                ? (int) Math.round(recipe.getMinutes() * SUMMER_PRODUCTION_SPEED)
+                : recipe.getMinutes();
         productionRepository.save(Production.start(
-                userId, recipeCode, LocalDateTime.now().plusMinutes(recipe.getMinutes())));
+                userId, recipeCode, LocalDateTime.now().plusMinutes(minutes)));
     }
 
     // 완성 확인하러 들어올 필요 없게(스펙 5절) — 별도 배치/스케줄러 없이 농장을 읽을 때마다
@@ -138,13 +160,16 @@ public class FarmService {
                 .toList();
         if (ready.isEmpty()) return;
 
+        boolean isWinter = Season.of(LocalDate.now()) == Season.WINTER;
         User user = userRepository.findById(userId).orElseThrow();
         for (Production production : ready) {
             Recipe recipe = recipeRepository.findById(production.getRecipeCode()).orElseThrow();
             production.collect();
-            user.earnPoints(recipe.getSellPrice());
+            // "겨울 | 밭은 쉬고 가공에 집중" — 수확은 줄고 가공 판매가는 대신 오른다.
+            int sellPrice = isWinter ? (int) Math.round(recipe.getSellPrice() * WINTER_SELL_BONUS) : recipe.getSellPrice();
+            user.earnPoints(sellPrice);
             pointLedgerRepository.save(PointLedger.create(
-                    userId, LocalDate.now(), recipe.getSellPrice(),
+                    userId, LocalDate.now(), sellPrice,
                     "PRODUCTION_SOLD", "PRODUCTION", production.getId()));
 
             recipeDiscoveryRepository.findById(new RecipeDiscoveryId(userId, recipe.getCode()))
@@ -160,7 +185,7 @@ public class FarmService {
                     .findFirst()
                     .ifPresent(request -> {
                         request.fulfill(now);
-                        int bonus = (int) Math.round(recipe.getSellPrice() * VILLAGER_BONUS_RATE);
+                        int bonus = (int) Math.round(sellPrice * VILLAGER_BONUS_RATE);
                         user.earnPoints(bonus);
                         pointLedgerRepository.save(PointLedger.create(
                                 userId, LocalDate.now(), bonus, "VILLAGER_REQUEST",
@@ -237,6 +262,7 @@ public class FarmService {
                 })
                 .toList();
 
-        return new FarmResponse(plots, inventory, recipes, pending, discoveries, villagerRequests);
+        return new FarmResponse(plots, inventory, recipes, pending, discoveries, villagerRequests,
+                Season.of(LocalDate.now()).name());
     }
 }
