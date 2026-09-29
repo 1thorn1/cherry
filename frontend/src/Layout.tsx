@@ -8,7 +8,7 @@ const tabs = [
   { to: '/', label: '오늘', end: true },
   { to: '/calendar', label: '캘린더', end: false },
   { to: '/projects', label: '프로젝트', end: false },
-  { to: '/park', label: '공원', end: false },
+  { to: '/park', label: '농장', end: false },
 ]
 
 export default function Layout() {
@@ -34,7 +34,7 @@ export default function Layout() {
             key={tab.to}
             to={tab.to}
             end={tab.end}
-            className="flex-1 py-3 text-center text-[11px] text-neutral-400 aria-[current=page]:text-[var(--cherry)]"
+            className="flex-1 py-3 text-center text-[11px] text-neutral-400 transition-colors duration-200 aria-[current=page]:text-[var(--cherry)]"
           >
             {tab.label}
           </NavLink>

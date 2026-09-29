@@ -22,3 +22,41 @@ body {
     transform: translateY(0);
   }
 }
+
+/* 농장(파키텍트풍 코지/페인터리 톤) 진입 애니메이션 — 밭이 하나씩 심기는 느낌 */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.82) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* 나무·작물 아이콘이 바람에 살랑이는 느낌의 은은한 흔들림 */
+@keyframes sway {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+}
+
+/* 착용 중/보유 중 표시에 쓰는 은은한 확산광 펄스 */
+@keyframes glow-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(212, 83, 126, 0.28); }
+  70% { box-shadow: 0 0 0 10px rgba(212, 83, 126, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(212, 83, 126, 0); }
+}
+
+.animate-pop-in {
+  animation: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+.animate-sway {
+  animation: sway 3.2s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-out infinite;
+}
