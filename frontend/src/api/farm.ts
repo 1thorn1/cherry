@@ -11,3 +11,10 @@ export function startProduction(recipeCode: string) {
     body: JSON.stringify({ recipe_code: recipeCode }),
   })
 }
+
+export function movePlot(plotId: number, gridX: number, gridY: number) {
+  return request<void>(`/api/farm/plots/${plotId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ grid_x: gridX, grid_y: gridY }),
+  })
+}

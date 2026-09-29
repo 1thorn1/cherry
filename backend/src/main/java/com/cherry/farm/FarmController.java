@@ -1,11 +1,14 @@
 package com.cherry.farm;
 
 import com.cherry.auth.CurrentUserId;
+import com.cherry.farm.dto.FarmPlotMoveRequest;
 import com.cherry.farm.dto.FarmResponse;
 import com.cherry.farm.dto.ProductionStartRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,5 +31,10 @@ public class FarmController {
     @ResponseStatus(HttpStatus.CREATED)
     public void startProduction(@CurrentUserId Long userId, @RequestBody ProductionStartRequest request) {
         farmService.startProduction(userId, request.recipeCode());
+    }
+
+    @PatchMapping("/plots/{id}")
+    public void movePlot(@CurrentUserId Long userId, @PathVariable Long id, @RequestBody FarmPlotMoveRequest request) {
+        farmService.movePlot(userId, id, request.gridX(), request.gridY());
     }
 }

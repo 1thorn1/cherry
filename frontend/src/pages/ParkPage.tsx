@@ -1,12 +1,60 @@
 import { useEffect, useState } from 'react'
+import { DndContext, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core'
 import { IconPlant2, IconTree } from '@tabler/icons-react'
 import type { Park } from '../types/park'
-import type { Farm } from '../types/farm'
+import type { Farm, FarmPlot } from '../types/farm'
 import type { CosmeticItem, CosmeticCategory } from '../types/shop'
 import { getPark } from '../api/park'
-import { getFarm, startProduction } from '../api/farm'
+import { getFarm, startProduction, movePlot } from '../api/farm'
 import { getCatalog, purchaseItem, equipItem } from '../api/shop'
 import { applyEquippedTheme } from '../lib/theme'
+
+// 서버의 FarmService.GRID_WIDTH/HEIGHT와 맞춘 값. 스펙 9절 "꾸미기"용 배치 그리드.
+const GRID_WIDTH = 4
+const GRID_HEIGHT = 5
+
+function cellId(x: number, y: number) {
+  return `farm-cell-${x}-${y}`
+}
+
+function PlotTile({ plot }: { plot: FarmPlot }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: plot.id })
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      style={{
+        background: 'radial-gradient(circle at 32% 28%, #ffffff 0%, var(--cherry-bg) 55%, #f3d3de 100%)',
+        transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+        opacity: isDragging ? 0.6 : 1,
+        zIndex: isDragging ? 10 : undefined,
+      }}
+      className="flex h-full w-full cursor-grab flex-col items-center justify-center rounded-2xl shadow-[0_4px_10px_-4px_rgba(0,0,0,0.15)] transition-transform duration-200 active:cursor-grabbing"
+    >
+      <span className="animate-sway inline-flex">
+        {plot.crop_code === 'cherry_tree' ? (
+          <IconTree size={28} stroke={1.5} color="var(--cherry)" />
+        ) : (
+          <IconPlant2 size={28} stroke={1.5} color="var(--cherry)" />
+        )}
+      </span>
+      <span className="mt-1 text-[10px] text-neutral-400">#{plot.id}</span>
+    </div>
+  )
+}
+
+function PlotCell({ x, y, plot }: { x: number; y: number; plot: FarmPlot | undefined }) {
+  const { setNodeRef, isOver } = useDroppable({ id: cellId(x, y) })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`aspect-square rounded-2xl ${isOver ? 'ring-2 ring-[var(--cherry)]' : ''} ${!plot ? 'border border-dashed border-neutral-200' : ''}`}
+    >
+      {plot && <PlotTile plot={plot} />}
+    </div>
+  )
+}
 
 const itemLabels: Record<string, string> = {
   cherry: '체리',
@@ -70,6 +118,20 @@ export default function ParkPage() {
   }
 
   useEffect(() => { loadPark(); loadFarm(); loadCatalog() }, [])
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over) return
+    const match = String(over.id).match(/^farm-cell-(\d+)-(\d+)$/)
+    if (!match) return
+    const [, xStr, yStr] = match
+    try {
+      await movePlot(Number(active.id), Number(xStr), Number(yStr))
+      await loadFarm()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '옮기지 못했습니다')
+    }
+  }
 
   async function handleStartProduction(recipeCode: string) {
     if (makingRecipe) return
@@ -148,30 +210,19 @@ export default function ParkPage() {
         style={{ background: 'linear-gradient(160deg, #f6f2e4 0%, #eef2df 100%)' }}
       >
         {farm.plots.length === 0 && (
-          <p className="py-8 text-center text-xs text-neutral-400">아직 심은 게 없어요</p>
+          <p className="mb-3 text-center text-xs text-neutral-400">아직 심은 게 없어요</p>
         )}
 
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-          {farm.plots.map((plot, i) => (
-            <div
-              key={plot.id}
-              className="animate-pop-in flex aspect-square flex-col items-center justify-center rounded-2xl shadow-[0_4px_10px_-4px_rgba(0,0,0,0.15)] transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_16px_-6px_rgba(0,0,0,0.2)]"
-              style={{
-                background: 'radial-gradient(circle at 32% 28%, #ffffff 0%, var(--cherry-bg) 55%, #f3d3de 100%)',
-                animationDelay: `${i * 40}ms`,
-              }}
-            >
-              <span className="animate-sway inline-flex">
-                {plot.crop_code === 'cherry_tree' ? (
-                  <IconTree size={28} stroke={1.5} color="var(--cherry)" />
-                ) : (
-                  <IconPlant2 size={28} stroke={1.5} color="var(--cherry)" />
-                )}
-              </span>
-              <span className="mt-1 text-[10px] text-neutral-400">#{plot.id}</span>
-            </div>
-          ))}
-        </div>
+        <DndContext onDragEnd={handleDragEnd}>
+          <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${GRID_WIDTH}, minmax(0, 1fr))` }}>
+            {Array.from({ length: GRID_HEIGHT }, (_, y) =>
+              Array.from({ length: GRID_WIDTH }, (_, x) => (
+                <PlotCell key={cellId(x, y)} x={x} y={y} plot={farm.plots.find((p) => p.grid_x === x && p.grid_y === y)} />
+              )),
+            )}
+          </div>
+        </DndContext>
+        <p className="mt-2 text-[10px] text-neutral-300">밭을 끌어서 자리를 바꿀 수 있어요</p>
       </div>
 
       {error && (

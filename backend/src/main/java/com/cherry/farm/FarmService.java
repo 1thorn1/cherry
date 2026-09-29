@@ -35,6 +35,7 @@ public class FarmService {
     // 마일스톤 완료(수확)마다 쌓이는 재료 체리 양 — 잼 레시피 재료량(3)을 기준으로 잡은 임시값.
     private static final int CHERRY_PER_HARVEST = 3;
     private static final int GRID_WIDTH = 4;
+    private static final int GRID_HEIGHT = 5;
     // 스펙 8절 "한 번에 2~3개까지만" — 중간값으로 임시 고정.
     private static final int MAX_VILLAGER_REQUESTS = 2;
     // "조용히 교체" — 사용자에게 기한처럼 보이지 않게 넉넉히 잡은 임시값.
@@ -84,6 +85,25 @@ public class FarmService {
                     .allMatch(m -> m.getCompletedAt() != null);
             if (allDone) plot.promoteToTree(); // 스펙 3절 "프로젝트 완료 → 나무로 승격"
         });
+    }
+
+    // 스펙 9절 "꾸미기" — 밭 배치는 자유. 겹치면(우리 작물은 전부 1x1이라 같은 칸) 막지
+    // 않고 서로 자리를 바꿔준다 — 드래그 중 "여기 안 돼요"로 막히는 것보다 자연스럽다.
+    @Transactional
+    public void movePlot(Long userId, Long plotId, int gridX, int gridY) {
+        if (gridX < 0 || gridX >= GRID_WIDTH || gridY < 0 || gridY >= GRID_HEIGHT) {
+            throw new InvalidFarmException("농장 범위를 벗어났습니다");
+        }
+        FarmPlot plot = farmPlotRepository.findByIdAndUserId(plotId, userId)
+                .orElseThrow(() -> new InvalidFarmException("존재하지 않는 밭입니다"));
+
+        byte targetX = (byte) gridX;
+        byte targetY = (byte) gridY;
+        farmPlotRepository.findByUserIdAndGridXAndGridY(userId, targetX, targetY)
+                .filter(other -> !other.getId().equals(plot.getId()))
+                .ifPresent(other -> other.move(plot.getGridX(), plot.getGridY(), other.getRotation()));
+
+        plot.move(targetX, targetY, plot.getRotation());
     }
 
     @Transactional
