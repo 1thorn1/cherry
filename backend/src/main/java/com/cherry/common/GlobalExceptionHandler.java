@@ -52,6 +52,12 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("INVALID_REQUEST", e.getMessage()));
     }
 
+    @ExceptionHandler(InvalidTaskException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidTask(InvalidTaskException e) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("INVALID_REQUEST", e.getMessage()));
+    }
+
     @ExceptionHandler(LoginRequiredException.class)
     public ResponseEntity<ErrorResponse> handleLoginRequired(LoginRequiredException e) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)

@@ -1,10 +1,13 @@
 interface Props {
   value: string | null
   onChange: (hour: number | null) => void
+  // 종료 시각 선택칸에서 시작 시각보다 이른 값을 못 고르게 막을 때 쓴다.
+  minHour?: number
 }
 
-export default function TimeSelect({ value, onChange }: Props) {
+export default function TimeSelect({ value, onChange, minHour }: Props) {
   const current = value ? new Date(value).getHours() : ''
+  const hours = Array.from({ length: 24 }, (_, i) => i).filter((h) => minHour === undefined || h > minHour)
 
   return (
     <select
@@ -14,7 +17,7 @@ export default function TimeSelect({ value, onChange }: Props) {
       className="rounded border border-neutral-200 px-1.5 py-0.5 text-[11px] text-neutral-500"
     >
       <option value="">시간</option>
-      {Array.from({ length: 24 }, (_, i) => i).map((h) => (
+      {hours.map((h) => (
         <option key={h} value={h}>{h}시</option>
       ))}
     </select>

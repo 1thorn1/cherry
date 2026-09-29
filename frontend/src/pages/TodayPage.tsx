@@ -83,6 +83,7 @@ function TaskRow({
   postponeOpen,
   onToggle,
   onSchedule,
+  onScheduleEnd,
   onSetReminder,
   onDelete,
   onApplySuggestion,
@@ -97,6 +98,7 @@ function TaskRow({
   postponeOpen: boolean
   onToggle: (task: Task) => void
   onSchedule: (task: Task, hour: number | null) => void
+  onScheduleEnd: (task: Task, hour: number | null) => void
   onSetReminder: (task: Task, offset: number | null) => void
   onDelete: (id: number) => void
   onApplySuggestion: (task: Task) => void
@@ -148,6 +150,16 @@ function TaskRow({
           )}
         </span>
         <TimeSelect value={task.scheduled_start} onChange={(hour) => onSchedule(task, hour)} />
+        {task.scheduled_start && (
+          <>
+            <span className="text-[10px] text-neutral-300">~</span>
+            <TimeSelect
+              value={task.scheduled_end}
+              onChange={(hour) => onScheduleEnd(task, hour)}
+              minHour={new Date(task.scheduled_start).getHours()}
+            />
+          </>
+        )}
         {task.scheduled_start && (
           <NotifySelect value={task.notify_offset_min} onChange={(offset) => onSetReminder(task, offset)} />
         )}
@@ -516,6 +528,14 @@ export default function TodayPage() {
     load()
   }
 
+  async function handleScheduleEnd(task: Task, hour: number | null) {
+    if (!task.scheduled_start) return
+    const datePart = task.scheduled_start.slice(0, 10)
+    const end = hour === null ? null : `${datePart}T${String(hour).padStart(2, '0')}:00:00`
+    await scheduleTask(task.id, task.scheduled_start, end)
+    load()
+  }
+
   async function handleSetReminder(task: Task, offset: number | null) {
     if (offset !== null) {
       const ok = await ensurePushSubscription()
@@ -815,6 +835,7 @@ export default function TodayPage() {
                 postponeOpen={postponeMenuTaskId === task.id}
                 onToggle={handleToggle}
                 onSchedule={handleSchedule}
+                onScheduleEnd={handleScheduleEnd}
                 onSetReminder={handleSetReminder}
                 onDelete={handleDelete}
                 onApplySuggestion={handleApplySuggestion}
