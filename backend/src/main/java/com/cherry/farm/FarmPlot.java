@@ -54,4 +54,9 @@ public class FarmPlot {
         this.gridY = gridY;
         this.rotation = rotation;
     }
+
+    // 스펙 3절 "프로젝트 완료 → 나무로 승격"
+    public void promoteToTree() {
+        this.cropCode = "cherry_tree";
+    }
 }

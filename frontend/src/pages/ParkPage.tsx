@@ -1,10 +1,30 @@
 import { useEffect, useState } from 'react'
 import { IconPlant2, IconTree } from '@tabler/icons-react'
 import type { Park } from '../types/park'
+import type { Farm } from '../types/farm'
 import type { CosmeticItem, CosmeticCategory } from '../types/shop'
 import { getPark } from '../api/park'
+import { getFarm, startProduction } from '../api/farm'
 import { getCatalog, purchaseItem, equipItem } from '../api/shop'
 import { applyEquippedTheme } from '../lib/theme'
+
+const itemLabels: Record<string, string> = {
+  cherry: '체리',
+  sugar: '설탕',
+  milk: '우유',
+  dough: '반죽',
+  cherry_jam: '체리잼',
+  cherry_latte: '체리 라떼',
+  cherry_pie: '체리 파이',
+}
+
+function itemLabel(code: string) {
+  return itemLabels[code] ?? code
+}
+
+function minutesLeft(doneAt: string) {
+  return Math.max(0, Math.ceil((new Date(doneAt).getTime() - Date.now()) / 60000))
+}
 
 const categoryLabels: Record<CosmeticCategory, string> = {
   THEME: '테마',
@@ -17,13 +37,23 @@ const categoryOrder: CosmeticCategory[] = ['THEME', 'FONT', 'ICON', 'EFFECT']
 
 export default function ParkPage() {
   const [park, setPark] = useState<Park | null>(null)
+  const [farm, setFarm] = useState<Farm | null>(null)
   const [catalog, setCatalog] = useState<CosmeticItem[]>([])
   const [error, setError] = useState('')
   const [busyId, setBusyId] = useState<number | null>(null)
+  const [makingRecipe, setMakingRecipe] = useState<string | null>(null)
 
   async function loadPark() {
     try {
       setPark(await getPark())
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '불러오지 못했습니다')
+    }
+  }
+
+  async function loadFarm() {
+    try {
+      setFarm(await getFarm())
     } catch (e) {
       setError(e instanceof Error ? e.message : '불러오지 못했습니다')
     }
@@ -39,7 +69,20 @@ export default function ParkPage() {
     }
   }
 
-  useEffect(() => { loadPark(); loadCatalog() }, [])
+  useEffect(() => { loadPark(); loadFarm(); loadCatalog() }, [])
+
+  async function handleStartProduction(recipeCode: string) {
+    if (makingRecipe) return
+    setMakingRecipe(recipeCode)
+    try {
+      await startProduction(recipeCode)
+      await loadFarm()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '만들지 못했습니다')
+    } finally {
+      setMakingRecipe(null)
+    }
+  }
 
   async function handlePurchase(item: CosmeticItem) {
     if (busyId) return
@@ -67,7 +110,7 @@ export default function ParkPage() {
     }
   }
 
-  if (!park) {
+  if (!park || !farm) {
     return (
       <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
         <p className="text-xs text-neutral-400">불러오는 중...</p>
@@ -104,14 +147,14 @@ export default function ParkPage() {
         className="mb-10 rounded-3xl p-4"
         style={{ background: 'linear-gradient(160deg, #f6f2e4 0%, #eef2df 100%)' }}
       >
-        {park.slots.length === 0 && (
+        {farm.plots.length === 0 && (
           <p className="py-8 text-center text-xs text-neutral-400">아직 심은 게 없어요</p>
         )}
 
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-          {park.slots.map((slot, i) => (
+          {farm.plots.map((plot, i) => (
             <div
-              key={slot.id}
+              key={plot.id}
               className="animate-pop-in flex aspect-square flex-col items-center justify-center rounded-2xl shadow-[0_4px_10px_-4px_rgba(0,0,0,0.15)] transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_16px_-6px_rgba(0,0,0,0.2)]"
               style={{
                 background: 'radial-gradient(circle at 32% 28%, #ffffff 0%, var(--cherry-bg) 55%, #f3d3de 100%)',
@@ -119,13 +162,13 @@ export default function ParkPage() {
               }}
             >
               <span className="animate-sway inline-flex">
-                {slot.indoor ? (
-                  <IconPlant2 size={28} stroke={1.5} color="var(--cherry)" />
-                ) : (
+                {plot.crop_code === 'cherry_tree' ? (
                   <IconTree size={28} stroke={1.5} color="var(--cherry)" />
+                ) : (
+                  <IconPlant2 size={28} stroke={1.5} color="var(--cherry)" />
                 )}
               </span>
-              <span className="mt-1 text-[10px] text-neutral-400">#{slot.slot_index}</span>
+              <span className="mt-1 text-[10px] text-neutral-400">#{plot.id}</span>
             </div>
           ))}
         </div>
@@ -133,6 +176,75 @@ export default function ParkPage() {
 
       {error && (
         <p className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-xs text-red-600">{error}</p>
+      )}
+
+      <h2 className="mb-3 text-sm font-medium tracking-tight">창고</h2>
+      {Object.keys(farm.inventory).length === 0 ? (
+        <p className="mb-8 text-xs text-neutral-300">아직 모은 재료가 없어요. 마일스톤을 완료해서 체리를 모아보세요</p>
+      ) : (
+        <div className="mb-8 flex flex-wrap gap-2">
+          {Object.entries(farm.inventory).map(([code, amount]) => (
+            <span
+              key={code}
+              className="rounded-full px-3 py-1 text-[11px] font-medium"
+              style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
+            >
+              {itemLabel(code)} {amount}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <h2 className="mb-3 text-sm font-medium tracking-tight">가공</h2>
+      <div className="mb-10 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {farm.recipes.map((recipe, i) => {
+          const missing = recipe.ingredients.filter(
+            (ing) => (farm.inventory[ing.item_code] ?? 0) < ing.amount,
+          )
+          const inProgress = farm.pending_productions.find((p) => p.recipe_code === recipe.code)
+          return (
+            <div
+              key={recipe.code}
+              className="animate-pop-in rounded-2xl bg-white p-3 shadow-[0_3px_10px_-6px_rgba(0,0,0,0.2)]"
+              style={{ animationDelay: `${i * 30}ms` }}
+            >
+              <div className="mb-1 flex items-center justify-between">
+                <p className="text-xs font-medium">{recipe.name}</p>
+                <span className="text-[11px] text-neutral-400">체리 {recipe.sell_price}</span>
+              </div>
+              <p className="mb-2 text-[11px] text-neutral-400">
+                {recipe.ingredients.map((ing) => `${itemLabel(ing.item_code)} ${ing.amount}`).join(' + ')}
+              </p>
+              {inProgress ? (
+                <span className="inline-block rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-500">
+                  가공 중 · {minutesLeft(inProgress.done_at)}분 후 완성
+                </span>
+              ) : (
+                <button
+                  onClick={() => handleStartProduction(recipe.code)}
+                  disabled={missing.length > 0 || makingRecipe === recipe.code}
+                  className="rounded-full px-3 py-1 text-[11px] font-medium text-white transition-transform active:scale-95 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-400"
+                  style={{ background: missing.length > 0 ? undefined : 'var(--cherry)' }}
+                >
+                  만들기
+                </button>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {farm.discoveries.length > 0 && (
+        <div className="mb-10">
+          <h2 className="mb-3 text-sm font-medium tracking-tight">도감</h2>
+          <div className="flex flex-wrap gap-2">
+            {farm.discoveries.map((d) => (
+              <span key={d.recipe_code} className="rounded-full bg-neutral-100 px-3 py-1 text-[11px] text-neutral-500">
+                {itemLabel(d.recipe_code)} · {d.total_count}개 만듦
+              </span>
+            ))}
+          </div>
+        </div>
       )}
 
       <h2 className="mb-4 text-sm font-medium tracking-tight">상점</h2>

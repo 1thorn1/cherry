@@ -5,6 +5,7 @@ import com.cherry.common.InvalidProjectException;
 import com.cherry.common.MilestoneNotFoundException;
 import com.cherry.common.NoteNotFoundException;
 import com.cherry.common.ProjectNotFoundException;
+import com.cherry.farm.FarmService;
 import com.cherry.park.ParkService;
 import com.cherry.project.dto.MilestoneCreateRequest;
 import com.cherry.project.dto.MilestoneResponse;
@@ -49,6 +50,7 @@ public class ProjectService {
     private final TaskRepository taskRepository;
     private final ProjectNoteRepository projectNoteRepository;
     private final ParkService parkService;
+    private final FarmService farmService;
 
     @Transactional
     public ProjectResponse create(Long userId, ProjectCreateRequest request) {
@@ -70,6 +72,7 @@ public class ProjectService {
             default -> generateFreeMilestones(project, milestoneTitles);
         };
         milestoneRepository.saveAll(milestones);
+        farmService.plantForProject(userId, project.getId(), project.getType());
 
         return project;
     }
