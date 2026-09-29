@@ -31,7 +31,6 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.IsoFields;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -338,33 +337,42 @@ public class ProjectService {
         return milestones;
     }
 
-    // 단원 수 없이, 오늘부터 시험일까지 남은 주(week) 수만큼 "N주차 (M/d~M/d)"로 만든다.
-    // 세부 계획은 사용자가 제목을 직접 고쳐 쓰면 된다(마일스톤 제목은 타입 상관없이 수정 가능).
+    // 단원 수 없이, 오늘부터 시험일까지 날짜 하나하나를 마일스톤으로 만든다("1주차
+    // 화요일" 식). 예전엔 한 주 전체를 마일스톤 하나로 묶었는데(2026-09-25), 그러면
+    // "오늘 일정에 추가"를 눌렀을 때 그 주 전체가 통째로 오늘 할 일 하나로 들어가
+    // 버렸다 — 진도형(PROGRESS)은 이미 회차마다 나뉘어 있는데 시험형만 이 문제가
+    // 있다는 리포트로 재조정(2026-09-29). target_week는 일부러 안 채운다: 이제
+    // 마일스톤 자체가 이미 하루 단위라 WeekDayAccordion(마일스톤 하나 안에서 요일별로
+    // 접고 펼쳐 메모하던 용도)이 필요 없어졌다 — 기존에 만들어진 주 단위 마일스톤은
+    // 그대로 두고 새로 만드는 것부터만 이 방식을 쓴다.
     private List<Milestone> generateExamMilestones(Project project) {
         List<Milestone> milestones = new ArrayList<>();
 
         LocalDate todayWeekStart = LocalDate.now().with(DayOfWeek.MONDAY);
-        LocalDate examWeekStart = project.getExamDate().with(DayOfWeek.MONDAY);
-        long weeksRemaining = Math.max(1, ChronoUnit.WEEKS.between(todayWeekStart, examWeekStart) + 1);
+        LocalDate examDate = project.getExamDate();
+        LocalDate end = examDate.isBefore(todayWeekStart) ? todayWeekStart : examDate;
 
-        LocalDate weekCursor = todayWeekStart;
-        for (int seq = 1; seq <= weeksRemaining; seq++) {
-            LocalDate weekEnd = weekCursor.plusDays(6);
-            String title = seq + "주차 (" + formatMonthDay(weekCursor) + "~" + formatMonthDay(weekEnd) + ")";
-            milestones.add(Milestone.create(project.getId(), seq, title, isoWeekString(weekCursor)));
-            weekCursor = weekCursor.plusWeeks(1);
+        int seq = 1;
+        LocalDate cursor = todayWeekStart;
+        while (!cursor.isAfter(end)) {
+            int weekNum = (int) (ChronoUnit.DAYS.between(todayWeekStart, cursor) / 7) + 1;
+            String title = weekNum + "주차 " + weekdayLabel(cursor) + "요일";
+            milestones.add(Milestone.create(project.getId(), seq++, title, null));
+            cursor = cursor.plusDays(1);
         }
         return milestones;
     }
 
-    private String formatMonthDay(LocalDate date) {
-        return date.getMonthValue() + "/" + date.getDayOfMonth();
-    }
-
-    private String isoWeekString(LocalDate date) {
-        int week = date.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR);
-        int year = date.get(IsoFields.WEEK_BASED_YEAR);
-        return String.format("%d-W%02d", year, week);
+    private String weekdayLabel(LocalDate date) {
+        return switch (date.getDayOfWeek()) {
+            case MONDAY -> "월";
+            case TUESDAY -> "화";
+            case WEDNESDAY -> "수";
+            case THURSDAY -> "목";
+            case FRIDAY -> "금";
+            case SATURDAY -> "토";
+            case SUNDAY -> "일";
+        };
     }
 
     private Project findOwned(Long userId, Long projectId) {
