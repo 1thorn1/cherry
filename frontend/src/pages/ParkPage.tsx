@@ -189,24 +189,25 @@ export default function ParkPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
-      <h1 className="text-xl font-medium tracking-tight">농장</h1>
+      <h1 className="font-display text-2xl">농장</h1>
       <p className="mb-6 text-xs text-neutral-400">프로젝트가 자라는 곳 · 지금은 {seasonLabels[farm.season]}</p>
 
       <div className="mb-8 grid grid-cols-3 gap-3">
         {[
-          { value: park.population, label: '농장 규모' },
-          { value: park.today_visitors, label: '오늘 수확량' },
-          { value: park.point_balance, label: '체리' },
+          { value: park.population, label: '농장 규모', color: 'var(--cherry)', bg: 'linear-gradient(160deg, #fffaf7 0%, var(--cherry-bg) 100%)', shadow: 'rgba(212,83,126,0.35)' },
+          { value: park.today_visitors, label: '오늘 수확량', color: 'var(--meadow)', bg: 'linear-gradient(160deg, #fbfdf9 0%, var(--meadow-bg) 100%)', shadow: 'rgba(95,160,90,0.3)' },
+          { value: park.point_balance, label: '체리', color: 'var(--gold)', bg: 'linear-gradient(160deg, #fffcf5 0%, var(--gold-bg) 100%)', shadow: 'rgba(232,169,61,0.35)' },
         ].map((stat, i) => (
           <div
             key={stat.label}
-            className="animate-pop-in rounded-2xl p-4 text-center shadow-[0_6px_18px_-8px_rgba(212,83,126,0.35)]"
+            className="animate-pop-in rounded-2xl p-4 text-center"
             style={{
-              background: 'linear-gradient(160deg, #fffaf7 0%, var(--cherry-bg) 100%)',
+              background: stat.bg,
+              boxShadow: `0 6px 18px -8px ${stat.shadow}`,
               animationDelay: `${i * 60}ms`,
             }}
           >
-            <p className="text-2xl font-medium" style={{ color: 'var(--cherry)' }}>{stat.value}</p>
+            <p className="font-display text-2xl" style={{ color: stat.color }}>{stat.value}</p>
             <p className="text-xs text-neutral-400">{stat.label}</p>
           </div>
         ))}

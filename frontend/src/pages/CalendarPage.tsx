@@ -129,7 +129,7 @@ export default function CalendarPage() {
   return (
     <div className="mx-auto max-w-6xl px-5 py-6 lg:px-8 lg:py-10">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-medium tracking-tight">캘린더</h1>
+        <h1 className="font-display text-2xl">캘린더</h1>
         <div className="flex items-center gap-3">
           <div className="flex gap-1 rounded-lg bg-neutral-100 p-1 text-xs">
             <button

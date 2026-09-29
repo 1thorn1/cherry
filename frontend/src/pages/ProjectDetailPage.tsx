@@ -264,7 +264,7 @@ export default function ProjectDetailPage() {
         <Link to="/projects" className="text-xs text-neutral-400">← 프로젝트</Link>
       )}
       <div className="mb-6 mt-2 flex items-center justify-between">
-        <h1 className="text-xl font-medium tracking-tight">{detail.project.name}</h1>
+        <h1 className="font-display text-2xl">{detail.project.name}</h1>
         <div className="flex items-center gap-2">
           <button
             onClick={handleDelete}
@@ -391,7 +391,7 @@ export default function ProjectDetailPage() {
             <button
               onClick={handleAddNote}
               disabled={saving}
-              className="w-full rounded-lg py-2.5 text-sm font-medium text-white disabled:opacity-50"
+              className="btn-3d font-display w-full rounded-full py-2.5 text-base text-white disabled:opacity-50"
               style={{ background: 'var(--cherry)' }}
             >
               기록하기

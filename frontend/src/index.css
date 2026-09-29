@@ -11,14 +11,32 @@
 
 :root {
   --cherry: #D4537E;
+  --cherry-deep: #B33A64;
   --cherry-bg: #FBEAF0;
+  /* 게임성 팔레트 — 체리 핑크 하나뿐이던 걸 농장 테마에 맞춰 확장.
+     초록(성장·완료), 금색(체리/보상), 크림(배경)을 더했다. */
+  --meadow: #5FA05A;
+  --meadow-deep: #427A3F;
+  --meadow-bg: #E9F5E7;
+  --gold: #E8A93D;
+  --gold-deep: #C4841F;
+  --gold-bg: #FBF0DA;
+  --cream: #FFF7EA;
 }
 
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', sans-serif;
-  background: #FFFCFA;
-  color: #1f1f1f;
+  background: var(--cream);
+  color: #3a2f2a;
+}
+
+/* 게임풍 표제용 서체 — 제목·버튼·탭바처럼 짧고 굵게 읽는 자리에만 쓴다.
+   할 일 목록 같은 빽빽한 본문까지 다 바꾸면 가독성이 떨어져서, "말투"가
+   필요한 지점에만 골라 입힌다. */
+.font-display {
+  font-family: 'Jua', -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: 0.01em;
 }
 
 /* 페인터리 톤 — 눌렀을 때 살짝 눌리는 느낌만 앱 전체 버튼에 기본으로 깔아둔다.
@@ -28,6 +46,18 @@ button:not(:disabled) {
 }
 button:not(:disabled):active {
   transform: scale(0.97);
+}
+
+/* 게임 UI에서 흔한 "눌리는 입체 버튼" — 아래쪽에 진한 색 턱을 깔아 두께감을 주고,
+   누르면 그 두께만큼 내려앉는다. 주요 액션 버튼(추가·검색·참여 등)에서 쓴다.
+   색은 --btn-shadow-color로 버튼마다 바꿔 끼운다(기본은 체리). */
+.btn-3d {
+  box-shadow: 0 3px 0 0 var(--btn-shadow-color, var(--cherry-deep));
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.btn-3d:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 0 var(--btn-shadow-color, var(--cherry-deep));
 }
 
 @keyframes fade-in {

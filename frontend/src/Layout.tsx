@@ -37,7 +37,7 @@ export default function Layout() {
               to={tab.to}
               end={tab.end}
               className={({ isActive }) =>
-                `flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors duration-200 ${
+                `font-display flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs transition-colors duration-200 ${
                   isActive ? 'text-[var(--cherry)]' : 'text-neutral-400'
                 }`
               }

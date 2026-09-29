@@ -117,7 +117,7 @@ function TaskRow({
       }}
       className="border-b border-neutral-100 py-3"
     >
-      <div className="group flex items-center gap-3">
+      <div className="group flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <button
           onClick={() => onToggle(task)}
           className="h-4 w-4 flex-none rounded border-[1.5px] border-neutral-300 hover:border-neutral-500"
@@ -131,20 +131,20 @@ function TaskRow({
         >
           <IconGripVertical size={14} stroke={1.75} />
         </span>
-        <span className="flex-1 text-sm">
-          {task.title}
+        <span className="flex min-w-[100px] flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="min-w-[60px] max-w-full truncate whitespace-nowrap text-sm">{task.title}</span>
           {projectName && (
-            <span className="ml-2 inline-flex items-center rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500">
+            <span className="inline-flex flex-none items-center rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500">
               #{projectName}
             </span>
           )}
           {routineLabel && (
-            <span className="ml-2 inline-flex items-center gap-0.5 text-[11px] text-neutral-400">
+            <span className="inline-flex flex-none items-center gap-0.5 text-[11px] text-neutral-400">
               <IconRepeat size={12} stroke={1.75} />{routineLabel}
             </span>
           )}
           {task.notify_offset_min !== null && (
-            <span className="ml-2 inline-flex text-neutral-400" aria-label="알림 켜짐">
+            <span className="inline-flex flex-none text-neutral-400" aria-label="알림 켜짐">
               <IconBell size={12} stroke={1.75} />
             </span>
           )}
@@ -563,7 +563,7 @@ export default function TodayPage() {
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
 
       <header className="mb-6">
-        <h1 className="text-xl font-medium tracking-tight">체리</h1>
+        <h1 className="font-display text-2xl">체리</h1>
         <div className="mt-1 flex items-center gap-1.5">
           <p className="text-xs text-neutral-500">{viewDate}</p>
           <button
@@ -599,7 +599,7 @@ export default function TodayPage() {
         )}
         {park && (
           <p className="mt-1 text-xs text-neutral-400">
-            오늘 방문객 {park.today_visitors} · 체리 {park.point_balance}
+            오늘 방문객 {park.today_visitors} · 체리 <span className="font-display" style={{ color: 'var(--gold-deep)' }}>{park.point_balance}</span>
           </p>
         )}
         {backlog.length > 0 && (
@@ -621,9 +621,9 @@ export default function TodayPage() {
                 {backlog.map((task) => (
                   <div key={task.id} className="border-b border-neutral-100 py-2 last:border-0">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="flex-1 text-sm">
-                        {task.title}
-                        <span className="ml-2 text-[11px] text-neutral-400">
+                      <span className="flex min-w-[80px] flex-1 items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate whitespace-nowrap text-sm">{task.title}</span>
+                        <span className="flex-none text-[11px] text-neutral-400">
                           {task.task_date ? task.task_date.slice(5).replace('-', '/') : '이번주'}
                         </span>
                       </span>
@@ -688,7 +688,7 @@ export default function TodayPage() {
         <button
             onClick={handleAdd}
             disabled={saving}
-            className="rounded-full px-5 py-2.5 text-sm font-medium text-white shadow-[0_3px_10px_-3px_rgba(212,83,126,0.5)] transition-transform active:scale-95 disabled:opacity-50"
+            className="btn-3d font-display rounded-full px-5 py-2.5 text-base text-white disabled:opacity-50"
             style={{ background: 'var(--cherry)' }}
         >
           추가
@@ -862,15 +862,17 @@ export default function TodayPage() {
                   >
                     <IconCheck size={10} stroke={2.5} />
                   </button>
-                  <span className="flex-1 text-sm text-neutral-400 line-through">
-                    {task.title}
+                  <span className="flex min-w-[100px] flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="min-w-0 max-w-full truncate whitespace-nowrap text-sm text-neutral-400 line-through">
+                      {task.title}
+                    </span>
                     {projectNameFor(task) && (
-                      <span className="ml-2 inline-flex items-center rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-400">
+                      <span className="inline-flex flex-none items-center rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-400">
                         #{projectNameFor(task)}
                       </span>
                     )}
                     {routineMonthLabelFor(task) && (
-                      <span className="ml-2 inline-flex items-center gap-0.5 text-[11px] text-neutral-300">
+                      <span className="inline-flex flex-none items-center gap-0.5 text-[11px] text-neutral-300">
                         <IconRepeat size={11} stroke={1.75} />{routineMonthLabelFor(task)}
                       </span>
                     )}

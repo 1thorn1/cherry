@@ -132,7 +132,7 @@ export default function ProjectsPage() {
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-medium tracking-tight">공사 중인 것들</h1>
+        <h1 className="font-display text-2xl">공사 중인 것들</h1>
         <div className="flex items-center gap-3">
           <button onClick={() => setShowCreateForm((v) => !v)} className="text-xs font-medium" style={{ color: 'var(--cherry)' }}>
             {showCreateForm ? '닫기' : '+ 새 프로젝트'}
@@ -225,7 +225,7 @@ export default function ProjectsPage() {
           <button
             onClick={handleCreate}
             disabled={saving}
-            className="w-full rounded-lg py-2.5 text-sm font-medium text-white disabled:opacity-50"
+            className="btn-3d font-display w-full rounded-full py-2.5 text-base text-white disabled:opacity-50"
             style={{ background: 'var(--cherry)' }}
           >
             만들기

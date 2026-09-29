@@ -217,7 +217,7 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
-      <h1 className="mb-6 text-xl font-medium tracking-tight">설정</h1>
+      <h1 className="mb-6 font-display text-2xl">설정</h1>
 
       {authChecked && (
         <div className="mb-6 rounded-2xl border border-neutral-100 p-4 shadow-[0_2px_12px_-6px_rgba(0,0,0,0.08)]">
@@ -321,7 +321,7 @@ export default function SettingsPage() {
         <button
           type="submit"
           disabled={sending}
-          className="rounded-full px-4 py-2 text-sm font-medium text-white transition-transform active:scale-95 disabled:opacity-50"
+          className="btn-3d font-display rounded-full px-4 py-2 text-sm text-white disabled:opacity-50"
           style={{ background: 'var(--cherry)' }}
         >
           요청

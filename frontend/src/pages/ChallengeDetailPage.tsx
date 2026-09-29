@@ -107,7 +107,7 @@ export default function ChallengeDetailPage() {
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
       <Link to="/challenges" className="text-xs text-neutral-400">← 같이 하기</Link>
-      <h1 className="mb-2 mt-2 text-xl font-medium tracking-tight">{detail.title}</h1>
+      <h1 className="mb-2 mt-2 font-display text-2xl">{detail.title}</h1>
 
       <div className="mb-6 flex items-center gap-2">
         <span className="text-xs text-neutral-400">초대 코드</span>

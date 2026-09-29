@@ -34,7 +34,7 @@ export default function SearchPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
-      <h1 className="mb-6 text-xl font-medium tracking-tight">검색</h1>
+      <h1 className="mb-6 font-display text-2xl">검색</h1>
 
       <div className="mb-6 flex gap-2">
         <input
@@ -49,7 +49,7 @@ export default function SearchPage() {
         />
         <button
           onClick={handleSearch}
-          className="rounded-full px-5 py-2.5 text-sm font-medium text-white shadow-[0_3px_10px_-3px_rgba(212,83,126,0.5)] transition-transform active:scale-95"
+          className="btn-3d font-display rounded-full px-5 py-2.5 text-base text-white"
           style={{ background: 'var(--cherry)' }}
         >
           검색
