@@ -34,10 +34,19 @@ export interface RecipeDiscovery {
   total_count: number
 }
 
+export interface VillagerRequest {
+  id: number
+  villager_name: string
+  recipe_code: string
+  recipe_name: string
+  created_at: string
+}
+
 export interface Farm {
   plots: FarmPlot[]
   inventory: Record<string, number>
   recipes: Recipe[]
   pending_productions: Production[]
   discoveries: RecipeDiscovery[]
+  villager_requests: VillagerRequest[]
 }

@@ -195,6 +195,24 @@ export default function ParkPage() {
         </div>
       )}
 
+      <h2 className="mb-3 text-sm font-medium tracking-tight">주민</h2>
+      {farm.villager_requests.length === 0 ? (
+        <p className="mb-8 text-xs text-neutral-300">요즘 오는 사람이 없어요</p>
+      ) : (
+        <div className="mb-8 space-y-2">
+          <p className="text-[11px] text-neutral-400">지금 체리 {park.point_balance}개</p>
+          {farm.villager_requests.map((req, i) => (
+            <div
+              key={req.id}
+              className="animate-pop-in rounded-2xl bg-white p-3 text-xs text-neutral-600 shadow-[0_3px_10px_-6px_rgba(0,0,0,0.2)]"
+              style={{ animationDelay: `${i * 30}ms` }}
+            >
+              <span className="font-medium">{req.villager_name}</span> · {req.recipe_name} 만들어주면 좋아할 것 같아요
+            </div>
+          ))}
+        </div>
+      )}
+
       <h2 className="mb-3 text-sm font-medium tracking-tight">가공</h2>
       <div className="mb-10 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {farm.recipes.map((recipe, i) => {

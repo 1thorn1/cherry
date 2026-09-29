@@ -7,6 +7,7 @@ import com.cherry.farm.dto.ProductionResponse;
 import com.cherry.farm.dto.RecipeDiscoveryResponse;
 import com.cherry.farm.dto.RecipeIngredientResponse;
 import com.cherry.farm.dto.RecipeResponse;
+import com.cherry.farm.dto.VillagerRequestResponse;
 import com.cherry.park.PointLedger;
 import com.cherry.park.PointLedgerRepository;
 import com.cherry.project.MilestoneRepository;
@@ -18,8 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 // docs/farm-spec.md 3~5절 — 프로젝트가 밭 한 구획, 마일스톤 완료가 수확, 레시피
@@ -32,6 +35,12 @@ public class FarmService {
     // 마일스톤 완료(수확)마다 쌓이는 재료 체리 양 — 잼 레시피 재료량(3)을 기준으로 잡은 임시값.
     private static final int CHERRY_PER_HARVEST = 3;
     private static final int GRID_WIDTH = 4;
+    // 스펙 8절 "한 번에 2~3개까지만" — 중간값으로 임시 고정.
+    private static final int MAX_VILLAGER_REQUESTS = 2;
+    // "조용히 교체" — 사용자에게 기한처럼 보이지 않게 넉넉히 잡은 임시값.
+    private static final int VILLAGER_ROTATE_AFTER_HOURS = 48;
+    // 좋아하는 걸 만들면 "값을 더 쳐준다" — 스펙에 숫자가 없어 판매가의 50%를 보너스로 임시 고정.
+    private static final double VILLAGER_BONUS_RATE = 0.5;
 
     private static final Map<String, String> CROP_BY_PROJECT_TYPE = Map.of(
             "FREE", "cherry_tree",
@@ -48,6 +57,8 @@ public class FarmService {
     private final MilestoneRepository milestoneRepository;
     private final PointLedgerRepository pointLedgerRepository;
     private final UserRepository userRepository;
+    private final VillagerRepository villagerRepository;
+    private final VillagerRequestRepository villagerRequestRepository;
 
     // 프로젝트 생성(스펙 3절 "프로젝트가 밭 한 구획") — 타입에 따라 작물이 갈린다(4절).
     @Transactional
@@ -121,12 +132,61 @@ public class FarmService {
                             RecipeDiscovery::increment,
                             () -> recipeDiscoveryRepository.save(
                                     RecipeDiscovery.create(userId, recipe.getCode(), now)));
+
+            // 스펙 8절 "좋아하는 걸 만들면 값을 더 쳐준다" — 만든 게 어떤 주민의 요청과
+            // 겹치면 그 자리에서 들어준 걸로 치고 보너스를 얹는다.
+            villagerRequestRepository.findByUserIdAndStatus(userId, "PENDING").stream()
+                    .filter(r -> r.getRecipeCode().equals(recipe.getCode()))
+                    .findFirst()
+                    .ifPresent(request -> {
+                        request.fulfill(now);
+                        int bonus = (int) Math.round(recipe.getSellPrice() * VILLAGER_BONUS_RATE);
+                        user.earnPoints(bonus);
+                        pointLedgerRepository.save(PointLedger.create(
+                                userId, LocalDate.now(), bonus, "VILLAGER_REQUEST",
+                                "VILLAGER_REQUEST", request.getId()));
+                    });
+        }
+    }
+
+    // 스펙 8절 — 기한 없이 2~3개를 유지하다가, 오래된 건 조용히 EXPIRED로 바꾸고
+    // 새 요청으로 채운다. 사용자가 못 채워도 불이익이 없으니 "실패" 처리는 없다.
+    @Transactional
+    public void ensureVillagerRequests(Long userId) {
+        LocalDateTime now = LocalDateTime.now();
+        List<VillagerRequest> pending = villagerRequestRepository.findByUserIdAndStatus(userId, "PENDING");
+        for (VillagerRequest request : pending) {
+            if (request.getCreatedAt().isBefore(now.minusHours(VILLAGER_ROTATE_AFTER_HOURS))) {
+                request.expire(now);
+            }
+        }
+
+        List<VillagerRequest> stillPending = pending.stream().filter(VillagerRequest::isPending).toList();
+        Set<String> activeVillagerCodes = new HashSet<>(
+                stillPending.stream().map(VillagerRequest::getVillagerCode).toList());
+
+        List<Recipe> recipes = recipeRepository.findAll();
+        if (recipes.isEmpty()) return;
+
+        int need = MAX_VILLAGER_REQUESTS - stillPending.size();
+        if (need <= 0) return;
+
+        for (Villager villager : villagerRepository.findAll()) {
+            if (need <= 0) break;
+            if (activeVillagerCodes.contains(villager.getCode())) continue;
+            String recipeCode = villager.getFavoriteRecipeCode() != null
+                    ? villager.getFavoriteRecipeCode()
+                    : recipes.get(0).getCode();
+            villagerRequestRepository.save(VillagerRequest.create(userId, villager.getCode(), recipeCode));
+            activeVillagerCodes.add(villager.getCode());
+            need--;
         }
     }
 
     @Transactional
     public FarmResponse getFarm(Long userId) {
         collectReady(userId);
+        ensureVillagerRequests(userId);
 
         List<FarmPlotResponse> plots = farmPlotRepository.findByUserId(userId).stream()
                 .map(FarmPlotResponse::from).toList();
@@ -146,6 +206,17 @@ public class FarmService {
         List<RecipeDiscoveryResponse> discoveries = recipeDiscoveryRepository.findByUserId(userId).stream()
                 .map(RecipeDiscoveryResponse::from).toList();
 
-        return new FarmResponse(plots, inventory, recipes, pending, discoveries);
+        List<VillagerRequestResponse> villagerRequests = villagerRequestRepository.findByUserIdAndStatus(userId, "PENDING").stream()
+                .map(request -> {
+                    String villagerName = villagerRepository.findById(request.getVillagerCode())
+                            .map(Villager::getName).orElse(request.getVillagerCode());
+                    String recipeName = recipeRepository.findById(request.getRecipeCode())
+                            .map(Recipe::getName).orElse(request.getRecipeCode());
+                    return new VillagerRequestResponse(
+                            request.getId(), villagerName, request.getRecipeCode(), recipeName, request.getCreatedAt());
+                })
+                .toList();
+
+        return new FarmResponse(plots, inventory, recipes, pending, discoveries, villagerRequests);
     }
 }

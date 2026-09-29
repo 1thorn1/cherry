@@ -8,6 +8,7 @@ public record FarmResponse(
         Map<String, Integer> inventory,
         List<RecipeResponse> recipes,
         List<ProductionResponse> pendingProductions,
-        List<RecipeDiscoveryResponse> discoveries
+        List<RecipeDiscoveryResponse> discoveries,
+        List<VillagerRequestResponse> villagerRequests
 ) {
 }
