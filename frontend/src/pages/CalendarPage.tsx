@@ -210,10 +210,13 @@ export default function CalendarPage() {
                 // 기준으로 보여준다 — 안 그러면 이월해서 나중에 끝낸 종일 항목이 월간 완료
                 // 집계와 다른 날짜에 표시된다(시간표 타임드 블록과 같은 이유).
                 const pendingAllDay = day.tasks.filter((t) => !t.scheduled_start && !t.completed_at)
-                // "완료 N개" 토글은 그날 끝낸 것의 총합이라 예정/실제 탭과 상관없이 항상
-                // 같은 값이어야 한다 — 탭에 따라 개수가 달라지면(예: 예정 4개, 실제 2개)
-                // 어느 쪽이 맞는지 헷갈린다. 시간표에 완료 항목이 같이 보이는 것과는 별개다.
-                const completedAllDay = day.actual_tasks
+                // "완료 N개" 뱃지는 지금 보는 탭의 시간표에 실제 나오는 완료 블록 개수와
+                // 맞춘다 — 예정 탭은 시간 있는 완료(회색 블록)만, 실제 탭은 day.actual_tasks
+                // 전체가 블록으로 나오니 그대로 쓴다. 탭마다 숫자는 다를 수 있지만, 그
+                // 탭 안에서는 뱃지=블록 개수가 항상 맞아야 헷갈리지 않는다.
+                const completedInView = view === 'scheduled'
+                  ? day.tasks.filter((t) => t.scheduled_start && t.completed_at)
+                  : day.actual_tasks
                 const isAllDayExpanded = expandedAllDay.has(day.date)
                 const allDayPreviews = day.previews.filter((p) => !p.default_time)
                 return (
@@ -231,15 +234,15 @@ export default function CalendarPage() {
                         {t.title}
                       </div>
                     ))}
-                    {completedAllDay.length > 0 && (
+                    {completedInView.length > 0 && (
                       <>
                         <button
                           onClick={() => toggleAllDayExpanded(day.date)}
                           className="mb-0.5 text-[10px] text-neutral-300 hover:text-neutral-500"
                         >
-                          {isAllDayExpanded ? '접기 ▴' : `완료 ${completedAllDay.length}개 ▾`}
+                          {isAllDayExpanded ? '접기 ▴' : `완료 ${completedInView.length}개 ▾`}
                         </button>
-                        {isAllDayExpanded && completedAllDay.map((t) => (
+                        {isAllDayExpanded && completedInView.map((t) => (
                           <div
                             key={t.id}
                             onClick={() => goToDayToday(day.date)}
