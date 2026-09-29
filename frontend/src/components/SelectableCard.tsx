@@ -23,10 +23,12 @@ export function SelectableCard({
           onClick()
         }
       }}
-      className="cursor-pointer rounded-lg border p-4 transition-colors hover:bg-neutral-50"
+      className="cursor-pointer rounded-2xl border bg-white p-4 transition-all duration-200 hover:-translate-y-0.5"
       style={{
-        borderColor: selected ? 'var(--cherry)' : '#E5E5E5',
-        boxShadow: selected ? '0 0 0 1px var(--cherry)' : 'none',
+        borderColor: selected ? 'var(--cherry)' : '#EFEDE8',
+        boxShadow: selected
+          ? '0 0 0 1.5px var(--cherry), 0 4px 14px -6px rgba(212,83,126,0.25)'
+          : '0 2px 10px -6px rgba(0,0,0,0.08)',
       }}
     >
       {children}

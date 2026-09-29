@@ -119,7 +119,7 @@ export default function ChallengeDetailPage() {
 
       <div className="space-y-3">
         {detail.members.map((member) => (
-          <div key={member.nickname} className="rounded-lg border border-neutral-200 p-4">
+          <div key={member.nickname} className="rounded-2xl border border-neutral-100 p-4 shadow-[0_2px_12px_-6px_rgba(0,0,0,0.08)]">
             <div className="mb-2 flex items-center justify-between">
               {member.me && myProjectId ? (
                 <button

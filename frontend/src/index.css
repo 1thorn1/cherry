@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* 파키텍트풍 코지(둥글둥글) 톤 — 카드·버튼에 쓰는 모서리 반경을 앱 전체에서 한 번에
+   키운다. 기존 rounded-lg/xl/2xl/3xl 클래스는 그대로 두고 실제 값만 더 둥글게. */
+@theme {
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.75rem;
+}
+
 :root {
   --cherry: #D4537E;
   --cherry-bg: #FBEAF0;
@@ -8,8 +17,17 @@
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', sans-serif;
-  background: #fff;
+  background: #FFFCFA;
   color: #1f1f1f;
+}
+
+/* 페인터리 톤 — 눌렀을 때 살짝 눌리는 느낌만 앱 전체 버튼에 기본으로 깔아둔다.
+   각 화면에서 이미 transition/active 클래스를 따로 준 버튼은 그쪽이 우선한다. */
+button:not(:disabled) {
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease;
+}
+button:not(:disabled):active {
+  transform: scale(0.97);
 }
 
 @keyframes fade-in {

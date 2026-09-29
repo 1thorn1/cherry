@@ -134,19 +134,19 @@ export default function ChallengesPage() {
       <Link to="/projects" className="text-xs text-neutral-400">← 프로젝트</Link>
       <h1 className="mb-6 mt-2 text-xl font-medium tracking-tight">같이 하기</h1>
 
-      <div className="mb-6 rounded-lg border border-neutral-200 p-4">
+      <div className="mb-6 rounded-2xl border border-neutral-100 p-4 shadow-[0_2px_12px_-6px_rgba(0,0,0,0.08)]">
         <p className="mb-3 text-xs text-neutral-400">초대 코드로 참여</p>
         <div className="flex gap-2">
           <input
             value={inviteCode}
             onChange={(e) => setInviteCode(e.target.value)}
             placeholder="초대 코드 입력"
-            className="flex-1 rounded-md border border-neutral-200 px-3 py-2 text-sm"
+            className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm"
           />
           <button
             onClick={handleJoin}
             disabled={joining}
-            className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="rounded-full px-4 py-2 text-sm font-medium text-white transition-transform active:scale-95 disabled:opacity-50"
             style={{ background: 'var(--cherry)' }}
           >
             참여
@@ -154,7 +154,7 @@ export default function ChallengesPage() {
         </div>
       </div>
 
-      <div className="mb-8 rounded-lg border border-neutral-200 p-4">
+      <div className="mb-8 rounded-2xl border border-neutral-100 p-4 shadow-[0_2px_12px_-6px_rgba(0,0,0,0.08)]">
         <p className="mb-3 text-xs text-neutral-400">방 만들기</p>
         <input
           value={title}

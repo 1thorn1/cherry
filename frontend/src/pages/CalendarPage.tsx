@@ -420,8 +420,11 @@ function MonthSummaryView({
               <button
                 key={dateStr}
                 onClick={() => onSelectDate(d)}
-                className="flex aspect-square flex-col items-start overflow-hidden rounded-lg border p-1 text-left transition-colors hover:bg-neutral-50 lg:aspect-auto lg:min-h-[104px] lg:p-2"
-                style={{ borderColor: isToday ? 'var(--cherry)' : 'transparent' }}
+                className="flex aspect-square flex-col items-start overflow-hidden rounded-xl border p-1 text-left transition-colors hover:bg-neutral-50 lg:aspect-auto lg:min-h-[104px] lg:p-2"
+                style={{
+                  borderColor: isToday ? 'var(--cherry)' : 'transparent',
+                  boxShadow: isToday ? '0 0 0 1px var(--cherry), 0 2px 10px -4px rgba(212,83,126,0.35)' : undefined,
+                }}
               >
                 <div className={`text-[11px] ${inMonth ? 'text-neutral-600' : 'text-neutral-300'}`}>
                   {format(d, 'd')}

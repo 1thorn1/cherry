@@ -617,7 +617,7 @@ export default function TodayPage() {
               </span>
             </button>
             {showBacklog && (
-              <div className="mt-2 rounded-lg border border-neutral-200 p-3">
+              <div className="mt-2 rounded-2xl border border-neutral-100 p-3 shadow-[0_2px_10px_-6px_rgba(0,0,0,0.08)]">
                 {backlog.map((task) => (
                   <div key={task.id} className="border-b border-neutral-100 py-2 last:border-0">
                     <div className="flex items-center justify-between gap-2">
@@ -683,12 +683,12 @@ export default function TodayPage() {
               if (e.key === 'Enter') handleAdd()
             }}
             placeholder="할 일 적기"
-            className="flex-1 rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+            className="flex-1 rounded-full border border-neutral-200 px-4 py-2.5 text-sm outline-none transition-shadow focus:border-[var(--cherry)] focus:ring-2 focus:ring-[var(--cherry-bg)]"
         />
         <button
             onClick={handleAdd}
             disabled={saving}
-            className="rounded-lg px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+            className="rounded-full px-5 py-2.5 text-sm font-medium text-white shadow-[0_3px_10px_-3px_rgba(212,83,126,0.5)] transition-transform active:scale-95 disabled:opacity-50"
             style={{ background: 'var(--cherry)' }}
         >
           추가
@@ -703,7 +703,7 @@ export default function TodayPage() {
       </button>
 
       {showRoutineForm && (
-        <div className="mb-6 rounded-lg border border-neutral-200 p-4">
+        <div className="mb-6 rounded-2xl border border-neutral-100 p-4 shadow-[0_2px_12px_-6px_rgba(0,0,0,0.08)]">
           <input
             value={routineTitle}
             onChange={(e) => setRoutineTitle(e.target.value)}
