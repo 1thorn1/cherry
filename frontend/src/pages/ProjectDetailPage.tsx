@@ -347,6 +347,7 @@ export default function ProjectDetailPage() {
               completingId={completingId}
               sendingId={sendingId}
               savingNoteId={savingNoteId}
+              groupByWeek={detail.project.type === 'EXAM'}
             />
           </div>
         </div>
