@@ -66,10 +66,22 @@ export default function CalendarPage() {
   const [view, setView] = usePersistedState<TimetableView>('calendar.view', 'scheduled')
   const [error, setError] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
+  // 종일 줄에서 완료된 항목이 쌓이면 지저분해 보여서, 날짜별로 접어둘 수 있게 한다
+  // (기본은 접힌 상태 — 아직 안 끝난 항목만 항상 보이고 완료는 눌러야 펼쳐짐).
+  const [expandedAllDay, setExpandedAllDay] = useState<Set<string>>(new Set())
 
   function handleSelectDate(date: Date) {
     setWeekStart(startOfWeek(date, { weekStartsOn: 1 }))
     setPeriod('week')
+  }
+
+  function toggleAllDayExpanded(date: string) {
+    setExpandedAllDay((prev) => {
+      const next = new Set(prev)
+      if (next.has(date)) next.delete(date)
+      else next.add(date)
+      return next
+    })
   }
 
   // 써놓은 일정(할 일)을 누르면 그날 투두 화면으로 바로 간다 — 아직 실제로 만들어지지
@@ -117,7 +129,7 @@ export default function CalendarPage() {
   return (
     <div className="mx-auto max-w-6xl px-5 py-6 lg:px-8 lg:py-10">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-medium tracking-tight">캘린더</h1>
+        <h1 className="font-display text-2xl">캘린더</h1>
         <div className="flex items-center gap-3">
           <div className="flex gap-1 rounded-lg bg-neutral-100 p-1 text-xs">
             <button
@@ -197,26 +209,50 @@ export default function CalendarPage() {
                 // 아직 안 끝난 종일 항목은 예정일(taskDate) 기준, 완료된 항목은 실제 완료일
                 // 기준으로 보여준다 — 안 그러면 이월해서 나중에 끝낸 종일 항목이 월간 완료
                 // 집계와 다른 날짜에 표시된다(시간표 타임드 블록과 같은 이유).
-                const allDayTasks = [
-                  ...day.tasks.filter((t) => !t.scheduled_start && !t.completed_at),
-                  ...day.actual_tasks.filter((t) => !t.scheduled_start),
-                ]
+                const pendingAllDay = day.tasks.filter((t) => !t.scheduled_start && !t.completed_at)
+                // "완료 N개" 뱃지는 지금 보는 탭의 시간표에 실제 나오는 완료 블록 개수와
+                // 맞춘다 — 예정 탭은 시간 있는 완료(회색 블록)만, 실제 탭은 day.actual_tasks
+                // 전체가 블록으로 나오니 그대로 쓴다. 탭마다 숫자는 다를 수 있지만, 그
+                // 탭 안에서는 뱃지=블록 개수가 항상 맞아야 헷갈리지 않는다.
+                const completedInView = view === 'scheduled'
+                  ? day.tasks.filter((t) => t.scheduled_start && t.completed_at)
+                  : day.actual_tasks
+                const isAllDayExpanded = expandedAllDay.has(day.date)
                 const allDayPreviews = day.previews.filter((p) => !p.default_time)
                 return (
                   <div
                     key={day.date}
                     className="min-h-[30px] border-b border-neutral-100 px-1 py-1"
                   >
-                    {allDayTasks.map((t) => (
+                    {pendingAllDay.map((t) => (
                       <div
                         key={t.id}
                         onClick={() => goToDayToday(day.date)}
-                        className={`mb-0.5 cursor-pointer truncate rounded px-1 text-[10px] hover:opacity-70 ${t.completed_at ? 'text-neutral-300 line-through' : ''} ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
-                        style={t.completed_at ? undefined : { background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
+                        className={`mb-0.5 cursor-pointer truncate rounded px-1 text-[10px] hover:opacity-70 ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
+                        style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
                       >
                         {t.title}
                       </div>
                     ))}
+                    {completedInView.length > 0 && (
+                      <>
+                        <button
+                          onClick={() => toggleAllDayExpanded(day.date)}
+                          className="mb-0.5 text-[10px] text-neutral-300 hover:text-neutral-500"
+                        >
+                          {isAllDayExpanded ? '접기 ▴' : `완료 ${completedInView.length}개 ▾`}
+                        </button>
+                        {isAllDayExpanded && completedInView.map((t) => (
+                          <div
+                            key={t.id}
+                            onClick={() => goToDayToday(day.date)}
+                            className={`mb-0.5 cursor-pointer truncate rounded px-1 text-[10px] text-neutral-300 line-through decoration-2 hover:opacity-70 ${isNonWorkDay(t.project_id, isoDay, projects) ? 'opacity-40' : ''}`}
+                          >
+                            {t.title}
+                          </div>
+                        ))}
+                      </>
+                    )}
                     {view === 'scheduled' && allDayPreviews.map((p) => (
                       <div
                         key={p.routine_id}
@@ -384,8 +420,11 @@ function MonthSummaryView({
               <button
                 key={dateStr}
                 onClick={() => onSelectDate(d)}
-                className="flex aspect-square flex-col items-start overflow-hidden rounded-lg border p-1 text-left transition-colors hover:bg-neutral-50 lg:aspect-auto lg:min-h-[104px] lg:p-2"
-                style={{ borderColor: isToday ? 'var(--cherry)' : 'transparent' }}
+                className="flex aspect-square flex-col items-start overflow-hidden rounded-xl border p-1 text-left transition-colors hover:bg-neutral-50 lg:aspect-auto lg:min-h-[104px] lg:p-2"
+                style={{
+                  borderColor: isToday ? 'var(--cherry)' : 'transparent',
+                  boxShadow: isToday ? '0 0 0 1px var(--cherry), 0 2px 10px -4px rgba(212,83,126,0.35)' : undefined,
+                }}
               >
                 <div className={`text-[11px] ${inMonth ? 'text-neutral-600' : 'text-neutral-300'}`}>
                   {format(d, 'd')}

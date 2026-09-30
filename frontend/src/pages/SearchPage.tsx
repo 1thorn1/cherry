@@ -34,7 +34,7 @@ export default function SearchPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
-      <h1 className="mb-6 text-xl font-medium tracking-tight">검색</h1>
+      <h1 className="mb-6 font-display text-2xl">검색</h1>
 
       <div className="mb-6 flex gap-2">
         <input
@@ -45,11 +45,11 @@ export default function SearchPage() {
             if (e.key === 'Enter') handleSearch()
           }}
           placeholder="할 일, 메모, 링크 검색"
-          className="flex-1 rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+          className="flex-1 rounded-full border border-neutral-200 px-4 py-2.5 text-sm outline-none transition-shadow focus:border-[var(--cherry)] focus:ring-2 focus:ring-[var(--cherry-bg)]"
         />
         <button
           onClick={handleSearch}
-          className="rounded-lg px-5 py-2.5 text-sm font-medium text-white"
+          className="btn-3d font-display rounded-full px-5 py-2.5 text-base text-white"
           style={{ background: 'var(--cherry)' }}
         >
           검색
@@ -67,7 +67,7 @@ export default function SearchPage() {
       {results.map((result) => (
         <div key={`${result.type}-${result.ref_id}`} className="border-b border-neutral-100 py-3">
           <div className="mb-1 flex items-center gap-2">
-            <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500">
+            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-500">
               {typeLabels[result.type] ?? result.type}
             </span>
             {result.project_name && result.project_id && (

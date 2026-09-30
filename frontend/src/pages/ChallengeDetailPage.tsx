@@ -107,7 +107,7 @@ export default function ChallengeDetailPage() {
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
       <Link to="/challenges" className="text-xs text-neutral-400">← 같이 하기</Link>
-      <h1 className="mb-2 mt-2 text-xl font-medium tracking-tight">{detail.title}</h1>
+      <h1 className="mb-2 mt-2 font-display text-2xl">{detail.title}</h1>
 
       <div className="mb-6 flex items-center gap-2">
         <span className="text-xs text-neutral-400">초대 코드</span>
@@ -119,7 +119,7 @@ export default function ChallengeDetailPage() {
 
       <div className="space-y-3">
         {detail.members.map((member) => (
-          <div key={member.nickname} className="rounded-lg border border-neutral-200 p-4">
+          <div key={member.nickname} className="rounded-2xl border border-neutral-100 p-4 shadow-[0_2px_12px_-6px_rgba(0,0,0,0.08)]">
             <div className="mb-2 flex items-center justify-between">
               {member.me && myProjectId ? (
                 <button

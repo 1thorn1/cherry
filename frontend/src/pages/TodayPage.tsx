@@ -83,6 +83,7 @@ function TaskRow({
   postponeOpen,
   onToggle,
   onSchedule,
+  onScheduleEnd,
   onSetReminder,
   onDelete,
   onApplySuggestion,
@@ -97,6 +98,7 @@ function TaskRow({
   postponeOpen: boolean
   onToggle: (task: Task) => void
   onSchedule: (task: Task, hour: number | null) => void
+  onScheduleEnd: (task: Task, hour: number | null) => void
   onSetReminder: (task: Task, offset: number | null) => void
   onDelete: (id: number) => void
   onApplySuggestion: (task: Task) => void
@@ -112,83 +114,116 @@ function TaskRow({
       style={{
         transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
         opacity: isDragging ? 0.5 : 1,
+        background: 'var(--surface)',
+        borderColor: 'var(--border)',
       }}
-      className="border-b border-neutral-100 py-3"
+      className="group mb-2 rounded-[12px] border p-4 transition-shadow"
     >
-      <div className="group flex items-center gap-3">
+      <div className="flex items-start gap-3">
         <button
           onClick={() => onToggle(task)}
-          className="h-4 w-4 flex-none rounded border-[1.5px] border-neutral-300 hover:border-neutral-500"
+          style={{ borderColor: 'var(--border-strong)' }}
+          className="mt-0.5 h-5 w-5 flex-none rounded-full border-[1.5px] transition-colors hover:border-[var(--cherry)]"
           aria-label="완료"
         />
-        <span
-          {...listeners}
-          {...attributes}
-          className="touch-none select-none text-neutral-300 cursor-grab active:cursor-grabbing"
-          aria-label="드래그해서 시간 배정"
-        >
-          <IconGripVertical size={14} stroke={1.75} />
-        </span>
-        <span className="flex-1 text-sm">
-          {task.title}
-          {projectName && (
-            <span className="ml-2 inline-flex items-center rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500">
-              #{projectName}
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="min-w-[60px] max-w-full truncate whitespace-nowrap text-[15px]" style={{ color: 'var(--text)' }}>
+              {task.title}
             </span>
-          )}
-          {routineLabel && (
-            <span className="ml-2 inline-flex items-center gap-0.5 text-[11px] text-neutral-400">
-              <IconRepeat size={12} stroke={1.75} />{routineLabel}
-            </span>
-          )}
-          {task.notify_offset_min !== null && (
-            <span className="ml-2 inline-flex text-neutral-400" aria-label="알림 켜짐">
-              <IconBell size={12} stroke={1.75} />
-            </span>
-          )}
-        </span>
-        <TimeSelect value={task.scheduled_start} onChange={(hour) => onSchedule(task, hour)} />
-        {task.scheduled_start && (
-          <NotifySelect value={task.notify_offset_min} onChange={(offset) => onSetReminder(task, offset)} />
-        )}
-        <button
-          onClick={() => onTogglePostpone(task.id)}
-          className="text-neutral-300 opacity-0 transition group-hover:opacity-100"
-          aria-label="미루기"
-        >
-          <IconCalendar size={14} stroke={1.75} />
-        </button>
-        <button
-          onClick={() => onDelete(task.id)}
-          className="text-xs text-neutral-300 opacity-0 transition group-hover:opacity-100"
-        >
-          삭제
-        </button>
+            {projectName && (
+              <span
+                style={{ background: 'var(--surface-muted)', color: 'var(--text-muted)' }}
+                className="inline-flex flex-none items-center rounded-[6px] px-1.5 py-0.5 text-[11px] font-medium"
+              >
+                #{projectName}
+              </span>
+            )}
+            {routineLabel && (
+              <span className="inline-flex flex-none items-center gap-0.5 text-[11px]" style={{ color: 'var(--text-faint)' }}>
+                <IconRepeat size={12} stroke={1.5} />{routineLabel}
+              </span>
+            )}
+            {task.notify_offset_min !== null && (
+              <span className="inline-flex flex-none" style={{ color: 'var(--text-faint)' }} aria-label="알림 켜짐">
+                <IconBell size={12} stroke={1.5} />
+              </span>
+            )}
+          </div>
+
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px]" style={{ color: 'var(--text-muted)' }}>
+            <IconClock size={13} stroke={1.5} style={{ color: 'var(--text-faint)' }} className="flex-none" />
+            <TimeSelect value={task.scheduled_start} onChange={(hour) => onSchedule(task, hour)} />
+            {task.scheduled_start && (
+              <>
+                <span>~</span>
+                <TimeSelect
+                  value={task.scheduled_end}
+                  onChange={(hour) => onScheduleEnd(task, hour)}
+                  minHour={new Date(task.scheduled_start).getHours()}
+                />
+                <NotifySelect value={task.notify_offset_min} onChange={(offset) => onSetReminder(task, offset)} />
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-none items-center gap-2">
+          <span
+            {...listeners}
+            {...attributes}
+            className="touch-none select-none cursor-grab opacity-0 transition-opacity active:cursor-grabbing group-hover:opacity-100"
+            style={{ color: 'var(--text-faint)' }}
+            aria-label="드래그해서 시간 배정"
+          >
+            <IconGripVertical size={14} stroke={1.5} />
+          </span>
+          <button
+            onClick={() => onTogglePostpone(task.id)}
+            className="opacity-0 transition-opacity group-hover:opacity-100"
+            style={{ color: 'var(--text-faint)' }}
+            aria-label="미루기"
+          >
+            <IconCalendar size={14} stroke={1.5} />
+          </button>
+          <button
+            onClick={() => onDelete(task.id)}
+            className="text-[11px] opacity-0 transition-opacity hover:!text-[var(--warn)] group-hover:opacity-100"
+            style={{ color: 'var(--text-faint)' }}
+          >
+            삭제
+          </button>
+        </div>
       </div>
 
       {postponeOpen && (
-        <div className="ml-7 mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="mr-0.5 text-[11px] text-neutral-400">언제로 미룰까요?</span>
+        <div className="ml-8 mt-3 flex flex-wrap items-center gap-1.5">
+          <span className="mr-0.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>언제로 미룰까요?</span>
           <button
             onClick={() => onPostpone(task, tomorrowDate())}
-            className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
+            style={{ background: 'var(--surface-muted)', color: 'var(--text)' }}
+            className="rounded-full px-2.5 py-1 text-[11px] font-medium"
           >
             내일
           </button>
           <button
             onClick={() => onPostpone(task, thisWeekendDate())}
-            className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
+            style={{ background: 'var(--surface-muted)', color: 'var(--text)' }}
+            className="rounded-full px-2.5 py-1 text-[11px] font-medium"
           >
             이번 주말
           </button>
           <input
             type="date"
             onChange={(e) => e.target.value && onPostpone(task, e.target.value)}
-            className="rounded-md border border-neutral-200 px-1.5 py-1 text-[11px]"
+            style={{ borderColor: 'var(--border)' }}
+            className="rounded-[10px] border px-1.5 py-1 text-[11px]"
           />
           <button
             onClick={() => onPostpone(task, null)}
-            className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
+            style={{ background: 'var(--surface-muted)', color: 'var(--text)' }}
+            className="rounded-full px-2.5 py-1 text-[11px] font-medium"
           >
             이번주로
           </button>
@@ -196,8 +231,8 @@ function TaskRow({
       )}
 
       {suggestion && (
-        <div className="ml-7 mt-2 flex items-center gap-2 text-[11px]">
-          <span className="text-neutral-400">{formatSuggestion(suggestion)}로 예정할까요?</span>
+        <div className="ml-8 mt-3 flex items-center gap-2 text-[11px]">
+          <span style={{ color: 'var(--text-muted)' }}>{formatSuggestion(suggestion)}로 예정할까요?</span>
           <button
             onClick={() => onApplySuggestion(task)}
             className="rounded-full px-2 py-0.5 font-medium text-white"
@@ -207,7 +242,8 @@ function TaskRow({
           </button>
           <button
             onClick={() => onDismissSuggestion(task.id)}
-            className="rounded-full bg-neutral-100 px-2 py-0.5 font-medium text-neutral-400"
+            style={{ background: 'var(--surface-muted)', color: 'var(--text-faint)' }}
+            className="rounded-full px-2 py-0.5 font-medium"
           >
             무시
           </button>
@@ -247,7 +283,7 @@ export default function TodayPage() {
 
   const [park, setPark] = useState<Park | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [viewDate, setViewDate] = useState(() => searchParams.get('date') || today)
   const [showDatePicker, setShowDatePicker] = useState(false)
 
@@ -258,6 +294,18 @@ export default function TodayPage() {
     const d = searchParams.get('date')
     if (d && d !== viewDate) setViewDate(d)
   }, [searchParams, viewDate])
+
+  // "오늘로"/날짜 선택으로 직접 옮길 땐 URL의 date 파라미터도 같이 갱신(또는 제거)한다 —
+  // 안 그러면 위 useEffect가 "URL엔 아직 옛날 날짜가 남아있다"며 방금 옮긴 걸 바로
+  // 되돌려버린다(캘린더에서 특정 날짜로 들어온 뒤로는 오늘로도, 다른 날짜로도 못 바뀌던
+  // 버그의 원인).
+  function goToDate(date: string) {
+    setViewDate(date)
+    const next = new URLSearchParams(searchParams)
+    if (date === today) next.delete('date')
+    else next.set('date', date)
+    setSearchParams(next, { replace: true })
+  }
 
   async function load() {
     try {
@@ -305,7 +353,16 @@ export default function TodayPage() {
   useEffect(() => {
     function syncToday() {
       const fresh = getTodayStr()
-      setViewDate((prev) => (prev === today ? fresh : prev))
+      if (viewDate !== today || fresh === today) return
+      setViewDate(fresh)
+      // 새 "오늘"로 넘어가는 것뿐이니 URL에 남아있을 수 있는 옛 date 파라미터도 지운다 —
+      // 안 지우면 다음 날 자정에도 이 효과가 "특정 날짜를 보는 중"으로 오인해 다시는
+      // 자동으로 안 넘어간다.
+      if (searchParams.get('date')) {
+        const next = new URLSearchParams(searchParams)
+        next.delete('date')
+        setSearchParams(next, { replace: true })
+      }
     }
     const id = setInterval(syncToday, 60_000)
     document.addEventListener('visibilitychange', syncToday)
@@ -313,7 +370,7 @@ export default function TodayPage() {
       clearInterval(id)
       document.removeEventListener('visibilitychange', syncToday)
     }
-  }, [today])
+  }, [today, viewDate, searchParams, setSearchParams])
 
   function toggleWeekday(index: number) {
     setRoutineWeekdays((prev) => {
@@ -495,6 +552,14 @@ export default function TodayPage() {
     load()
   }
 
+  async function handleScheduleEnd(task: Task, hour: number | null) {
+    if (!task.scheduled_start) return
+    const datePart = task.scheduled_start.slice(0, 10)
+    const end = hour === null ? null : `${datePart}T${String(hour).padStart(2, '0')}:00:00`
+    await scheduleTask(task.id, task.scheduled_start, end)
+    load()
+  }
+
   async function handleSetReminder(task: Task, offset: number | null) {
     if (offset !== null) {
       const ok = await ensurePushSubscription()
@@ -521,20 +586,20 @@ export default function TodayPage() {
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
 
-      <header className="mb-6">
-        <h1 className="text-xl font-medium tracking-tight">체리</h1>
+      <header className="mb-8">
+        <h1 className="text-[28px] font-bold tracking-tight" style={{ color: 'var(--text)' }}>체리</h1>
         <div className="mt-1 flex items-center gap-1.5">
-          <p className="text-xs text-neutral-500">{viewDate}</p>
+          <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>{viewDate}</p>
           <button
             onClick={() => setShowDatePicker((v) => !v)}
-            className="text-neutral-400"
+            style={{ color: 'var(--text-faint)' }}
             aria-label="날짜 선택"
           >
-            <IconCalendar size={13} stroke={1.75} />
+            <IconCalendar size={13} stroke={1.5} />
           </button>
           {viewDate !== today && (
             <button
-              onClick={() => { setViewDate(today); setShowDatePicker(false) }}
+              onClick={() => { goToDate(today); setShowDatePicker(false) }}
               className="text-[11px] font-medium"
               style={{ color: 'var(--cherry)' }}
             >
@@ -549,52 +614,87 @@ export default function TodayPage() {
             autoFocus
             onChange={(e) => {
               if (e.target.value) {
-                setViewDate(e.target.value)
+                goToDate(e.target.value)
                 setShowDatePicker(false)
               }
             }}
-            className="mt-2 rounded-md border border-neutral-200 px-2 py-1 text-xs"
+            style={{ borderColor: 'var(--border)' }}
+            className="mt-2 rounded-[10px] border px-2 py-1 text-[13px]"
           />
         )}
         {park && (
-          <p className="mt-1 text-xs text-neutral-400">
-            오늘 방문객 {park.today_visitors} · 체리 {park.point_balance}
+          <p className="mt-1 text-[13px]" style={{ color: 'var(--text-muted)' }}>
+            오늘 방문객 {park.today_visitors} · 체리 <span style={{ color: 'var(--cherry)' }}>{park.point_balance}</span>
           </p>
         )}
         {backlog.length > 0 && (
           <div className="mt-3">
             <button
               onClick={() => setShowBacklog((v) => !v)}
-              className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-600"
+              style={{ background: 'var(--warn-soft)', color: 'var(--warn)' }}
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium"
             >
               이번주에서 당겨오기
               <span
                 className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold text-white"
-                style={{ background: 'var(--cherry)' }}
+                style={{ background: 'var(--warn)' }}
               >
                 {backlog.length}
               </span>
             </button>
             {showBacklog && (
-              <div className="mt-2 rounded-lg border border-neutral-200 p-3">
+              <div style={{ borderColor: 'var(--border)', background: 'var(--surface)' }} className="mt-2 rounded-[12px] border p-3">
                 {backlog.map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex items-center justify-between gap-2 border-b border-neutral-100 py-2 last:border-0"
-                  >
-                    <span className="flex-1 text-sm">
-                      {task.title}
-                      <span className="ml-2 text-[11px] text-neutral-400">
-                        {task.task_date ? task.task_date.slice(5).replace('-', '/') : '이번주'}
+                  <div key={task.id} style={{ borderColor: 'var(--border)' }} className="border-b py-2 last:border-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex min-w-[80px] flex-1 items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate whitespace-nowrap text-[15px]" style={{ color: 'var(--text)' }}>{task.title}</span>
+                        <span className="flex-none text-[11px]" style={{ color: 'var(--text-faint)' }}>
+                          {task.task_date ? task.task_date.slice(5).replace('-', '/') : '이번주'}
+                        </span>
                       </span>
-                    </span>
-                    <button
-                      onClick={() => handlePullIn(task)}
-                      className="rounded-full px-2.5 py-1 text-[11px] font-medium text-white"
-                      style={{ background: 'var(--cherry)' }}
-                    >
-                      오늘로
-                    </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handlePullIn(task)}
+                          className="rounded-full px-2.5 py-1 text-[11px] font-medium text-white"
+                          style={{ background: 'var(--cherry)' }}
+                        >
+                          오늘로
+                        </button>
+                        <button
+                          onClick={() => togglePostponeMenu(task.id)}
+                          style={{ color: 'var(--text-faint)' }}
+                          aria-label="다른 날로"
+                        >
+                          <IconCalendar size={14} stroke={1.5} />
+                        </button>
+                      </div>
+                    </div>
+                    {postponeMenuTaskId === task.id && (
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        <span className="mr-0.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>언제로 가져갈까요?</span>
+                        <button
+                          onClick={() => handlePostpone(task, tomorrowDate())}
+                          style={{ background: 'var(--surface-muted)', color: 'var(--text)' }}
+                          className="rounded-full px-2.5 py-1 text-[11px] font-medium"
+                        >
+                          내일
+                        </button>
+                        <button
+                          onClick={() => handlePostpone(task, thisWeekendDate())}
+                          style={{ background: 'var(--surface-muted)', color: 'var(--text)' }}
+                          className="rounded-full px-2.5 py-1 text-[11px] font-medium"
+                        >
+                          이번 주말
+                        </button>
+                        <input
+                          type="date"
+                          onChange={(e) => e.target.value && handlePostpone(task, e.target.value)}
+                          style={{ borderColor: 'var(--border)' }}
+                          className="rounded-[10px] border px-1.5 py-1 text-[11px]"
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -603,49 +703,31 @@ export default function TodayPage() {
         )}
       </header>
 
-      <div className="mb-6 flex gap-2">
-        <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.nativeEvent.isComposing) return
-              if (e.key === 'Enter') handleAdd()
-            }}
-            placeholder="할 일 적기"
-            className="flex-1 rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
-        />
-        <button
-            onClick={handleAdd}
-            disabled={saving}
-            className="rounded-lg px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
-            style={{ background: 'var(--cherry)' }}
-        >
-          추가
-        </button>
-      </div>
-
       <button
         onClick={() => setShowRoutineForm((v) => !v)}
-        className="mb-4 text-xs text-neutral-400"
+        className="mb-4 text-xs"
+        style={{ color: 'var(--text-faint)' }}
       >
         {showRoutineForm ? '반복 만들기 닫기' : '+ 반복 만들기'}
       </button>
 
       {showRoutineForm && (
-        <div className="mb-6 rounded-lg border border-neutral-200 p-4">
+        <div style={{ borderColor: 'var(--border)', background: 'var(--surface)' }} className="mb-6 rounded-[12px] border p-4">
           <input
             value={routineTitle}
             onChange={(e) => setRoutineTitle(e.target.value)}
             placeholder="반복할 일 (예: 스트레칭)"
-            className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+            style={{ borderColor: 'var(--border)' }}
+            className="mb-3 w-full rounded-[10px] border px-4 py-2.5 text-[15px] outline-none focus:border-[var(--border-strong)]"
           />
 
-          <div className="mb-3 flex gap-1 rounded-lg bg-neutral-100 p-1">
+          <div style={{ background: 'var(--surface-muted)' }} className="mb-3 flex gap-1 rounded-[10px] p-1">
             {(['DAILY', 'WEEKLY', 'MONTHLY'] as RoutineFreq[]).map((freq) => (
               <button
                 key={freq}
                 onClick={() => setRoutineFreq(freq)}
-                className={`flex-1 rounded-md py-2 text-xs font-medium ${routineFreq === freq ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
+                style={routineFreq === freq ? { background: 'var(--surface)', color: 'var(--text)', boxShadow: '0 1px 2px rgba(46,42,38,0.04)' } : { color: 'var(--text-muted)' }}
+                className="flex-1 rounded-[8px] py-2 text-xs font-medium"
               >
                 {freq === 'DAILY' ? '매일' : freq === 'WEEKLY' ? '요일' : '매월'}
               </button>
@@ -658,11 +740,11 @@ export default function TodayPage() {
                 <button
                   key={label}
                   onClick={() => toggleWeekday(i)}
-                  className="h-8 flex-1 rounded-lg text-xs font-medium"
+                  className="h-8 flex-1 rounded-[10px] text-xs font-medium"
                   style={
                     routineWeekdays.has(i)
-                      ? { background: 'var(--cherry-bg)', color: 'var(--cherry)' }
-                      : { background: '#F5F5F4', color: '#a3a3a3' }
+                      ? { background: 'var(--cherry-soft)', color: 'var(--cherry)' }
+                      : { background: 'var(--surface-muted)', color: 'var(--text-faint)' }
                   }
                 >
                   {label}
@@ -679,7 +761,8 @@ export default function TodayPage() {
               value={routineMonthDay}
               onChange={(e) => setRoutineMonthDay(e.target.value)}
               placeholder="매월 며칠 (1~31)"
-              className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+              style={{ borderColor: 'var(--border)' }}
+              className="mb-3 w-full rounded-[10px] border px-4 py-2.5 text-[15px] outline-none focus:border-[var(--border-strong)]"
             />
           )}
 
@@ -687,22 +770,25 @@ export default function TodayPage() {
             type="time"
             value={routineDefaultTime}
             onChange={(e) => setRoutineDefaultTime(e.target.value)}
-            className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+            style={{ borderColor: 'var(--border)' }}
+            className="mb-3 w-full rounded-[10px] border px-4 py-2.5 text-[15px] outline-none focus:border-[var(--border-strong)]"
           />
 
           {routineDefaultTime && (
             <div className="mb-3">
-              <p className="mb-1.5 text-[11px] text-neutral-400">완료로 기록할 시각</p>
-              <div className="flex gap-1 rounded-lg bg-neutral-100 p-1">
+              <p className="mb-1.5 text-[11px]" style={{ color: 'var(--text-faint)' }}>완료로 기록할 시각</p>
+              <div style={{ background: 'var(--surface-muted)' }} className="flex gap-1 rounded-[10px] p-1">
                 <button
                   onClick={() => setRoutineTimeBasis('CHECKED')}
-                  className={`flex-1 rounded-md py-2 text-xs font-medium ${routineTimeBasis === 'CHECKED' ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
+                  style={routineTimeBasis === 'CHECKED' ? { background: 'var(--surface)', color: 'var(--text)', boxShadow: '0 1px 2px rgba(46,42,38,0.04)' } : { color: 'var(--text-muted)' }}
+                  className="flex-1 rounded-[8px] py-2 text-xs font-medium"
                 >
                   체크한 시각
                 </button>
                 <button
                   onClick={() => setRoutineTimeBasis('SCHEDULED')}
-                  className={`flex-1 rounded-md py-2 text-xs font-medium ${routineTimeBasis === 'SCHEDULED' ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
+                  style={routineTimeBasis === 'SCHEDULED' ? { background: 'var(--surface)', color: 'var(--text)', boxShadow: '0 1px 2px rgba(46,42,38,0.04)' } : { color: 'var(--text-muted)' }}
+                  className="flex-1 rounded-[8px] py-2 text-xs font-medium"
                 >
                   예정 시각 ({routineDefaultTime})
                 </button>
@@ -713,7 +799,7 @@ export default function TodayPage() {
           <button
             onClick={handleCreateRoutine}
             disabled={routineSaving}
-            className="w-full rounded-lg py-2.5 text-sm font-medium text-white disabled:opacity-50"
+            className="w-full rounded-[10px] py-2.5 text-[15px] font-medium text-white disabled:opacity-50"
             style={{ background: 'var(--cherry)' }}
           >
             반복 만들기
@@ -722,104 +808,144 @@ export default function TodayPage() {
       )}
 
       {error && (
-        <p className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-xs text-red-600">{error}</p>
+        <p style={{ background: 'var(--warn-soft)', color: 'var(--warn)' }} className="mb-4 rounded-[10px] px-4 py-2.5 text-xs">{error}</p>
       )}
 
-      <div className="mb-4 flex gap-1 rounded-lg bg-neutral-100 p-1 lg:hidden">
+      <div style={{ background: 'var(--surface-muted)' }} className="mb-4 flex gap-1 rounded-[10px] p-1 lg:hidden">
         <button
           onClick={() => setTab('todo')}
-          className={`flex-1 rounded-md py-2 text-xs font-medium ${tab === 'todo' ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
+          style={tab === 'todo' ? { background: 'var(--surface)', color: 'var(--text)', boxShadow: '0 1px 2px rgba(46,42,38,0.04)' } : { color: 'var(--text-muted)' }}
+          className="flex-1 rounded-[8px] py-2 text-xs font-medium"
         >
           할 일 {todo.length}
         </button>
         <button
           onClick={() => setTab('done')}
-          className={`flex-1 rounded-md py-2 text-xs font-medium ${tab === 'done' ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
+          style={tab === 'done' ? { background: 'var(--surface)', color: 'var(--text)', boxShadow: '0 1px 2px rgba(46,42,38,0.04)' } : { color: 'var(--text-muted)' }}
+          className="flex-1 rounded-[8px] py-2 text-xs font-medium"
         >
           완료 {done.length}
         </button>
         <button
           onClick={() => setTab('timetable')}
-          className={`flex-1 rounded-md py-2 text-xs font-medium ${tab === 'timetable' ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
+          style={tab === 'timetable' ? { background: 'var(--surface)', color: 'var(--text)', boxShadow: '0 1px 2px rgba(46,42,38,0.04)' } : { color: 'var(--text-muted)' }}
+          className="flex-1 rounded-[8px] py-2 text-xs font-medium"
         >
           시간표
         </button>
       </div>
 
       <DndContext onDragEnd={handleDragEnd}>
-        <div className="grid gap-8 lg:grid-cols-3">
+        <div className="grid gap-8 lg:grid-cols-2">
 
-          <section className={tab === 'todo' ? '' : 'hidden lg:block'}>
-            <p className="mb-3 hidden text-xs text-neutral-500 lg:block">할 일 {todo.length}</p>
-            {todo.length === 0 && (
-              <p className="py-8 text-center text-xs text-neutral-400">할 일이 없어요</p>
-            )}
-            {todo.map((task) => (
-              <TaskRow
-                key={task.id}
-                task={task}
-                routineLabel={routineLabelFor(task)}
-                projectName={projectNameFor(task)}
-                suggestion={suggestions[task.id] ?? null}
-                postponeOpen={postponeMenuTaskId === task.id}
-                onToggle={handleToggle}
-                onSchedule={handleSchedule}
-                onSetReminder={handleSetReminder}
-                onDelete={handleDelete}
-                onApplySuggestion={handleApplySuggestion}
-                onDismissSuggestion={handleDismissSuggestion}
-                onTogglePostpone={togglePostponeMenu}
-                onPostpone={handlePostpone}
-              />
-            ))}
-          </section>
+          <div className="space-y-8">
+            <section className={tab === 'todo' ? '' : 'hidden lg:block'}>
+              <p className="mb-3 hidden text-[15px] font-semibold lg:block" style={{ color: 'var(--text)' }}>할 일 {todo.length}</p>
+              {todo.length === 0 && (
+                <div className="py-8 text-center text-xs" style={{ color: 'var(--text-faint)' }}>
+                  <p>아직 없어요</p>
+                  <p className="mt-1">오늘 할 일을 하나 적어보세요</p>
+                </div>
+              )}
+              {todo.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  routineLabel={routineLabelFor(task)}
+                  projectName={projectNameFor(task)}
+                  suggestion={suggestions[task.id] ?? null}
+                  postponeOpen={postponeMenuTaskId === task.id}
+                  onToggle={handleToggle}
+                  onSchedule={handleSchedule}
+                  onScheduleEnd={handleScheduleEnd}
+                  onSetReminder={handleSetReminder}
+                  onDelete={handleDelete}
+                  onApplySuggestion={handleApplySuggestion}
+                  onDismissSuggestion={handleDismissSuggestion}
+                  onTogglePostpone={togglePostponeMenu}
+                  onPostpone={handlePostpone}
+                />
+              ))}
 
-          <section className={tab === 'done' ? '' : 'hidden lg:block'}>
-            <p className="mb-3 hidden text-xs text-neutral-500 lg:block">완료 {done.length}</p>
-            {done.length === 0 && (
-              <p className="py-8 text-center text-xs text-neutral-400">아직 없어요</p>
-            )}
-            {done.map((task) => (
-              <div key={task.id} className="border-b border-neutral-100 py-3">
-                <div className="flex items-center gap-3">
+              {/* 디자인 시스템 "입력창" 규칙 — 목록 맨 아래, 카드와 같은 모양 */}
+              <div style={{ borderColor: 'var(--border)', background: 'var(--surface)' }} className="flex items-center gap-2 rounded-[12px] border p-4 transition-colors focus-within:border-[var(--border-strong)]">
+                <span className="flex-none text-lg leading-none" style={{ color: 'var(--text-faint)' }}>+</span>
+                <input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.nativeEvent.isComposing) return
+                    if (e.key === 'Enter') handleAdd()
+                  }}
+                  placeholder="할 일 적기"
+                  className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-[var(--text-faint)]"
+                />
+                <button
+                  onClick={handleAdd}
+                  disabled={saving}
+                  className="flex-none rounded-full px-4 py-1.5 text-[13px] font-medium text-white disabled:opacity-50"
+                  style={{ background: 'var(--cherry)' }}
+                >
+                  추가
+                </button>
+              </div>
+            </section>
+
+            <section className={tab === 'done' ? '' : 'hidden lg:block'}>
+              <p className="mb-3 hidden text-[15px] font-semibold lg:block" style={{ color: 'var(--text)' }}>완료 {done.length}</p>
+              {done.length === 0 && (
+                <div className="py-8 text-center text-xs" style={{ color: 'var(--text-faint)' }}>
+                  <p>아직 없어요</p>
+                  <p className="mt-1">할 일을 끝내면 여기 쌓여요</p>
+                </div>
+              )}
+              {done.map((task) => (
+              <div key={task.id} style={{ borderColor: 'var(--border)', background: 'var(--surface)' }} className="group mb-2 rounded-[12px] border p-4">
+                <div className="flex items-start gap-3">
                   <button
                     onClick={() => handleToggle(task)}
-                    className="flex h-4 w-4 flex-none items-center justify-center rounded text-white"
-                    style={{ background: 'var(--cherry)' }}
+                    className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full text-white"
+                    style={{ background: 'var(--done)' }}
                     aria-label="완료 취소"
                   >
-                    <IconCheck size={10} stroke={2.5} />
+                    <IconCheck size={12} stroke={2.5} />
                   </button>
-                  <span className="flex-1 text-sm text-neutral-400 line-through">
-                    {task.title}
+                  <div className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="min-w-0 max-w-full truncate whitespace-nowrap text-[15px] line-through" style={{ color: 'var(--text-muted)' }}>
+                      {task.title}
+                    </span>
                     {projectNameFor(task) && (
-                      <span className="ml-2 inline-flex items-center rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-400">
+                      <span style={{ background: 'var(--surface-muted)', color: 'var(--text-faint)' }} className="inline-flex flex-none items-center rounded-[6px] px-1.5 py-0.5 text-[10px] font-medium">
                         #{projectNameFor(task)}
                       </span>
                     )}
                     {routineMonthLabelFor(task) && (
-                      <span className="ml-2 inline-flex items-center gap-0.5 text-[11px] text-neutral-300">
-                        <IconRepeat size={11} stroke={1.75} />{routineMonthLabelFor(task)}
+                      <span className="inline-flex flex-none items-center gap-0.5 text-[11px]" style={{ color: 'var(--text-faint)' }}>
+                        <IconRepeat size={11} stroke={1.5} />{routineMonthLabelFor(task)}
                       </span>
                     )}
                   </span>
-                  <span className="text-[11px] text-neutral-300">
+                  <p className="mt-1 text-[13px]" style={{ color: 'var(--text-faint)' }}>
                     {(task.effective_at ?? task.completed_at)?.slice(11, 16)}
-                  </span>
+                  </p>
+                  </div>
+                  <div className="flex flex-none items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
                   <button
                     onClick={() => toggleMemoEditor(task)}
-                    className="flex text-neutral-300"
+                    style={{ color: 'var(--text-faint)' }}
                     aria-label="메모 수정"
                   >
-                    <IconNote size={13} stroke={1.75} />
+                    <IconNote size={13} stroke={1.5} />
                   </button>
                   <button
                     onClick={() => setOpenChipTaskId(openChipTaskId === task.id ? null : task.id)}
-                    className="flex text-neutral-300"
+                    style={{ color: 'var(--text-faint)' }}
                     aria-label="완료 시각 수정"
                   >
-                    <IconClock size={13} stroke={1.75} />
+                    <IconClock size={13} stroke={1.5} />
                   </button>
+                  </div>
                 </div>
 
                 {openMemoTaskId === task.id ? (
@@ -830,26 +956,29 @@ export default function TodayPage() {
                     onBlur={() => saveMemo(task)}
                     onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
                     placeholder="메모 (선택)"
-                    className="ml-7 mt-2 w-[calc(100%-1.75rem)] rounded-md border border-neutral-200 px-2 py-1 text-[11px] outline-none focus:border-neutral-400"
+                    style={{ borderColor: 'var(--border)' }}
+                    className="ml-8 mt-2 w-[calc(100%-2rem)] rounded-[10px] border px-2 py-1 text-[11px] outline-none focus:border-[var(--border-strong)]"
                   />
                 ) : task.memo ? (
-                  <p className="ml-7 mt-1 text-[11px] text-neutral-400">{task.memo}</p>
+                  <p className="ml-8 mt-1 text-[11px]" style={{ color: 'var(--text-faint)' }}>{task.memo}</p>
                 ) : null}
 
                 {openChipTaskId === task.id && (
-                  <div className="ml-7 mt-2 flex flex-wrap items-center gap-1.5">
-                    <span className="mr-0.5 text-[11px] text-neutral-400">언제로 기록할까요?</span>
+                  <div className="ml-8 mt-2 flex flex-wrap items-center gap-1.5">
+                    <span className="mr-0.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>언제로 기록할까요?</span>
                     {task.scheduled_start && (
                       <button
                         onClick={() => applyEffectiveTime(task, task.scheduled_start!)}
-                        className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
+                        style={{ background: 'var(--surface-muted)', color: 'var(--text)' }}
+                        className="rounded-full px-2.5 py-1 text-[11px] font-medium"
                       >
                         예정대로
                       </button>
                     )}
                     <button
                       onClick={() => applyEffectiveTime(task, task.completed_at!)}
-                      className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
+                      style={{ background: 'var(--surface-muted)', color: 'var(--text)' }}
+                      className="rounded-full px-2.5 py-1 text-[11px] font-medium"
                     >
                       지금
                     </button>
@@ -858,12 +987,14 @@ export default function TodayPage() {
                         type="time"
                         autoFocus
                         onChange={(e) => e.target.value && applyEffectiveTime(task, `${task.task_date ?? viewDate}T${e.target.value}:00`)}
-                        className="rounded-md border border-neutral-200 px-1.5 py-1 text-[11px]"
+                        style={{ borderColor: 'var(--border)' }}
+                        className="rounded-[10px] border px-1.5 py-1 text-[11px]"
                       />
                     ) : (
                       <button
                         onClick={() => setEditingTimeTaskId(task.id)}
-                        className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
+                        style={{ background: 'var(--surface-muted)', color: 'var(--text)' }}
+                        className="rounded-full px-2.5 py-1 text-[11px] font-medium"
                       >
                         직접입력
                       </button>
@@ -871,22 +1002,25 @@ export default function TodayPage() {
                   </div>
                 )}
               </div>
-            ))}
-          </section>
+              ))}
+            </section>
+          </div>
 
           <section className={tab === 'timetable' ? '' : 'hidden lg:block'}>
             <div className="mb-3 flex items-center justify-between">
-              <p className="hidden text-xs text-neutral-500 lg:block">시간표</p>
-              <div className="flex gap-1 rounded-lg bg-neutral-100 p-1 text-xs">
+              <p className="hidden text-[15px] font-semibold lg:block" style={{ color: 'var(--text)' }}>시간표</p>
+              <div style={{ background: 'var(--surface-muted)' }} className="flex gap-1 rounded-[10px] p-1 text-xs">
                 <button
                   onClick={() => setView('scheduled')}
-                  className={`rounded-md px-3 py-1 font-medium ${view === 'scheduled' ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
+                  style={view === 'scheduled' ? { background: 'var(--surface)', color: 'var(--text)', boxShadow: '0 1px 2px rgba(46,42,38,0.04)' } : { color: 'var(--text-muted)' }}
+                  className="rounded-[8px] px-3 py-1 font-medium"
                 >
                   예정
                 </button>
                 <button
                   onClick={() => setView('actual')}
-                  className={`rounded-md px-3 py-1 font-medium ${view === 'actual' ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
+                  style={view === 'actual' ? { background: 'var(--surface)', color: 'var(--text)', boxShadow: '0 1px 2px rgba(46,42,38,0.04)' } : { color: 'var(--text-muted)' }}
+                  className="rounded-[8px] px-3 py-1 font-medium"
                 >
                   실제
                 </button>

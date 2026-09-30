@@ -2,6 +2,7 @@ package com.cherry.task;
 
 import com.cherry.common.MilestoneNotFoundException;
 import com.cherry.common.TaskNotFoundException;
+import com.cherry.farm.FarmService;
 import com.cherry.park.ParkService;
 import com.cherry.project.Milestone;
 import com.cherry.project.MilestoneRepository;
@@ -34,6 +35,7 @@ public class TaskService {
     private final RoutineRepository routineRepository;
     private final MilestoneRepository milestoneRepository;
     private final ParkService parkService;
+    private final FarmService farmService;
     private final ReminderService reminderService;
 
     @Transactional
@@ -93,6 +95,7 @@ public class TaskService {
                         .ifPresent(m -> {
                             m.complete(LocalDateTime.now());
                             parkService.awardForMilestoneCompletion(userId, presetMilestoneId);
+                            farmService.harvest(userId, m.getProjectId());
                         });
             }
         }

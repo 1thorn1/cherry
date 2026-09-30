@@ -217,10 +217,10 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
-      <h1 className="mb-6 text-xl font-medium tracking-tight">설정</h1>
+      <h1 className="mb-6 font-display text-2xl">설정</h1>
 
       {authChecked && (
-        <div className="mb-6 rounded-lg border border-neutral-200 p-4">
+        <div className="mb-6 rounded-2xl border border-neutral-100 p-4 shadow-[0_2px_12px_-6px_rgba(0,0,0,0.08)]">
           {authUser ? (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -298,13 +298,13 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <div className="mb-6 rounded-lg border border-neutral-200 p-4">
+      <div className="mb-6 rounded-2xl border border-neutral-100 p-4 shadow-[0_2px_12px_-6px_rgba(0,0,0,0.08)]">
         <p className="mb-2 text-xs text-neutral-400">내 친구 코드</p>
         <div className="flex items-center gap-2">
           <span className="text-lg font-medium tracking-widest">{myCode?.friend_code ?? '...'}</span>
           <button
             onClick={handleCopy}
-            className="rounded-md bg-neutral-100 px-2 py-1 text-[11px] font-medium"
+            className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium transition-transform active:scale-95"
           >
             {copied ? '복사됨' : '복사'}
           </button>
@@ -316,12 +316,12 @@ export default function SettingsPage() {
           value={codeInput}
           onChange={(e) => setCodeInput(e.target.value)}
           placeholder="친구 코드 입력"
-          className="flex-1 rounded-md border border-neutral-200 px-3 py-2 text-sm"
+          className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm"
         />
         <button
           type="submit"
           disabled={sending}
-          className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="btn-3d font-display rounded-full px-4 py-2 text-sm text-white disabled:opacity-50"
           style={{ background: 'var(--cherry)' }}
         >
           요청
@@ -329,7 +329,7 @@ export default function SettingsPage() {
       </form>
 
       {settings && (
-        <div className="mb-8 rounded-lg border border-neutral-200 p-4">
+        <div className="mb-8 rounded-2xl border border-neutral-100 p-4 shadow-[0_2px_12px_-6px_rgba(0,0,0,0.08)]">
           <p className="mb-3 text-xs text-neutral-400">공개 설정</p>
           <div className="space-y-3">
             {settingLabels.map(({ key, label, hint }) => (
@@ -366,13 +366,13 @@ export default function SettingsPage() {
           <h2 className="mb-3 text-sm font-medium tracking-tight">받은 요청</h2>
           <div className="space-y-2">
             {requests.map((r) => (
-              <div key={r.friendship_id} className="flex items-center justify-between rounded-lg border border-neutral-200 p-3">
+              <div key={r.friendship_id} className="flex items-center justify-between rounded-2xl border border-neutral-100 p-3 shadow-[0_2px_10px_-6px_rgba(0,0,0,0.08)]">
                 <span className="text-sm">{r.requester_nickname}</span>
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleAccept(r.friendship_id)}
                     disabled={busyId === r.friendship_id}
-                    className="rounded-md px-3 py-1 text-[11px] font-medium text-white disabled:opacity-50"
+                    className="rounded-full px-3 py-1 text-[11px] font-medium text-white transition-transform active:scale-95 disabled:opacity-50"
                     style={{ background: 'var(--cherry)' }}
                   >
                     수락
@@ -380,7 +380,7 @@ export default function SettingsPage() {
                   <button
                     onClick={() => handleReject(r.friendship_id)}
                     disabled={busyId === r.friendship_id}
-                    className="rounded-md bg-neutral-100 px-3 py-1 text-[11px] font-medium disabled:opacity-50"
+                    className="rounded-full bg-neutral-100 px-3 py-1 text-[11px] font-medium transition-transform active:scale-95 disabled:opacity-50"
                   >
                     거절
                   </button>
@@ -397,7 +397,7 @@ export default function SettingsPage() {
       ) : (
         <div className="space-y-2">
           {friends.map((f) => (
-            <div key={f.friendship_id} className="rounded-lg border border-neutral-200 p-3">
+            <div key={f.friendship_id} className="rounded-2xl border border-neutral-100 p-3 shadow-[0_2px_10px_-6px_rgba(0,0,0,0.08)]">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-sm">{f.nickname}</span>

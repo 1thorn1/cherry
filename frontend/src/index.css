@@ -1,15 +1,100 @@
 @import "tailwindcss";
 
+/* 파키텍트풍 코지(둥글둥글) 톤 — 카드·버튼에 쓰는 모서리 반경을 앱 전체에서 한 번에
+   키운다. 기존 rounded-lg/xl/2xl/3xl 클래스는 그대로 두고 실제 값만 더 둥글게. */
+@theme {
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.75rem;
+}
+
 :root {
-  --cherry: #D4537E;
-  --cherry-bg: #FBEAF0;
+  /* docs/design-system.md 기준 — 모든 UI 작업의 근거. 체리 색은 이 문서 값으로
+     갱신(기존 var(--cherry) 쓰던 다른 화면에도 자연스럽게 반영됨). */
+  --bg: #FBF8F3;
+  --surface: #FFFFFF;
+  --surface-muted: #F3EEE6;
+
+  --text: #2E2A26;
+  --text-muted: #8A8178;
+  --text-faint: #B8B0A6;
+
+  --border: #E8E1D6;
+  --border-strong: #D6CCBD;
+
+  --cherry: #C4485F;
+  --cherry-soft: #F7E6E9;
+  --cherry-bg: #F7E6E9;
+  --cherry-deep: #A83A4F;
+
+  --done: #7A9A6B;
+  --done-soft: #EBF0E6;
+  --warn: #C98A3C;
+  --warn-soft: #F8EEDF;
+
+  --block-rose: #F6E4E6;
+  --block-sage: #E6EDE2;
+  --block-sand: #F5EBDC;
+  --block-sky: #E3EAEF;
+  --block-lilac: #EDE7F0;
+
+  /* 게임성 팔레트(농장 화면 쪽에서 쓰던 확장 색) — 디자인 시스템 문서에는 없지만
+     기존 화면이 계속 참조하므로 유지 */
+  --meadow: #5FA05A;
+  --meadow-deep: #427A3F;
+  --meadow-bg: #E9F5E7;
+  --gold: #E8A93D;
+  --gold-deep: #C4841F;
+  --gold-bg: #FBF0DA;
+  --cream: #FFF7EA;
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', sans-serif;
-  background: #fff;
-  color: #1f1f1f;
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+/* 디자인 시스템 "애니메이션" 규칙 — 모션을 줄여달라는 사용자 설정은 반드시 지킨다 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* 게임풍 표제용 서체 — 제목·버튼·탭바처럼 짧고 굵게 읽는 자리에만 쓴다.
+   할 일 목록 같은 빽빽한 본문까지 다 바꾸면 가독성이 떨어져서, "말투"가
+   필요한 지점에만 골라 입힌다. */
+.font-display {
+  font-family: 'Jua', -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: 0.01em;
+}
+
+/* 페인터리 톤 — 눌렀을 때 살짝 눌리는 느낌만 앱 전체 버튼에 기본으로 깔아둔다.
+   각 화면에서 이미 transition/active 클래스를 따로 준 버튼은 그쪽이 우선한다. */
+button:not(:disabled) {
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease;
+}
+button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+/* 게임 UI에서 흔한 "눌리는 입체 버튼" — 아래쪽에 진한 색 턱을 깔아 두께감을 주고,
+   누르면 그 두께만큼 내려앉는다. 주요 액션 버튼(추가·검색·참여 등)에서 쓴다.
+   색은 --btn-shadow-color로 버튼마다 바꿔 끼운다(기본은 체리). */
+.btn-3d {
+  box-shadow: 0 3px 0 0 var(--btn-shadow-color, var(--cherry-deep));
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.btn-3d:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 0 var(--btn-shadow-color, var(--cherry-deep));
 }
 
 @keyframes fade-in {
@@ -21,4 +106,42 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* 농장(파키텍트풍 코지/페인터리 톤) 진입 애니메이션 — 밭이 하나씩 심기는 느낌 */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.82) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* 나무·작물 아이콘이 바람에 살랑이는 느낌의 은은한 흔들림 */
+@keyframes sway {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+}
+
+/* 착용 중/보유 중 표시에 쓰는 은은한 확산광 펄스 */
+@keyframes glow-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(212, 83, 126, 0.28); }
+  70% { box-shadow: 0 0 0 10px rgba(212, 83, 126, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(212, 83, 126, 0); }
+}
+
+.animate-pop-in {
+  animation: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+.animate-sway {
+  animation: sway 3.2s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-out infinite;
 }
