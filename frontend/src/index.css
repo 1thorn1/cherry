@@ -10,11 +10,37 @@
 }
 
 :root {
-  --cherry: #D4537E;
-  --cherry-deep: #B33A64;
-  --cherry-bg: #FBEAF0;
-  /* 게임성 팔레트 — 체리 핑크 하나뿐이던 걸 농장 테마에 맞춰 확장.
-     초록(성장·완료), 금색(체리/보상), 크림(배경)을 더했다. */
+  /* docs/design-system.md 기준 — 모든 UI 작업의 근거. 체리 색은 이 문서 값으로
+     갱신(기존 var(--cherry) 쓰던 다른 화면에도 자연스럽게 반영됨). */
+  --bg: #FBF8F3;
+  --surface: #FFFFFF;
+  --surface-muted: #F3EEE6;
+
+  --text: #2E2A26;
+  --text-muted: #8A8178;
+  --text-faint: #B8B0A6;
+
+  --border: #E8E1D6;
+  --border-strong: #D6CCBD;
+
+  --cherry: #C4485F;
+  --cherry-soft: #F7E6E9;
+  --cherry-bg: #F7E6E9;
+  --cherry-deep: #A83A4F;
+
+  --done: #7A9A6B;
+  --done-soft: #EBF0E6;
+  --warn: #C98A3C;
+  --warn-soft: #F8EEDF;
+
+  --block-rose: #F6E4E6;
+  --block-sage: #E6EDE2;
+  --block-sand: #F5EBDC;
+  --block-sky: #E3EAEF;
+  --block-lilac: #EDE7F0;
+
+  /* 게임성 팔레트(농장 화면 쪽에서 쓰던 확장 색) — 디자인 시스템 문서에는 없지만
+     기존 화면이 계속 참조하므로 유지 */
   --meadow: #5FA05A;
   --meadow-deep: #427A3F;
   --meadow-bg: #E9F5E7;
@@ -26,9 +52,20 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', sans-serif;
-  background: var(--cream);
-  color: #3a2f2a;
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+/* 디자인 시스템 "애니메이션" 규칙 — 모션을 줄여달라는 사용자 설정은 반드시 지킨다 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* 게임풍 표제용 서체 — 제목·버튼·탭바처럼 짧고 굵게 읽는 자리에만 쓴다.

@@ -47,12 +47,19 @@ function HourRow({ hour, disabled, isCurrentHour }: { hour: number; disabled: bo
   return (
     <div
       ref={setNodeRef}
-      className={`relative border-t border-neutral-100 ${isOver ? 'bg-[var(--cherry-bg)]' : ''}`}
+      className="relative border-t"
       // 드래그 중 드롭 대상 표시(isOver)가 우선이고, 현재 시간대 표시는 그게 없을 때만
       // 얹는다 — 둘 다 배경색이라 겹치면 드롭 피드백이 가려진다.
-      style={{ height: ROW_HEIGHT, background: !isOver && isCurrentHour ? 'rgba(212, 83, 126, 0.08)' : undefined }}
+      style={{
+        height: ROW_HEIGHT,
+        borderColor: 'var(--border)',
+        background: isOver ? 'var(--cherry-soft)' : !isOver && isCurrentHour ? 'var(--surface-muted)' : undefined,
+      }}
     >
-      <span className="absolute -top-2 left-0 bg-white pr-2 text-[10px] text-neutral-400">
+      <span
+        className="absolute -top-2 left-0 pr-2 text-[11px]"
+        style={{ background: 'var(--surface)', color: 'var(--text-faint)' }}
+      >
         {hour}
       </span>
     </div>
@@ -69,17 +76,19 @@ export default function Timetable({ tasks, view, onUnschedule }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const hours = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i)
   const visible = tasks.filter((t) => anchorTime(t, view))
-  const [currentHour, setCurrentHour] = useState(() => new Date().getHours())
+  const now = new Date()
+  const [currentMin, setCurrentMin] = useState(() => now.getHours() * 60 + now.getMinutes())
 
   useEffect(() => {
     scrollToCurrentHour(scrollRef.current)
   }, [])
 
-  // 시간이 지나면(특히 정각을 넘기면) 반투명 표시도 같이 옮겨가야 하니 1분마다,
-  // 탭이 다시 보일 때마다 갱신한다 — TodayPage의 날짜 갱신과 같은 패턴.
+  // 시간이 지나면(특히 정각을 넘기면) 반투명 표시와 현재 시각선이 같이 옮겨가야 하니
+  // 1분마다, 탭이 다시 보일 때마다 갱신한다 — TodayPage의 날짜 갱신과 같은 패턴.
   useEffect(() => {
     function sync() {
-      setCurrentHour(new Date().getHours())
+      const d = new Date()
+      setCurrentMin(d.getHours() * 60 + d.getMinutes())
     }
     const id = setInterval(sync, 60_000)
     document.addEventListener('visibilitychange', sync)
@@ -88,6 +97,10 @@ export default function Timetable({ tasks, view, onUnschedule }: Props) {
       document.removeEventListener('visibilitychange', sync)
     }
   }, [])
+
+  const currentHour = Math.floor(currentMin / 60)
+  const currentLineTop = ((currentMin - START_HOUR * 60) / 60) * ROW_HEIGHT
+  const showCurrentLine = currentHour >= START_HOUR && currentHour <= END_HOUR
 
   const layouts = layoutOverlaps(
     visible
@@ -108,6 +121,14 @@ export default function Timetable({ tasks, view, onUnschedule }: Props) {
           <HourRow key={h} hour={h} disabled={view === 'actual'} isCurrentHour={h === currentHour} />
         ))}
 
+        {/* 디자인 시스템 "주간 시간표" 규칙 — 현재 시각에 --cherry 가로선 */}
+        {showCurrentLine && (
+          <div
+            className="pointer-events-none absolute left-0 right-0 z-10"
+            style={{ top: currentLineTop, height: 2, background: 'var(--cherry)' }}
+          />
+        )}
+
         {visible.map((task) => {
           const r = range(task, view)
           const layout = layoutByKey.get(task.id)
@@ -117,8 +138,8 @@ export default function Timetable({ tasks, view, onUnschedule }: Props) {
           const height = Math.max(((r.endMin - r.startMin) / 60) * ROW_HEIGHT, 24)
           const style = {
             ...blockPositionStyle(top, height, layout.column, layout.columnCount, { gutter: 28, rightPad: 4 }),
-            background: task.completed_at ? '#F1EFE8' : 'var(--cherry-bg)',
-            color: task.completed_at ? '#888780' : 'var(--cherry)',
+            background: task.completed_at ? 'var(--done-soft)' : 'var(--cherry-soft)',
+            color: task.completed_at ? 'var(--done)' : 'var(--cherry)',
           }
 
           // 예정 시간 없이 완료 시각으로만 표시되는 항목 — 실제 일정이 아니므로 해제 불가, 완료 표시만
@@ -128,7 +149,7 @@ export default function Timetable({ tasks, view, onUnschedule }: Props) {
             return (
               <div
                 key={task.id}
-                className="absolute flex items-center gap-1 overflow-hidden rounded-md px-2 py-1 text-left text-[11px] leading-tight"
+                className="absolute flex items-center gap-1 overflow-hidden rounded-[6px] px-2 py-1 text-left text-[11px] font-medium leading-tight"
                 style={style}
               >
                 {isCompletionMarker && <IconCheck size={11} stroke={2.5} className="flex-none" />}
@@ -141,7 +162,7 @@ export default function Timetable({ tasks, view, onUnschedule }: Props) {
             <button
               key={task.id}
               onClick={() => onUnschedule(task)}
-              className="absolute overflow-hidden rounded-md px-2 py-1 text-left text-[11px] leading-tight"
+              className="absolute overflow-hidden rounded-[6px] px-2 py-1 text-left text-[11px] font-medium leading-tight"
               style={style}
             >
               {task.title}

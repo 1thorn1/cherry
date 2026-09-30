@@ -16,7 +16,8 @@ export default function NotifySelect({ value, onChange }: Props) {
       value={value ?? ''}
       onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
       onClick={(e) => e.stopPropagation()}
-      className="rounded border border-neutral-200 px-1.5 py-0.5 text-[11px] text-neutral-500"
+      style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+      className="rounded-[6px] border bg-transparent px-1.5 py-0.5 text-[11px]"
     >
       {OPTIONS.map((opt) => (
         <option key={opt.label} value={opt.value ?? ''}>
