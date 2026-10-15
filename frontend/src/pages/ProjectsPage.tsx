@@ -1,4 +1,5 @@
 import Collapse from '../components/Collapse'
+import { addDays, format } from 'date-fns'
 import { useEffect, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { IconFolderPlus, IconPlus } from '@tabler/icons-react'
@@ -181,6 +182,8 @@ export default function ProjectsPage() {
           <Collapse open={mode === 'EXAM'}>
             <input
               type="date"
+              min={format(new Date(), 'yyyy-MM-dd')}
+              max={format(addDays(new Date(), 180), 'yyyy-MM-dd')}
               value={examDate}
               onChange={(e) => setExamDate(e.target.value)}
               className="mb-3 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-2.5 text-[15px] text-[var(--ink)] outline-none focus:border-[var(--line-strong)] focus:ring-2 focus:ring-[var(--wood-soft)]"

@@ -10,13 +10,12 @@ import com.cherry.push.ReminderService;
 import com.cherry.routine.Routine;
 import com.cherry.routine.RoutineRepository;
 import com.cherry.routine.RoutineService;
-import com.cherry.task.dto.TaskCompleteRequest;
-import jakarta.validation.Validation;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -82,12 +81,49 @@ class OfflineCompletionTest {
     }
 
     @Test
-    void completionRequestAllowsHistoricalTimeAndRejectsFutureTime() {
-        try (var factory = Validation.buildDefaultValidatorFactory()) {
-            var validator = factory.getValidator();
-            assertTrue(validator.validate(new TaskCompleteRequest(LocalDateTime.now().minusDays(1))).isEmpty());
-            assertTrue(validator.validate(new TaskCompleteRequest(null)).isEmpty());
-            assertFalse(validator.validate(new TaskCompleteRequest(LocalDateTime.now().plusDays(1))).isEmpty());
-        }
+    void requestedTimeIsKeptWithinTheAllowedWindow() {
+        var now = LocalDateTime.of(2026, 10, 15, 12, 0);
+        var offset = ZoneId.systemDefault().getRules().getOffset(now);
+        var yesterday = now.minusDays(1).atOffset(offset);
+        assertEquals(now.minusDays(1), TaskService.resolveCompletedAt(yesterday, null, now));
+        assertEquals(now, TaskService.resolveCompletedAt(null, null, now));
+    }
+
+    @Test
+    void futureOrTooOldOrPreCreationTimesFallBackToServerTime() {
+        var now = LocalDateTime.of(2026, 10, 15, 12, 0);
+        var offset = ZoneId.systemDefault().getRules().getOffset(now);
+        // 기기 시계가 몇 초 빠름 — 400 대신 서버 시각
+        assertEquals(now, TaskService.resolveCompletedAt(now.plusSeconds(5).atOffset(offset), null, now));
+        // 날짜를 바꿔가며 보내서 하루 상한을 피하려는 경우
+        assertEquals(now, TaskService.resolveCompletedAt(now.minusDays(10).atOffset(offset), null, now));
+        // 할 일이 만들어지기도 전 시각
+        assertEquals(now, TaskService.resolveCompletedAt(now.minusHours(2).atOffset(offset), now.minusHours(1), now));
+    }
+
+    @Test
+    void deviceTimezoneIsConvertedToTheSameInstant() {
+        var now = LocalDateTime.of(2026, 10, 15, 12, 0);
+        var instant = now.minusHours(1).atZone(ZoneId.systemDefault());
+        var fromOtherZone = instant.withZoneSameInstant(ZoneId.of("America/Los_Angeles")).toOffsetDateTime();
+        assertEquals(now.minusHours(1), TaskService.resolveCompletedAt(fromOtherZone, null, now));
+    }
+
+    @Test
+    void repeatedMilestoneCompletionReturnsTheExistingTaskWithoutAwarding() {
+        var milestone = Milestone.create(99L, 1, "Done", null);
+        var completedAt = LocalDateTime.of(2026, 10, 14, 9, 0);
+        milestone.complete(completedAt);
+        var existing = Task.create(1L, "Done", null);
+        existing.complete(completedAt, completedAt, 20L);
+        when(milestones.findById(20L)).thenReturn(Optional.of(milestone));
+        when(projects.findByIdAndUserIdAndDeletedAtIsNull(99L, 1L)).thenReturn(Optional.of(mock(com.cherry.project.Project.class)));
+        when(tasks.findFirstByMilestoneIdAndUserIdAndCompletedAtIsNotNullAndDeletedAtIsNullOrderByCompletedAtDesc(20L, 1L))
+                .thenReturn(Optional.of(existing));
+
+        var response = service.completeMilestoneNow(1L, 20L, LocalDateTime.of(2026, 10, 15, 9, 0));
+        assertEquals(completedAt, response.completedAt());
+        verify(tasks, never()).save(any());
+        verifyNoInteractions(park);
     }
 }

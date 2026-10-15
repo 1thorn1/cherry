@@ -4,7 +4,7 @@ import type { CalendarDay } from '../types/calendar.ts'
 import type { Task, TodayResponse } from '../types/task.ts'
 import type { Routine } from '../types/routine.ts'
 import { readAll, readStore, removeVersion, writePending, writeStore } from './offlineStore.ts'
-import { localTimestamp, overlayToday, pendingTask, type PendingChange } from './offlineState.ts'
+import { localTimestamp, overlayToday, pendingTask, withOffset, type PendingChange } from './offlineState.ts'
 
 interface CachedResponse { owner: number; url: string; data: unknown; storedAt?: number }
 interface SyncStatus { count: number; syncing: boolean; online: boolean; error: string }
@@ -112,6 +112,62 @@ export function projectCached(url: string, data: unknown, changes: PendingChange
   return applyObject(data, changes)
 }
 
+function mentions(value: unknown, change: PendingChange): boolean {
+  if (isTask(value)) return change.target === 'task' ? value.id === change.id : value.milestone_id === change.id
+  if (Array.isArray(value)) return value.some((entry) => mentions(entry, change))
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    if (change.target === 'milestone' && 'seq' in record && 'completed' in record && record.id === change.id) return true
+    return Object.values(record).some((entry) => mentions(entry, change))
+  }
+  return false
+}
+
+// 오늘·캘린더는 완료 날짜에 따라 다른 날 목록으로 옮겨질 수 있어 항상 다시 계산하고,
+// 나머지는 그 할 일/마일스톤이 들어 있는 응답만 고쳐 쓴다. 전체를 매번 다시 쓰면
+// 캐시가 커질수록 동기화가 느려진다.
+function affects(entry: CachedResponse, change: PendingChange) {
+  return entry.url.startsWith('/api/today?') || entry.url.startsWith('/api/calendar?') || mentions(entry.data, change)
+}
+
+async function applyAccepted(userId: number, accepted: PendingChange, serverTask: unknown, cache?: CachedResponse[]) {
+  const entries = cache ?? (await readAll<CachedResponse>('cache')).filter((entry) => entry.owner === userId)
+  for (const entry of entries) {
+    if (!affects(entry, accepted)) continue
+    // 동기화 도중 화면이 새로 받아 저장한 응답을 옛 사본으로 덮지 않게 저장 직전에 다시 읽는다.
+    const latest = await readStore<CachedResponse>('cache', `${userId}:${entry.url}`) ?? entry
+    entry.data = projectCached(entry.url, latest.data, [accepted])
+    await cacheResponse(userId, entry.url, entry.data)
+  }
+  if (isTask(serverTask)) await cacheResponse(userId, `/api/task-cache/${serverTask.id}`, serverTask)
+}
+
+function completionUrl(target: 'task' | 'milestone', id: number, completed: boolean) {
+  return `/api/${target === 'task' ? 'tasks' : 'milestones'}/${id}/${completed ? 'complete' : 'uncomplete'}`
+}
+
+// 온라인이면 서버에 바로 보내서 거절(400·404 등)을 화면이 그대로 받게 한다. 큐는 연결이
+// 없을 때만 쓴다. 이미 대기 중인 변경이 있으면 순서가 뒤섞이지 않게 같이 큐로 보낸다.
+export async function sendCompletion(target: 'task' | 'milestone', id: number, completed: boolean): Promise<Task | undefined> {
+  if (!navigator.onLine) return queueCompletion(target, id, completed)
+  const userId = await resolveOwner()
+  if (!userId || (await pendingChanges(userId)).length) return queueCompletion(target, id, completed)
+  let task: Task | undefined
+  try {
+    task = await rawRequest<Task | undefined>(completionUrl(target, id, completed), { method: 'PATCH' })
+  } catch (e) {
+    if (e instanceof ApiError) throw e
+    return queueCompletion(target, id, completed)
+  }
+  const occurredAt = (isTask(task) && task.completed_at) || localTimestamp()
+  await applyAccepted(userId, {
+    key: `${userId}:${target}:${id}`, version: '', owner: userId, target, id, completed, occurredAt, queuedAt: Date.now(),
+    task: isTask(task) ? task : undefined, effectiveAt: (isTask(task) && task.effective_at) || undefined,
+  }, task).catch(() => {})
+  changed()
+  return task
+}
+
 export async function pendingChanges(userId: number) {
   return (await readAll<PendingChange>('pending')).filter((change) => change.owner === userId).sort((a, b) => a.queuedAt - b.queuedAt)
 }
@@ -170,32 +226,34 @@ async function syncBatch() {
   if (!userId) { setStatus({ syncing: false, error: '로그인 후 저장한 완료 내역을 동기화할 수 있어요.' }); return }
   if (userId !== knownOwner) { await refreshStatus(); changed(); return }
   setStatus({ syncing: true, online: true, error: '' })
-  const blocked = new Set<string>()
+  const cache = (await readAll<CachedResponse>('cache')).filter((entry) => entry.owner === userId)
   try {
     while (true) {
-      const changes = (await pendingChanges(userId)).filter((change) => !blocked.has(change.version))
+      const changes = await pendingChanges(userId)
       if (!changes.length) break
       for (const change of changes) {
         if (owner !== userId) return
         try {
-          const url = `/api/${change.target === 'task' ? 'tasks' : 'milestones'}/${change.id}/${change.completed ? 'complete' : 'uncomplete'}`
-          const task = await rawRequest<Task | undefined>(url, {
+          const task = await rawRequest<Task | undefined>(completionUrl(change.target, change.id, change.completed), {
             method: 'PATCH',
-            ...(change.completed ? { body: JSON.stringify({ completed_at: change.occurredAt }) } : {}),
+            ...(change.completed ? { body: JSON.stringify({ completed_at: withOffset(change.occurredAt) }) } : {}),
           })
           const accepted = { ...change, ...(isTask(task) ? { task, occurredAt: task.completed_at ?? change.occurredAt, effectiveAt: task.effective_at ?? undefined } : {}) }
-          for (const cached of await readAll<CachedResponse>('cache')) {
-            if (cached.owner === userId) await cacheResponse(userId, cached.url, projectCached(cached.url, cached.data, [accepted]))
-          }
-          if (isTask(task)) await cacheResponse(userId, `/api/task-cache/${task.id}`, task)
+          await applyAccepted(userId, accepted, task, cache)
           await removeVersion(change.key, change.version)
           await refreshStatus()
           changed()
         } catch (e) {
           if (!(e instanceof ApiError)) { setStatus({ online: false, error: '연결이 돌아오면 저장한 완료 내역을 다시 전송해요.' }); return }
-          setStatus({ error: e.status === 401 ? '로그인이 필요해요. 완료 내역은 기기에 보관되어 있어요.' : e.message })
-          if (e.status === 401 || e.status >= 500) return
-          blocked.add(change.version)
+          if (e.status === 401) { setStatus({ error: '로그인이 필요해요. 완료 내역은 기기에 보관되어 있어요.' }); return }
+          if (e.status === 408 || e.status === 429 || e.status >= 500) { setStatus({ error: e.message }); return }
+          // 서버가 거절한 변경(다른 기기에서 지운 할 일 등)은 다시 보내도 같은 결과다. 큐에서
+          // 빼서 화면이 서버 상태로 돌아가게 한다 — 남겨두면 30초마다 재전송하면서 계속
+          // "완료"로 보인다.
+          await removeVersion(change.key, change.version)
+          setStatus({ error: `완료를 저장하지 못해 되돌렸어요: ${e.message}` })
+          await refreshStatus()
+          changed()
         }
       }
     }

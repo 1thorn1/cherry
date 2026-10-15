@@ -59,4 +59,8 @@ public class FarmPlot {
     public void promoteToTree() {
         this.cropCode = "cherry_tree";
     }
+
+    public void changeCrop(String cropCode) {
+        this.cropCode = cropCode;
+    }
 }

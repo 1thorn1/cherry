@@ -1,11 +1,11 @@
 import { ApiError, rawRequest } from './transport.ts'
-import { cacheResponse, forgetOwner, pendingChanges, projectCached, queueCompletion, readCached, rememberIdentity, resolveOwner } from '../lib/offlineCompletion.ts'
+import { cacheResponse, forgetOwner, pendingChanges, projectCached, readCached, rememberIdentity, resolveOwner, sendCompletion } from '../lib/offlineCompletion.ts'
 import type { AuthUser } from '../types/auth.ts'
 
 export async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const completion = url.match(/^\/api\/(tasks|milestones)\/(\d+)\/(complete|uncomplete)$/)
   if (completion && options?.method === 'PATCH') {
-    return await queueCompletion(completion[1] === 'tasks' ? 'task' : 'milestone', Number(completion[2]), completion[3] === 'complete') as T
+    return await sendCompletion(completion[1] === 'tasks' ? 'task' : 'milestone', Number(completion[2]), completion[3] === 'complete') as T
   }
   let userId = await resolveOwner()
   const readOnly = !options?.method || options.method === 'GET'

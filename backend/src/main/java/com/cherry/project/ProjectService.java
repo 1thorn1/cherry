@@ -44,6 +44,8 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class ProjectService {
 
+    private static final int MAX_EXAM_DAYS = 180;
+
     private final ProjectRepository projectRepository;
     private final MilestoneRepository milestoneRepository;
     private final TaskRepository taskRepository;
@@ -269,6 +271,7 @@ public class ProjectService {
     public void deleteProject(Long userId, Long projectId) {
         Project project = findOwned(userId, projectId);
         project.delete();
+        farmService.removePlot(userId, projectId);
     }
 
     @Transactional
@@ -334,6 +337,10 @@ public class ProjectService {
         if ("EXAM".equals(type) && examDate == null) {
             throw new InvalidProjectException("시험일을 입력해주세요");
         }
+        // 시험형은 하루에 마일스톤 하나라, 시험일이 멀면 수백 개가 생기고 나무 승격도 사실상 불가능해진다.
+        if ("EXAM".equals(type) && examDate.isAfter(LocalDate.now().plusDays(MAX_EXAM_DAYS))) {
+            throw new InvalidProjectException("시험일은 오늘부터 " + MAX_EXAM_DAYS + "일 이내로 정해주세요");
+        }
     }
 
     private List<Milestone> generateFreeMilestones(Project project, List<String> titles) {
@@ -368,12 +375,14 @@ public class ProjectService {
     private List<Milestone> generateExamMilestones(Project project) {
         List<Milestone> milestones = new ArrayList<>();
 
-        LocalDate todayWeekStart = LocalDate.now().with(DayOfWeek.MONDAY);
+        // 주차 번호는 이번 주 월요일 기준이지만, 이미 지난 요일엔 마일스톤을 만들지 않는다.
+        LocalDate today = LocalDate.now();
+        LocalDate todayWeekStart = today.with(DayOfWeek.MONDAY);
         LocalDate examDate = project.getExamDate();
-        LocalDate end = examDate.isBefore(todayWeekStart) ? todayWeekStart : examDate;
+        LocalDate end = examDate.isBefore(today) ? today : examDate;
 
         int seq = 1;
-        LocalDate cursor = todayWeekStart;
+        LocalDate cursor = today;
         while (!cursor.isAfter(end)) {
             int weekNum = (int) (ChronoUnit.DAYS.between(todayWeekStart, cursor) / 7) + 1;
             String title = weekNum + "주차 " + weekdayLabel(cursor) + "요일 (" + formatMonthDay(cursor) + ")";

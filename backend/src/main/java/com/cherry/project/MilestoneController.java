@@ -4,7 +4,6 @@ import com.cherry.auth.CurrentUserId;
 import com.cherry.task.TaskService;
 import com.cherry.task.dto.TaskResponse;
 import com.cherry.task.dto.TaskCompleteRequest;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -22,8 +21,8 @@ public class MilestoneController {
 
     @PatchMapping("/{id}/complete")
     public TaskResponse complete(@CurrentUserId Long userId, @PathVariable Long id,
-            @Valid @RequestBody(required = false) TaskCompleteRequest request) {
-        return taskService.completeMilestoneNow(userId, id, request == null ? null : request.completedAt());
+            @RequestBody(required = false) TaskCompleteRequest request) {
+        return taskService.completeMilestoneRequested(userId, id, request == null ? null : request.completedAt());
     }
 
     @PatchMapping("/{id}/uncomplete")

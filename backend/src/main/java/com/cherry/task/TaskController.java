@@ -32,8 +32,8 @@ public class TaskController {
 
     @PatchMapping("/{id}/complete")
     public TaskResponse complete(@CurrentUserId Long userId, @PathVariable Long id,
-            @Valid @RequestBody(required = false) TaskCompleteRequest request) {
-        return taskService.complete(userId, id, request == null ? null : request.completedAt());
+            @RequestBody(required = false) TaskCompleteRequest request) {
+        return taskService.completeRequested(userId, id, request == null ? null : request.completedAt());
     }
 
     @PatchMapping("/{id}/uncomplete")

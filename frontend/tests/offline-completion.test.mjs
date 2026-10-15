@@ -27,10 +27,12 @@ globalThis.fetch = async (endpoint, options) => {
   if (endpoint === '/api/auth/me') return serverUser ? response(user(serverUser)) : response({ message: 'Login required' }, 401)
   if (failure === 'forbidden') return response({ message: 'Forbidden' }, 403)
   if (failure === 'server') return response({ message: 'Try later' }, 503)
+  if (failure === 'rejected' && endpoint.startsWith('/api/tasks/')) return response({ message: 'Task not found' }, 404)
   if (endpoint === '/api/tasks/101/complete') {
     if (delayCompletion) await delayCompletion()
     if (!serverTask.completed_at) {
-      const time = JSON.parse(options.body).completed_at
+      // 실제 서버처럼 오프셋을 서버 시간대(테스트에선 같은 시간대) 로컬 시각으로 돌려준다
+      const time = options?.body ? JSON.parse(options.body).completed_at.slice(0, 19) : localTimestamp()
       serverTask = { ...serverTask, completed_at: time, effective_at: time }
     }
     return response(serverTask)
@@ -89,7 +91,9 @@ test('reconnect sends the original completion time and persists the acknowledgem
   online = true
   await syncCompletions()
   const sent = calls.find((call) => call.endpoint.endsWith('/complete'))
-  assert.equal(JSON.parse(sent.options.body).completed_at, changed.completed_at)
+  const sentAt = JSON.parse(sent.options.body).completed_at
+  assert.equal(sentAt.slice(0, 19), changed.completed_at)
+  assert.match(sentAt, /[+-]\d{2}:\d{2}$/)
   assert.equal((await pendingChanges(1)).length, 0)
   assert.equal((await readCached(1, url)).done[0].completed_at, changed.completed_at)
 })
@@ -226,4 +230,26 @@ test('failed local storage does not report completion or enqueue a change', asyn
   } finally {
     IDBObjectStore.prototype.put = originalPut
   }
+})
+
+test('online completion goes straight to the server and surfaces its rejection', async () => {
+  online = true
+  failure = 'rejected'
+  await assert.rejects(request('/api/tasks/101/complete', { method: 'PATCH' }), (error) => error instanceof ApiError && error.status === 404)
+  assert.equal((await pendingChanges(1)).length, 0)
+  failure = null
+  const done = await request('/api/tasks/101/complete', { method: 'PATCH' })
+  assert.ok(done.completed_at)
+  assert.equal((await pendingChanges(1)).length, 0)
+  assert.equal((await readCached(1, url)).done[0].id, 101)
+})
+
+test('a queued change the server rejects is dropped instead of retried forever', async () => {
+  await queueCompletion('task', 101, true)
+  await syncCompletions()
+  online = true
+  failure = 'rejected'
+  await syncCompletions()
+  assert.equal((await pendingChanges(1)).length, 0)
+  assert.equal((await readCached(1, url)).todo[0].completed_at, null)
 })

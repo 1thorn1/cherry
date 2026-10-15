@@ -10,7 +10,9 @@ import com.cherry.farm.dto.RecipeResponse;
 import com.cherry.farm.dto.VillagerRequestResponse;
 import com.cherry.park.PointLedger;
 import com.cherry.park.PointLedgerRepository;
+import com.cherry.project.Milestone;
 import com.cherry.project.MilestoneRepository;
+import com.cherry.project.ProjectRepository;
 import com.cherry.user.User;
 import com.cherry.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -63,6 +65,7 @@ public class FarmService {
     private final ProductionRepository productionRepository;
     private final RecipeDiscoveryRepository recipeDiscoveryRepository;
     private final MilestoneRepository milestoneRepository;
+    private final ProjectRepository projectRepository;
     private final PointLedgerRepository pointLedgerRepository;
     private final UserRepository userRepository;
     private final VillagerRepository villagerRepository;
@@ -74,7 +77,14 @@ public class FarmService {
         if (farmPlotRepository.findByUserIdAndProjectId(userId, projectId).isPresent()) return;
 
         String cropCode = CROP_BY_PROJECT_TYPE.getOrDefault(projectType, "row_crop_basic");
-        int index = farmPlotRepository.findByUserId(userId).size();
+        // "지금 밭 개수 번째 칸"에 놓으면 사용자가 옮겨둔 밭과 겹친다. 빈 칸을 앞에서부터 찾는다.
+        Set<Integer> occupied = farmPlotRepository.findByUserId(userId).stream()
+                .map(plot -> plot.getGridY() * GRID_WIDTH + plot.getGridX())
+                .collect(Collectors.toSet());
+        int index = 0;
+        while (occupied.contains(index)) index++;
+        // 4×5가 꽉 찼으면 밭 없이 프로젝트만 만든다 — 농장 범위 밖에 심을 수는 없다.
+        if (index >= GRID_WIDTH * GRID_HEIGHT) return;
         farmPlotRepository.save(FarmPlot.create(
                 userId, cropCode, projectId, (byte) (index % GRID_WIDTH), (byte) (index / GRID_WIDTH)));
 
@@ -85,25 +95,44 @@ public class FarmService {
         }
     }
 
-    // 마일스톤 완료(수확) — TaskService.complete()에서 호출된다.
+    // 마일스톤 완료(수확) — TaskService.complete()에서 호출된다. 체리는 마일스톤당 한 번만
+    // 나온다(markHarvested). 계절은 동기화한 날이 아니라 실제로 완료한 날 기준.
     @Transactional
-    public void harvest(Long userId, Long projectId) {
-        Inventory cherry = inventoryRepository.findByUserIdAndItemCode(userId, "cherry")
-                .orElseGet(() -> inventoryRepository.save(Inventory.create(userId, "cherry")));
+    public void harvest(Long userId, Milestone milestone, LocalDateTime completedAt) {
+        if (milestone.markHarvested(completedAt)) {
+            Inventory cherry = inventoryRepository.findByUserIdAndItemCode(userId, "cherry")
+                    .orElseGet(() -> inventoryRepository.save(Inventory.create(userId, "cherry")));
 
-        int amount = switch (Season.of(LocalDate.now())) {
-            case FALL -> CHERRY_PER_HARVEST + FALL_HARVEST_BONUS;
-            case WINTER -> CHERRY_PER_HARVEST - WINTER_HARVEST_PENALTY;
-            default -> CHERRY_PER_HARVEST;
-        };
-        cherry.add(amount);
+            int amount = switch (Season.of(completedAt.toLocalDate())) {
+                case FALL -> CHERRY_PER_HARVEST + FALL_HARVEST_BONUS;
+                case WINTER -> CHERRY_PER_HARVEST - WINTER_HARVEST_PENALTY;
+                default -> CHERRY_PER_HARVEST;
+            };
+            cherry.add(amount);
+        }
+        syncTree(userId, milestone.getProjectId());
+    }
 
+    // 스펙 3절 "프로젝트 완료 → 나무로 승격". 마일스톤 완료를 취소하면 원래 작물로 되돌린다.
+    @Transactional
+    public void syncTree(Long userId, Long projectId) {
         if (projectId == null) return;
         farmPlotRepository.findByUserIdAndProjectId(userId, projectId).ifPresent(plot -> {
-            boolean allDone = milestoneRepository.findByProjectIdOrderBySeqAsc(projectId).stream()
-                    .allMatch(m -> m.getCompletedAt() != null);
-            if (allDone) plot.promoteToTree(); // 스펙 3절 "프로젝트 완료 → 나무로 승격"
+            List<Milestone> milestones = milestoneRepository.findByProjectIdOrderBySeqAsc(projectId);
+            boolean allDone = !milestones.isEmpty() && milestones.stream().allMatch(m -> m.getCompletedAt() != null);
+            if (allDone) {
+                plot.promoteToTree();
+            } else {
+                projectRepository.findById(projectId).ifPresent(project ->
+                        plot.changeCrop(CROP_BY_PROJECT_TYPE.getOrDefault(project.getType(), "row_crop_basic")));
+            }
         });
+    }
+
+    // 프로젝트를 지우면 밭도 치운다. 남겨두면 칸을 계속 차지하고 화면에도 남는다.
+    @Transactional
+    public void removePlot(Long userId, Long projectId) {
+        farmPlotRepository.findByUserIdAndProjectId(userId, projectId).ifPresent(farmPlotRepository::delete);
     }
 
     // 스펙 9절 "꾸미기" — 밭 배치는 자유. 겹치면(우리 작물은 전부 1x1이라 같은 칸) 막지

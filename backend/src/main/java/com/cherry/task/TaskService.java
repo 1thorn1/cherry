@@ -22,8 +22,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 import com.cherry.task.dto.TaskScheduleRequest;
@@ -31,6 +34,9 @@ import com.cherry.task.dto.TaskScheduleRequest;
 @Service
 @RequiredArgsConstructor
 public class TaskService {
+
+    // 오프라인으로 완료하고 이 기간 안에 동기화되면 그날 완료로 인정한다.
+    private static final Duration MAX_BACKDATE = Duration.ofDays(3);
 
     private final TaskRepository taskRepository;
     private final RoutineService routineService;
@@ -78,6 +84,35 @@ public class TaskService {
         return complete(userId, taskId, null);
     }
 
+    // 오프라인 완료가 기기 시각을 보내올 때 쓴다(B-7). 그대로 믿으면 날짜를 바꿔가며 보내서
+    // 하루 상한(DAILY_POINT_CAP)을 매일치로 새로 받을 수 있으니, 받아들이는 범위를 좁힌다.
+    @Transactional
+    public TaskResponse completeRequested(Long userId, Long taskId, OffsetDateTime requested) {
+        Task task = findOwned(userId, taskId);
+        return complete(userId, taskId, resolveCompletedAt(requested, task.getCreatedAt(), LocalDateTime.now()));
+    }
+
+    @Transactional
+    public TaskResponse completeMilestoneRequested(Long userId, Long milestoneId, OffsetDateTime requested) {
+        Milestone milestone = milestoneRepository.findById(milestoneId)
+                .orElseThrow(MilestoneNotFoundException::new);
+        return completeMilestoneNow(userId, milestoneId,
+                resolveCompletedAt(requested, milestone.getCreatedAt(), LocalDateTime.now()));
+    }
+
+    // 범위를 벗어나면 거절(400) 대신 서버 시각으로 보정한다 — 거절하면 오프라인 큐에서
+    // 완료 자체가 사라지는데, "완료했다"는 사실은 맞으니까 날짜만 서버 기준으로 바꾼다.
+    // - 미래: 기기 시계가 몇 초~몇 분 빠른 경우
+    // - MAX_BACKDATE보다 오래됐거나, 할 일이 만들어지기도 전: 조작이거나 기기 시계가 틀린 경우
+    static LocalDateTime resolveCompletedAt(OffsetDateTime requested, LocalDateTime notBefore, LocalDateTime now) {
+        if (requested == null) return now;
+        LocalDateTime local = requested.atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+        if (local.isAfter(now)) return now;
+        if (local.isBefore(now.minus(MAX_BACKDATE))) return now;
+        if (notBefore != null && local.isBefore(notBefore)) return now;
+        return local;
+    }
+
     @Transactional
     public TaskResponse complete(Long userId, Long taskId, LocalDateTime completedAt) {
         Task task = findOwned(userId, taskId);
@@ -103,7 +138,7 @@ public class TaskService {
                         .ifPresent(m -> {
                             m.complete(now);
                             parkService.awardForMilestoneCompletion(userId, presetMilestoneId, now.toLocalDate());
-                            farmService.harvest(userId, m.getProjectId());
+                            farmService.harvest(userId, m, now);
                         });
             }
         }
@@ -126,11 +161,26 @@ public class TaskService {
                 .orElseThrow(MilestoneNotFoundException::new);
         projectRepository.findByIdAndUserIdAndDeletedAtIsNull(milestone.getProjectId(), userId)
                 .orElseThrow(ProjectNotFoundException::new);
+        // 이미 완료된 마일스톤에 완료가 또 오면(다른 기기, 오프라인 큐 재전송) 기존 완료를
+        // 그대로 돌려준다. 예전엔 미완료 태스크가 없으니 새로 만들어 완료해서 포인트가 또 나갔다.
+        if (milestone.getCompletedAt() != null) {
+            return taskRepository
+                    .findFirstByMilestoneIdAndUserIdAndCompletedAtIsNotNullAndDeletedAtIsNullOrderByCompletedAtDesc(milestoneId, userId)
+                    .map(TaskResponse::from)
+                    .orElseGet(() -> {
+                        // 완료 기록 태스크를 지운 경우 — 보상 없이 기록용 태스크만 다시 만든다.
+                        Task record = taskRepository.save(Task.create(userId, milestone.getTitle(), null,
+                                milestone.getProjectId(), milestoneId));
+                        record.complete(milestone.getCompletedAt(), milestone.getCompletedAt(), milestoneId);
+                        return TaskResponse.from(record);
+                    });
+        }
+        LocalDateTime time = completedAt == null ? LocalDateTime.now() : completedAt;
         Task task = taskRepository.findFirstByMilestoneIdAndUserIdAndCompletedAtIsNullAndDeletedAtIsNull(milestoneId, userId)
                 .orElseGet(() -> taskRepository.save(
                         Task.create(userId, milestone.getTitle(), null,
                                 milestone.getProjectId(), milestoneId)));
-        return complete(userId, task.getId(), completedAt);
+        return complete(userId, task.getId(), time);
     }
 
     // "오늘 일정에 추가" 버튼. 이 milestone에 이미 미완료 태스크가 있으면(예: 체크박스로
@@ -171,6 +221,7 @@ public class TaskService {
         projectRepository.findByIdAndUserIdAndDeletedAtIsNull(milestone.getProjectId(), userId)
                 .orElseThrow(ProjectNotFoundException::new);
         milestone.uncomplete();
+        farmService.syncTree(userId, milestone.getProjectId());
 
         taskRepository
                 .findFirstByMilestoneIdAndUserIdAndCompletedAtIsNotNullAndDeletedAtIsNullOrderByCompletedAtDesc(milestoneId, userId)
@@ -217,7 +268,10 @@ public class TaskService {
         if (milestoneId != null) {
             milestoneRepository.findById(milestoneId)
                     .filter(m -> m.getCompletedAt() != null)
-                    .ifPresent(Milestone::uncomplete);
+                    .ifPresent(m -> {
+                        m.uncomplete();
+                        farmService.syncTree(userId, m.getProjectId());
+                    });
         }
         return TaskResponse.from(task);
     }

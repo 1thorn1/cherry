@@ -17,6 +17,15 @@ export function localTimestamp(now = new Date()): string {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 19)
 }
 
+// 서버가 기기 시간대를 알 수 있게 오프셋을 붙인다 (예: 2026-10-15T23:59:00+09:00).
+// 화면 표시와 큐 저장은 계속 오프셋 없는 기기 시각을 쓰고, 보낼 때만 붙인다.
+export function withOffset(local: string): string {
+  const minutes = -new Date(local).getTimezoneOffset()
+  const abs = Math.abs(minutes)
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${local}${minutes >= 0 ? '+' : '-'}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`
+}
+
 export function pendingTask(task: Task, change: PendingChange): Task {
   return { ...task, completed_at: change.completed ? change.occurredAt : null, effective_at: change.completed ? change.effectiveAt ?? change.occurredAt : null }
 }
