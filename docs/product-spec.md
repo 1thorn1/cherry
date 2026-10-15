@@ -725,7 +725,7 @@ A-6-14(친구)는 공원만 보여주고 일정은 감춘다. **여기는 반대
 | 코드 하이라이팅 | shiki 또는 highlight.js | 기록의 코드 블록 |
 | 날짜 | **date-fns** | 주차 계산(ISO week) 필요. moment는 사용 중단 권고 |
 | PWA | vite-plugin-pwa (Workbox) | 설치, 서비스워커 |
-| 오프라인 저장 | **idb** (IndexedDB 래퍼) | 완료 큐잉 |
+| 오프라인 저장 | IndexedDB | 계정별 완료·취소 큐와 조회 캐시 |
 | 아이콘 | Tabler Icons | — |
 | 차트 (v2) | Recharts | 통계 화면 |
 
@@ -742,7 +742,7 @@ A-6-14(친구)는 공원만 보여주고 일정은 감춘다. **여기는 반대
 | 마이그레이션 | **Flyway** | `V1__init.sql` 부터 버전 관리 |
 | 동적 쿼리 | QueryDSL *(선택)* | 검색 필터 조합에 유용 |
 | 캐시 | spring-cache + Caffeine | 날씨 조회 |
-| 스케줄러 | Spring `@Scheduled` | 반복 생성(04:00), 날씨 수집 |
+| 스케줄러 | Spring `@Scheduled` | 반복 생성(00:00), 날씨 수집 |
 | 문서화 | springdoc-openapi | Swagger UI |
 | 보일러플레이트 | Lombok | — |
 | 테스트 | JUnit 5 + **Testcontainers** | 실제 MySQL로 테스트 |
@@ -1288,7 +1288,7 @@ CREATE TABLE weather_daily (
 
 ### 반복 항목 생성
 
-새벽 4시(하루 경계) 스케줄러가 **오늘 날짜 행만** 생성한다.
+자정(한국 시간) 스케줄러가 **오늘 날짜 행만** 생성한다.
 
 ```
 for each routine where paused = 0 and deleted_at is null
@@ -1314,15 +1314,10 @@ effective_at =
 
 사용자가 완료 직후 칩으로 변경하면 `effective_at`만 갱신한다. 모든 조회·집계는 `COALESCE(effective_at, completed_at)` 기준.
 
-### 하루의 경계 — 새벽 4시
+### 하루의 경계 — 자정
 
-새벽 2시에 체크한 것은 사용자 감각으로 **어제의 연장**이다.
-
-```sql
-DATE(DATE_SUB(completed_at, INTERVAL 4 HOUR))
-```
-
-`daily_stat.stat_date`를 따로 저장하는 이유 중 하나다.
+날짜는 자정 기준으로 구분한다. 새벽 4시 보정은 사용자의 결정(2026-10-01)으로 제외한다.
+오프라인에서 완료한 항목은 재연결한 시각이 아니라 기기에 저장한 완료 시각으로 기록·적립한다.
 
 ### 미완료 이월 — 없음
 
@@ -1537,7 +1532,9 @@ GROUP BY dow, hh;
 ### PWA / 오프라인
 
 - 지하철에서 체크가 안 되면 신뢰가 즉시 깨진다
-- 완료는 IndexedDB에 먼저 기록 → 온라인 복귀 시 동기화
+- 완료·취소는 계정별 IndexedDB에 먼저 기록 → 온라인 복귀·앱 재실행 시 동기화
+- 조회한 목록은 오프라인에서 다시 열 수 있다. 같은 항목의 대기 중 클릭은 최종 상태로 합친다
+- 완료 시각을 함께 전송해 날짜를 유지한다. 로그인 만료·서버 오류는 큐를 지우지 않고 재시도한다
 - 이때 서버가 같은 요청을 여러 번 받으므로 **B-4의 멱등성 + `point_ledger` UNIQUE**가 방패가 된다
 
 ## B-8. 검색 구현
@@ -1644,6 +1641,7 @@ WHERE MATCH(body) AGAINST('그리드' IN BOOLEAN MODE);
 | 2026-09-29 | `backend/src/main/java/com/cherry/project/ProjectService.java` (`generateExamMilestones`, 2026-09-25에 주 단위로 단순화됐던 로직) | 시험형(EXAM) 프로젝트가 마일스톤을 "N주차 (M/d~M/d)"로 한 주 전체를 하나로 묶어서 만들다 보니, 마일스톤 칩에서 "오늘 일정에 추가"를 누르면 그 주 전체가 통째로 오늘 할 일 하나로 들어가 버림. 진도형(PROGRESS)은 이미 회차(1강,2강...)마다 나뉘어 있어 이 문제가 없는데 시험형만 남아 있었음 — "오늘 일정에 추가 하려면 프로젝트 단위 혹은 주간이 아니고 날짜마다, 횟수면 횟수마다 해야 할 거 같다"는 리포트로 발견(1659번째 줄의 기존 "설계 판단 필요" 메모와 같은 지점) | 수정 완료 — 같은 작업(2026-09-29) 중 사용자와 협의해 "단원 수 입력 없이, 오늘부터 시험일까지 날짜 하나하나를 마일스톤으로" 방식으로 재조정(제시한 3안 중 2안 채택). `target_week`는 새로 만드는 마일스톤에는 일부러 안 채워서 `WeekDayAccordion`(마일스톤 하나 안에서 요일별로 접고 펼치는 메모용 컴포넌트, 이제 하루 단위라 불필요) 대신 다른 타입과 같은 일반 메모 패널을 쓰게 함 — 기존에 이미 만들어진 주 단위 마일스톤·`WeekDayAccordion`은 그대로 유지(과거 데이터 호환). curl로 D-10 시험형 프로젝트 생성 시 12개(2주치) 일별 마일스톤이 정확히 생기는 것, 그중 하나만 "오늘 일정에 추가"해도 나머지는 영향 없는 것, Playwright로 칩 상세 패널이 일반 메모 UI로 뜨는 것까지 확인. **추가로 기존에 이미 만들어져 있던 시험형 프로젝트("시험일 테스트", 주 단위 마일스톤 5개)도 사용자 요청으로 날짜 단위 28개로 직접 재생성함** — 그 마일스톤을 참조하던 태스크 3개·이미 지급된 공원 슬롯 1개는 `milestone_id`만 NULL로 떼어내고 그대로 보존(둘 다 FK `NO ACTION`이라 참조 안 끊으면 삭제 자체가 막힘), 이미 삭제 상태였던 노트 1개는 영향 없음 |
 | 2026-09-29 | `frontend/src/components/MilestoneChipGrid.tsx` (위 항목에서 날짜 단위로 쪼갠 시험형 마일스톤의 화면 표시) | 시험형 마일스톤을 날짜 단위로 쪼개고 나니, 시험이 멀수록(예: D-47) 28개 이상이 평평한 칩 그리드에 5개씩 페이지네이션으로 나열돼 "너무 많아서 보기 힘들다"는 리포트. 제목에 날짜도 안 써 있어서 "1주차 월요일"이 정확히 언제인지도 안 보임 | 반영 완료 — 같은 작업(2026-09-29) 중 (1) 마일스톤 제목에 날짜를 포함(`generateExamMilestones`가 "1주차 월요일 (9/29)" 식으로 생성, 기존 프로젝트는 `PATCH .../milestones/{id}`로 실제 API를 통해 28개 전부 재작명), (2) `MilestoneChipGrid`에 `groupByWeek` 모드 추가 — 시험형(EXAM)일 때만 제목의 "N주차" 접두어로 주 단위 아코디언 섹션으로 묶어서 보여주고(기본은 1주차만 펼침), 안에서 각 날짜를 클릭하면 그 날짜 하나에 대해서만 "오늘 일정에 추가"·메모를 쓸 수 있는 상세 패널이 열림(기존 칩 그리드 하단 패널과 내용을 공유하도록 `renderDetailBody()`로 공통화). 진도형(PROGRESS)·자유형(FREE)은 `groupByWeek`가 꺼져 있어 기존 평평한 칩 그리드 그대로 — Playwright로 진도형 프로젝트가 영향 없는 것 확인 |
 | 2026-09-29 | `frontend/src/components/MilestoneChipGrid.tsx` (위 항목의 주 단위 아코디언, 같은 날 후속 피드백) | 아코디언 안을 세로로 나열되는 체크박스 목록(월/화/수...)으로 만들었더니 "회차별(진도형) 테스트처럼 옆으로 넘기는 형식으로 일치시켜달라"는 요청 — 진도형은 옆으로 넘기는 정사각형 칩 캐러셀인데 시험형만 다른 모양이라 일관성이 없었음 | 반영 완료 — 같은 작업(2026-09-29) 중 칩 캐러셀(화살표+정사각형 칩 그리드+페이지 점) 렌더링을 `renderCarousel()`로 공통 추출해서, 평평한 칩 그리드(진도형·자유형)와 주 단위 아코디언 안(시험형, 한 주=최대 7개=캐러셀 2페이지)에서 완전히 같은 컴포넌트를 쓰게 함 — 아코디언은 "묶는 단위"만 담당하고 그 안의 표시 형식은 항상 동일. 이 시점부터 살아있는 마일스톤 중 `target_week`가 채워진 게 하나도 없어져서(기존 시험형 프로젝트도 이미 날짜 단위로 재생성됨) `WeekDayAccordion.tsx`(요일별 메모 아코디언, 이제 아무도 안 씀)를 완전히 삭제 — 삭제 전 DB에서 살아있는 프로젝트 중 target_week가 남은 게 없는 것 직접 확인 |
+| 2026-09-30 | `frontend/src/pages/ParkPage.tsx` (농장 화면, `if (!park \|\| !farm)` 분기) | `loadPark()`/`loadFarm()`이 실패하면 `error`는 채워지지만, 렌더는 `park`·`farm`이 `null`인지만 보고 먼저 "불러오는 중..."을 반환해서 에러 문구가 영영 안 보이고 로딩 상태에 갇힘 (예: 로그인 풀림 401). 디자인 시스템 틀(사이드바·다크 테마) 적용 후 로그인 없이 Playwright로 농장 화면을 찍다가 발견 | 미수정 |
 
 ---
 
@@ -1656,8 +1654,8 @@ WHERE MATCH(body) AGAINST('그리드' IN BOOLEAN MODE);
 | 2026-09-23 | B-2 (인증) | 구글 OAuth2 로그인이 전혀 없음. Spring Security 의존성 자체가 없고 모든 컨트롤러가 `DEV_USER_ID = 1L`을 하드코딩. B-10은 "1.0 공개"의 전제조건으로 이걸 명시하고 있어 실제 멀티유저 출시를 막는 항목 | 전체 컨트롤러 (`DEV_USER_ID`), `SecurityConfig` 부재 | 구현 완료 (2026-09-23, `com.cherry.auth` 패키지 + `@CurrentUserId`, `DEV_USER_ID` 전부 제거) |
 | 2026-09-23 | B-6 / A-8 / A-10 (날씨) | 기상청 단기예보 연동이 전혀 없음. `DailyStat.create()`가 `weatherCode="CLEAR"`, `multiplier=1.00`을 무조건 하드코딩. `/api/weather/today` 엔드포인트 없음. 오늘 화면 헤더에도 날씨·배율 표시가 빠짐(방문객·체리만 표시) | `backend/src/main/java/com/cherry/park/DailyStat.java:56-57`, `frontend/src/pages/TodayPage.tsx:531` | 미구현 |
 | 2026-09-23 | A-6-4 / B-7 (기록 마크다운) | 메모·구간회고를 마크다운으로 저장·렌더링해야 하는데(`react-markdown`+`remark-gfm`+`rehype-sanitize`, XSS 방어 B-9 포함) 평문 텍스트로만 표시됨. 프론트에 관련 패키지 자체가 없음 | `frontend/src/pages/ProjectDetailPage.tsx:336,341`, `frontend/package.json` | 구현 완료 (2026-09-23, `frontend/src/components/MarkdownBody.tsx` — react-markdown+remark-gfm+rehype-sanitize, GFM 체크리스트만 허용하도록 스키마 확장) |
-| 2026-09-23 | B-7 (PWA/오프라인) | 오프라인 완료 큐가 없음. PWA 셸(`vite-plugin-pwa`)은 있지만 IndexedDB에 완료를 먼저 쓰고 재연결 시 동기화하는 로직이 전혀 없어, 오프라인 중 완료하면 그냥 fetch 실패로 끝남 | `frontend/vite.config.ts`, `frontend/src` 전체 (IndexedDB 미사용) | 미구현 |
-| 2026-09-23 | B-4 (하루의 경계 — 새벽 4시) | 하루 판정을 자정이 아니라 `DATE_SUB(completed_at, INTERVAL 4 HOUR)` 기준으로 해야 하는데, 모든 날짜 경계 호출부가 그냥 `LocalDate.now()`를 씀 | `backend/src/main/java/com/cherry/park/ParkService.java:73,101`, `backend/src/main/java/com/cherry/task/TaskService.java:47,60,85` | 미구현 |
+| 2026-10-01 | B-7 (PWA/오프라인) | 계정별 완료·취소 큐, 조회 캐시, 재연결 자동 동기화, 원래 완료 시각 보존 | `frontend/src/lib/offlineCompletion.ts`, `offlineStore.ts`, `TaskCompleteRequest` | 구현 완료 |
+| 2026-10-01 | B-4 (하루의 경계) | 사용자 결정으로 새벽 4시 보정을 제외하고 자정 기준을 유지한다 | 날짜 조회·집계 및 반복 생성 | 적용 완료 |
 
 **참고 (하드 갭 아님, 설계 판단 필요):** 2026-09-23에 진행 탭을 자유형/회차별/시험일 구분 없이 `MilestoneChipGrid`(가로 칩 그리드 + 클릭 시 완료·메모 패널) 하나로 통일하면서, 시험형 전용이던 주간 그룹 뷰(`MilestoneGrid.tsx`, 이번주/지난주 목표 안내)는 제거됨. 진도형(PROGRESS)의 "이번주 목표량/페이스" 안내는 여전히 스펙에 계산 기준이 없어 설계 공백으로 남아 있음 — 필요해지면 칩 그리드 위에 별도로 얹는 방향으로.
 
