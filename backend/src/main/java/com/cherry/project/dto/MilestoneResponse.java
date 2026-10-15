@@ -11,6 +11,7 @@ public record MilestoneResponse(
         String targetWeek,
         boolean completed,
         LocalDateTime completedAt,
+        LocalDateTime startedAt,
         boolean scheduledToday
 ) {
     public static MilestoneResponse from(Milestone milestone) {
@@ -25,6 +26,7 @@ public record MilestoneResponse(
                 milestone.getTargetWeek(),
                 milestone.getCompletedAt() != null,
                 milestone.getCompletedAt(),
+                milestone.getStartedAt(),
                 scheduledToday
         );
     }

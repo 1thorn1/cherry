@@ -307,6 +307,24 @@ public class ProjectService {
         return MilestoneResponse.from(milestone);
     }
 
+    @Transactional
+    public MilestoneResponse updateMilestoneProgress(Long userId, Long projectId, Long milestoneId, boolean inProgress) {
+        Project project = findOwned(userId, projectId);
+        if (!"FREE".equals(project.getType())) {
+            throw new InvalidProjectException("자유형 프로젝트에서만 진행 상태를 변경할 수 있습니다");
+        }
+        Milestone milestone = milestoneRepository.findById(milestoneId)
+                .orElseThrow(MilestoneNotFoundException::new);
+        if (!milestone.getProjectId().equals(projectId)) {
+            throw new InvalidProjectException("다른 프로젝트의 마일스톤입니다");
+        }
+        if (milestone.getCompletedAt() != null) {
+            throw new InvalidProjectException("완료를 취소한 뒤 진행 상태를 변경해주세요");
+        }
+        milestone.setInProgress(inProgress, LocalDateTime.now());
+        return MilestoneResponse.from(milestone);
+    }
+
     // B-11 (2026-09-22): total_units 없이 EXAM/PROGRESS 프로젝트를 만들면 마일스톤 생성 시 NPE로 500이 나던 버그.
     // 타입별 필수값을 요청 단계에서 막는다.
     private void validateTypeFields(String type, Integer totalUnits, LocalDate examDate) {

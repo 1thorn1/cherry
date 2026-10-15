@@ -73,6 +73,13 @@ export function completeMilestoneNow(milestoneId: number) {
   })
 }
 
+export function updateMilestoneProgress(projectId: number, milestoneId: number, inProgress: boolean) {
+  return request<Milestone>(`/api/projects/${projectId}/milestones/${milestoneId}/progress`, {
+    method: 'PATCH',
+    body: JSON.stringify({ in_progress: inProgress }),
+  })
+}
+
 export function uncompleteMilestoneNow(milestoneId: number) {
   return request<void>(`/api/milestones/${milestoneId}/uncomplete`, {
     method: 'PATCH',

@@ -3,6 +3,7 @@ package com.cherry.project;
 import com.cherry.auth.CurrentUserId;
 import com.cherry.project.dto.MilestoneCreateRequest;
 import com.cherry.project.dto.MilestoneResponse;
+import com.cherry.project.dto.MilestoneProgressRequest;
 import com.cherry.project.dto.NoteCreateRequest;
 import com.cherry.project.dto.NoteResponse;
 import com.cherry.project.dto.NoteUpdateRequest;
@@ -87,6 +88,12 @@ public class ProjectController {
     public MilestoneResponse renameMilestone(@CurrentUserId Long userId, @PathVariable Long id, @PathVariable Long milestoneId,
                                               @Valid @RequestBody MilestoneCreateRequest request) {
         return projectService.renameMilestone(userId, id, milestoneId, request);
+    }
+
+    @PatchMapping("/{id}/milestones/{milestoneId}/progress")
+    public MilestoneResponse updateMilestoneProgress(@CurrentUserId Long userId, @PathVariable Long id,
+            @PathVariable Long milestoneId, @Valid @RequestBody MilestoneProgressRequest request) {
+        return projectService.updateMilestoneProgress(userId, id, milestoneId, request.inProgress());
     }
 
     @PostMapping("/{id}/notes")

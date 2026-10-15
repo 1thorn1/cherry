@@ -57,4 +57,10 @@ public class Milestone {
     public void updateTitle(String title) {
         this.title = title;
     }
+
+    public void setInProgress(boolean inProgress, LocalDateTime now) {
+        if (completedAt != null) return;
+        if (inProgress && startedAt == null) startedAt = now;
+        if (!inProgress) startedAt = null;
+    }
 }
