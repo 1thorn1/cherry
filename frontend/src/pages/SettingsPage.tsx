@@ -1,3 +1,4 @@
+import Collapse from '../components/Collapse'
 import { useEffect, useState } from 'react'
 import { IconCarouselHorizontal, IconRollercoaster } from '@tabler/icons-react'
 import type { Friend, FriendCode, FriendPark, PendingRequest, SharingSettings } from '../types/friend'
@@ -15,6 +16,16 @@ import {
   visitFriendPark,
 } from '../api/friend'
 import { getMe, logout, updateNickname, uploadProfileImage } from '../api/auth'
+import { getColorScheme, saveColorScheme, type ColorScheme } from '../lib/colorScheme'
+import { Segment } from '../components/ui'
+import { usePersistedState } from '../lib/persistedState'
+import type { TimetableView } from '../lib/timetable'
+
+const colorSchemeOptions: { value: ColorScheme; label: string }[] = [
+  { value: 'system', label: '시스템' },
+  { value: 'light', label: '라이트' },
+  { value: 'dark', label: '다크' },
+]
 
 const settingLabels: { key: keyof SharingSettings; label: string; hint: string }[] = [
   { key: 'share_park', label: '공원 보여주기', hint: '기구, 인구' },
@@ -23,6 +34,8 @@ const settingLabels: { key: keyof SharingSettings; label: string; hint: string }
 ]
 
 export default function SettingsPage() {
+  const [scheduleView, setScheduleView] = usePersistedState<TimetableView>('schedule.view', 'scheduled')
+  const [colorScheme, setColorScheme] = useState<ColorScheme>(getColorScheme)
   const [myCode, setMyCode] = useState<FriendCode | null>(null)
   const [requests, setRequests] = useState<PendingRequest[]>([])
   const [friends, setFriends] = useState<Friend[]>([])
@@ -217,10 +230,54 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
-      <h1 className="mb-6 text-xl font-medium tracking-tight">설정</h1>
+      <h1 className="mb-6 font-display text-[34px] leading-[42px]">설정</h1>
+
+      <section className="mb-6">
+        <h2 className="mb-2 text-[16px] font-semibold">화면 테마</h2>
+        {/* 세그먼트 탭 — surface-sunken 트랙 + 선택 칸은 surface·shadow-pop */}
+        <div role="radiogroup" aria-label="화면 테마" className="inline-flex rounded-2xl bg-[var(--surface-sunken)] p-1">
+          {colorSchemeOptions.map((option) => (
+            <button
+              key={option.value}
+              role="radio"
+              aria-checked={colorScheme === option.value}
+              onClick={() => {
+                setColorScheme(option.value)
+                saveColorScheme(option.value)
+              }}
+              className={`rounded-lg px-4 py-1.5 text-[13px] ${
+                colorScheme === option.value
+                  ? 'bg-[var(--surface)] font-semibold text-[var(--ink)] shadow-[var(--shadow-pop)]'
+                  : 'font-medium text-[var(--ink-muted)]'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="mb-2 text-[16px] font-semibold">시간표 표시 기준</h2>
+        <p className="mb-3 text-[13px] text-[var(--ink-muted)]">오늘 화면과 캘린더에 함께 적용돼요.</p>
+        <Segment
+          label="시간표 표시 기준"
+          value={scheduleView}
+          onChange={setScheduleView}
+          options={[
+            { value: 'scheduled', label: '계획한 시간' },
+            { value: 'actual', label: '완료한 시간' },
+          ]}
+        />
+        <p className="mt-2 text-[12px] text-[var(--ink-muted)]">
+          {scheduleView === 'scheduled'
+            ? '할 일을 배치한 날짜와 시간에 표시해요.'
+            : '완료한 할 일을 완료로 기록된 날짜와 시간에 표시해요.'}
+        </p>
+      </section>
 
       {authChecked && (
-        <div className="mb-6 rounded-lg border border-neutral-200 p-4">
+        <div className="mb-6 rounded-2xl border border-[var(--line)] p-4 shadow-[var(--shadow-card)]">
           {authUser ? (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -298,13 +355,13 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <div className="mb-6 rounded-lg border border-neutral-200 p-4">
+      <div className="mb-6 rounded-2xl border border-[var(--line)] p-4 shadow-[var(--shadow-card)]">
         <p className="mb-2 text-xs text-neutral-400">내 친구 코드</p>
         <div className="flex items-center gap-2">
           <span className="text-lg font-medium tracking-widest">{myCode?.friend_code ?? '...'}</span>
           <button
             onClick={handleCopy}
-            className="rounded-md bg-neutral-100 px-2 py-1 text-[11px] font-medium"
+            className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium transition-transform active:scale-95"
           >
             {copied ? '복사됨' : '복사'}
           </button>
@@ -316,12 +373,12 @@ export default function SettingsPage() {
           value={codeInput}
           onChange={(e) => setCodeInput(e.target.value)}
           placeholder="친구 코드 입력"
-          className="flex-1 rounded-md border border-neutral-200 px-3 py-2 text-sm"
+          className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm"
         />
         <button
           type="submit"
           disabled={sending}
-          className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="btn-3d font-display rounded-full px-4 py-2 text-sm text-white disabled:opacity-50"
           style={{ background: 'var(--cherry)' }}
         >
           요청
@@ -329,7 +386,7 @@ export default function SettingsPage() {
       </form>
 
       {settings && (
-        <div className="mb-8 rounded-lg border border-neutral-200 p-4">
+        <div className="mb-8 rounded-2xl border border-[var(--line)] p-4 shadow-[var(--shadow-card)]">
           <p className="mb-3 text-xs text-neutral-400">공개 설정</p>
           <div className="space-y-3">
             {settingLabels.map(({ key, label, hint }) => (
@@ -342,7 +399,7 @@ export default function SettingsPage() {
                   onClick={() => handleToggleSetting(key)}
                   disabled={savingSettings}
                   className="relative h-6 w-11 flex-none rounded-full transition-colors disabled:opacity-50"
-                  style={{ background: settings[key] ? 'var(--cherry)' : '#E5E5E5' }}
+                  style={{ background: settings[key] ? 'var(--cherry)' : 'var(--surface-sunken)' }}
                   aria-pressed={settings[key]}
                   aria-label={label}
                 >
@@ -366,13 +423,13 @@ export default function SettingsPage() {
           <h2 className="mb-3 text-sm font-medium tracking-tight">받은 요청</h2>
           <div className="space-y-2">
             {requests.map((r) => (
-              <div key={r.friendship_id} className="flex items-center justify-between rounded-lg border border-neutral-200 p-3">
+              <div key={r.friendship_id} className="flex items-center justify-between rounded-2xl border border-[var(--line)] p-3 shadow-[var(--shadow-card)]">
                 <span className="text-sm">{r.requester_nickname}</span>
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleAccept(r.friendship_id)}
                     disabled={busyId === r.friendship_id}
-                    className="rounded-md px-3 py-1 text-[11px] font-medium text-white disabled:opacity-50"
+                    className="rounded-full px-3 py-1 text-[11px] font-medium text-white transition-transform active:scale-95 disabled:opacity-50"
                     style={{ background: 'var(--cherry)' }}
                   >
                     수락
@@ -380,7 +437,7 @@ export default function SettingsPage() {
                   <button
                     onClick={() => handleReject(r.friendship_id)}
                     disabled={busyId === r.friendship_id}
-                    className="rounded-md bg-neutral-100 px-3 py-1 text-[11px] font-medium disabled:opacity-50"
+                    className="rounded-full bg-neutral-100 px-3 py-1 text-[11px] font-medium transition-transform active:scale-95 disabled:opacity-50"
                   >
                     거절
                   </button>
@@ -397,7 +454,7 @@ export default function SettingsPage() {
       ) : (
         <div className="space-y-2">
           {friends.map((f) => (
-            <div key={f.friendship_id} className="rounded-lg border border-neutral-200 p-3">
+            <div key={f.friendship_id} className="rounded-2xl border border-[var(--line)] p-3 shadow-[var(--shadow-card)]">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-sm">{f.nickname}</span>
@@ -424,7 +481,7 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {openParkId === f.friendship_id && (
+              <Collapse open={openParkId === f.friendship_id}>
                 <div className="mt-3 border-t border-neutral-100 pt-3">
                   {!parks[f.friendship_id] ? (
                     <p className="text-xs text-neutral-400">불러오는 중...</p>
@@ -463,7 +520,7 @@ export default function SettingsPage() {
                     </>
                   )}
                 </div>
-              )}
+              </Collapse>
             </div>
           ))}
         </div>

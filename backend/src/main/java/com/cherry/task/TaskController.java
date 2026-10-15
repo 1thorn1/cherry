@@ -2,6 +2,7 @@ package com.cherry.task;
 
 import com.cherry.auth.CurrentUserId;
 import com.cherry.task.dto.TaskCreateRequest;
+import com.cherry.task.dto.TaskCompleteRequest;
 import com.cherry.task.dto.TaskEffectiveTimeRequest;
 import com.cherry.task.dto.TaskMemoRequest;
 import com.cherry.task.dto.TaskPostponeRequest;
@@ -30,8 +31,9 @@ public class TaskController {
     }
 
     @PatchMapping("/{id}/complete")
-    public TaskResponse complete(@CurrentUserId Long userId, @PathVariable Long id) {
-        return taskService.complete(userId, id);
+    public TaskResponse complete(@CurrentUserId Long userId, @PathVariable Long id,
+            @RequestBody(required = false) TaskCompleteRequest request) {
+        return taskService.completeRequested(userId, id, request == null ? null : request.completedAt());
     }
 
     @PatchMapping("/{id}/uncomplete")

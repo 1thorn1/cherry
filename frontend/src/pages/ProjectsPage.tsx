@@ -1,10 +1,14 @@
+import Collapse from '../components/Collapse'
+import { addDays, format } from 'date-fns'
 import { useEffect, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { IconFolderPlus, IconPlus } from '@tabler/icons-react'
 import type { ProjectOverview } from '../types/project'
 import { createProject, getProjectOverview, updateProjectStarred, type CreateProjectInput } from '../api/projects'
 import { getChallengeProjectLinks } from '../api/challenges'
 import type { ChallengeProjectLink } from '../types/challenge'
 import ProjectListItem from '../components/ProjectListItem'
+import { Card, EmptyState, ErrorBanner, PageHeader, PrimaryButton, Segment } from '../components/ui'
 
 type Mode = 'FREE' | 'PROGRESS' | 'EXAM'
 
@@ -131,68 +135,72 @@ export default function ProjectsPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-medium tracking-tight">공사 중인 것들</h1>
-        <div className="flex items-center gap-3">
-          <button onClick={() => setShowCreateForm((v) => !v)} className="text-xs font-medium" style={{ color: 'var(--cherry)' }}>
-            {showCreateForm ? '닫기' : '+ 새 프로젝트'}
-          </button>
-          <Link to="/challenges" className="text-xs text-neutral-400">같이 하기</Link>
-          <Link to="/search" className="text-xs text-neutral-400">검색</Link>
-        </div>
+      <PageHeader
+        crumb="프로젝트"
+        title="프로젝트"
+        subtitle="프로젝트 단위로 할 일을 묶고, 끝낸 만큼 농장 자금을 모아요."
+        action={
+          <PrimaryButton onClick={() => setShowCreateForm((v) => !v)}>
+            <IconPlus size={17} stroke={2} />
+            {showCreateForm ? '닫기' : '새 프로젝트'}
+          </PrimaryButton>
+        }
+      />
+
+      <div className="mb-6 flex gap-3 text-[13px]">
+        <Link to="/challenges" className="font-medium text-[var(--wood)] hover:underline">같이 하기</Link>
+        <Link to="/search" className="text-[var(--ink-muted)] hover:text-[var(--ink)] hover:underline">검색</Link>
       </div>
 
-      {showCreateForm && (
-        <div className="mb-8 rounded-lg border border-neutral-200 p-4">
+      <Collapse open={showCreateForm}>
+        <Card className="mb-8 p-4 sm:p-5">
+          <form onSubmit={(e) => { e.preventDefault(); handleCreate() }}>
+          <h2 className="mb-4 flex items-center gap-2 text-[16px] font-semibold text-[var(--ink)]">
+            <IconFolderPlus size={19} stroke={1.8} /> 새 프로젝트 만들기
+          </h2>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="프로젝트 이름"
-            className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+            className="mb-3 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-2.5 text-[15px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)] focus:border-[var(--line-strong)] focus:ring-2 focus:ring-[var(--wood-soft)]"
           />
 
-          <div className="mb-3 flex gap-1 rounded-lg bg-neutral-100 p-1">
-            {modeOptions.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setMode(opt.value)}
-                className={`flex-1 rounded-md py-2 text-xs font-medium ${mode === opt.value ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
-              >
-                {opt.label}
-              </button>
-            ))}
+          <div className="mb-3">
+            <Segment options={modeOptions} value={mode} onChange={setMode} label="프로젝트 방식" full />
           </div>
 
-          {mode === 'PROGRESS' && (
+          <Collapse open={mode === 'PROGRESS'}>
             <input
               type="number"
               value={totalUnits}
               onChange={(e) => setTotalUnits(e.target.value)}
               placeholder="총 회차 수 (예: 20)"
-              className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+              className="mb-3 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-2.5 text-[15px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)] focus:border-[var(--line-strong)] focus:ring-2 focus:ring-[var(--wood-soft)]"
             />
-          )}
+          </Collapse>
 
-          {mode === 'EXAM' && (
+          <Collapse open={mode === 'EXAM'}>
             <input
               type="date"
+              min={format(new Date(), 'yyyy-MM-dd')}
+              max={format(addDays(new Date(), 180), 'yyyy-MM-dd')}
               value={examDate}
               onChange={(e) => setExamDate(e.target.value)}
-              className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+              className="mb-3 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-2.5 text-[15px] text-[var(--ink)] outline-none focus:border-[var(--line-strong)] focus:ring-2 focus:ring-[var(--wood-soft)]"
             />
-          )}
+          </Collapse>
 
-          {mode === 'FREE' && (
+          <Collapse open={mode === 'FREE'}>
             <div className="mb-3">
               {milestoneTitles.length > 0 && (
                 <ul className="mb-2 space-y-1">
                   {milestoneTitles.map((title, i) => (
                     <li
                       key={i}
-                      className="flex items-center justify-between rounded-lg bg-neutral-50 px-3 py-1.5 text-xs text-neutral-600"
+                      className="flex items-center justify-between rounded-lg bg-[var(--surface-sunken)] px-3 py-1.5 text-xs text-[var(--ink-soft)]"
                     >
                       <span>{i + 1}. {title}</span>
-                      <button onClick={() => handleRemoveMilestoneDraft(i)} className="text-neutral-400">✕</button>
+                      <button onClick={() => handleRemoveMilestoneDraft(i)} className="text-[var(--ink-muted)]" aria-label={`${title} 삭제`}>✕</button>
                     </li>
                   ))}
                 </ul>
@@ -209,41 +217,33 @@ export default function ProjectsPage() {
                     }
                   }}
                   placeholder="마일스톤 (선택, 예: 1구간 - 기획)"
-                  className="flex-1 rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
+                  className="flex-1 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-2.5 text-[15px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)] focus:border-[var(--line-strong)] focus:ring-2 focus:ring-[var(--wood-soft)]"
                 />
                 <button
                   onClick={handleAddMilestoneDraft}
-                  className="rounded-lg border border-neutral-200 px-3 text-xs font-medium text-neutral-500"
+                  className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 text-xs font-semibold text-[var(--ink)]"
                 >
                   추가
                 </button>
               </div>
-              <p className="mt-1.5 text-[11px] text-neutral-300">비워두면 마일스톤 없이 생성돼요. 나중에 프로젝트 화면에서 추가할 수 있어요</p>
+              <p className="mt-1.5 text-[11px] text-[var(--ink-muted)]">비워두면 마일스톤 없이 생성돼요. 나중에 프로젝트 화면에서 추가할 수 있어요.</p>
             </div>
-          )}
+          </Collapse>
 
-          <button
-            onClick={handleCreate}
-            disabled={saving}
-            className="w-full rounded-lg py-2.5 text-sm font-medium text-white disabled:opacity-50"
-            style={{ background: 'var(--cherry)' }}
-          >
-            만들기
-          </button>
-        </div>
-      )}
+          <PrimaryButton type="submit" disabled={saving} className="btn-3d w-full">
+            {saving ? '만드는 중…' : '프로젝트 만들기'}
+          </PrimaryButton>
+          </form>
+        </Card>
+      </Collapse>
 
-      {error && (
-        <p className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-xs text-red-600">{error}</p>
-      )}
+      {error && <ErrorBanner message={error} />}
 
       {!overview && !error && (
         <p className="py-8 text-center text-xs text-neutral-400">불러오는 중...</p>
       )}
 
-      {isEmpty && (
-        <p className="py-8 text-center text-xs text-neutral-400">아직 프로젝트가 없어요</p>
-      )}
+      {isEmpty && <EmptyState icon={<IconFolderPlus size={28} stroke={1.5} />} title="아직 프로젝트가 없어요" hint="첫 프로젝트를 만들고 할 일을 묶어보세요." />}
 
       {overview && overview.overlap_warning && (
         <div className="mb-6 rounded-lg px-4 py-3 text-xs" style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}>
@@ -254,7 +254,7 @@ export default function ProjectsPage() {
       {starredProjects.length > 0 && (
         <div className="mb-8">
           <p className="mb-2 text-[11px] font-medium text-neutral-400">즐겨찾기</p>
-          <div className="space-y-2">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {starredProjects.map((p) => (
               <ProjectListItem
                 key={p.project_id}
@@ -272,7 +272,7 @@ export default function ProjectsPage() {
       {restProjects.length > 0 && (
         <div>
           {starredProjects.length > 0 && <p className="mb-2 text-[11px] font-medium text-neutral-400">프로젝트</p>}
-          <div className="space-y-2">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {restProjects.map((p) => (
               <ProjectListItem
                 key={p.project_id}

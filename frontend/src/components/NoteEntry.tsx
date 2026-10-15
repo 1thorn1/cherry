@@ -1,3 +1,4 @@
+import Collapse from './Collapse'
 import { useState } from 'react'
 import type { TimelineEntry } from '../types/project'
 import { toggleMarkdownCheckbox } from '../lib/markdownChecklist'
@@ -72,46 +73,45 @@ export default function NoteEntry({
     }
   }
 
-  if (editing) {
-    return (
+  return (
+    <div>
+      <Collapse open={editing} focusOnOpen>
       <div>
         {entry.kind === 'LINK' && (
           <input
             value={urlDraft}
             onChange={(e) => setUrlDraft(e.target.value)}
             placeholder="https://..."
-            className="mb-1.5 w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm outline-none transition-shadow focus:border-[var(--cherry)] focus:ring-2 focus:ring-[var(--cherry-bg)]"
+            className="mb-1.5 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-sm outline-none transition-shadow focus:border-[var(--sprout)] focus:ring-2 focus:ring-[var(--sprout-soft)]"
           />
         )}
         <AutoGrowTextarea
           value={bodyDraft}
           onChange={(e) => setBodyDraft(e.target.value)}
           rows={entry.kind === 'LINK' ? 2 : 3}
-          className="mb-1.5 w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm outline-none transition-shadow focus:border-[var(--cherry)] focus:ring-2 focus:ring-[var(--cherry-bg)]"
+          className="mb-1.5 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-sm outline-none transition-shadow focus:border-[var(--sprout)] focus:ring-2 focus:ring-[var(--sprout-soft)]"
         />
         <div className="flex justify-end gap-2 text-xs">
-          <button onClick={() => setEditing(false)} className="text-neutral-400">취소</button>
-          <button onClick={handleSave} disabled={saving} className="font-medium disabled:opacity-50" style={{ color: 'var(--cherry)' }}>
+          <button onClick={() => setEditing(false)} className="text-[var(--ink-muted)]">취소</button>
+          <button onClick={handleSave} disabled={saving} className="font-medium disabled:opacity-50" style={{ color: 'var(--sprout)' }}>
             {saving ? '저장 중...' : '저장'}
           </button>
         </div>
       </div>
-    )
-  }
-
-  return (
+      </Collapse>
+      <Collapse open={!editing}>
     <div>
       {(!hideKindLabel || showDate || editable) && (
         <div className="mb-1 flex items-center gap-2">
           {!hideKindLabel && (
-            <span className="inline-block text-[10px] font-medium text-neutral-400">{kindLabels[entry.kind] ?? entry.kind}</span>
+            <span className="inline-block text-[10px] font-medium text-[var(--ink-muted)]">{kindLabels[entry.kind] ?? entry.kind}</span>
           )}
           {hideKindLabel && showDate && (
-            <span className="text-[10px] text-neutral-300">{entry.at.slice(0, 16).replace('T', ' ')}</span>
+            <span className="text-[10px] text-[var(--ink-faint)]">{entry.at.slice(0, 16).replace('T', ' ')}</span>
           )}
           {editable && (
-            <div className="ml-auto flex gap-2 text-[10px] text-neutral-300">
-              <button onClick={startEdit} className="hover:text-neutral-500">수정</button>
+            <div className="ml-auto flex gap-2 text-[10px] text-[var(--ink-faint)]">
+              <button onClick={startEdit} className="hover:text-[var(--ink-muted)]">수정</button>
               <button onClick={handleDelete} disabled={deleting} className="hover:text-red-500 disabled:opacity-50">삭제</button>
             </div>
           )}
@@ -119,7 +119,7 @@ export default function NoteEntry({
       )}
 
       {entry.kind === 'AUTO_LOG' && (
-        <p className="text-sm text-neutral-600">
+        <p className="text-sm text-[var(--ink)]">
           {entry.title ?? ''}
           {entry.count && entry.count > 1 ? ` × ${entry.count}` : ''}
         </p>
@@ -127,12 +127,14 @@ export default function NoteEntry({
       {entry.kind === 'LINK' && (
         <div className="text-sm">
           {entry.body && <p>{entry.body}</p>}
-          {entry.url && <p className="text-xs text-neutral-400">{entry.url}</p>}
+          {entry.url && <p className="text-xs text-[var(--ink-muted)]">{entry.url}</p>}
         </div>
       )}
       {(entry.kind === 'NOTE' || entry.kind === 'RETRO') && entry.body && (
         <MarkdownBody onToggleCheckbox={handleToggleCheckbox}>{entry.body}</MarkdownBody>
       )}
+    </div>
+      </Collapse>
     </div>
   )
 }

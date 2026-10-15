@@ -1,0 +1,33 @@
+.running-dog { overflow: visible; color: var(--sprout); --dog-cycle: .72s; }
+.running-animal-cat { --dog-cycle: .64s; }
+.running-dog-responsive { width: var(--dog-size); height: auto; aspect-ratio: 64 / 44; }
+.milestone-track { container-type: inline-size; }
+.milestone-track-inner { --dog-size: clamp(20px, 5cqw, 28px); padding-top: calc(var(--dog-size) * .6875 + 6px); }
+.milestone-dog-rail { position: absolute; left: calc(var(--dog-size) / 2); right: calc(var(--dog-size) / 2); bottom: calc(100% + 3px); height: calc(var(--dog-size) * .6875); }
+.running-dog-body { animation: dog-bound var(--dog-cycle) ease-in-out infinite; }
+/* 관절 회전 대신 착지·밀어내기·다리 회수 포즈를 순서대로 표시한다. */
+.dog-stride-frame { opacity: 0; animation: dog-stride-pose var(--dog-cycle) steps(1, end) infinite; }
+.dog-stride-0 { animation-delay: 0s; }
+.dog-stride-1 { animation-delay: calc(var(--dog-cycle) * -.875); }
+.dog-stride-2 { animation-delay: calc(var(--dog-cycle) * -.75); }
+.dog-stride-3 { animation-delay: calc(var(--dog-cycle) * -.625); }
+.dog-stride-4 { animation-delay: calc(var(--dog-cycle) * -.5); }
+.dog-stride-5 { animation-delay: calc(var(--dog-cycle) * -.375); }
+.dog-stride-6 { animation-delay: calc(var(--dog-cycle) * -.25); }
+.dog-stride-7 { animation-delay: calc(var(--dog-cycle) * -.125); }
+.running-dog-tail { transform-box: view-box; transform-origin: 20px 18px; animation: dog-tail-follow var(--dog-cycle) ease-in-out infinite; }
+.running-dog-ear { transform-box: view-box; transform-origin: 44px 8px; animation: dog-ear-follow var(--dog-cycle) ease-in-out -.06s infinite; }
+.milestone-dog-marker { transition: left .9s cubic-bezier(.22, 1, .36, 1); }
+@keyframes dog-stride-pose { 0% { opacity: 1; } 12.5%, 100% { opacity: 0; } }
+@keyframes dog-bound {
+  0%, 50%, 100% { transform: translateY(0); }
+  25%, 75% { transform: translateY(-.8px); }
+}
+@keyframes dog-tail-follow { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(3deg); } }
+@keyframes dog-ear-follow { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(4deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .running-dog * { animation: none !important; }
+  .dog-stride-frame { opacity: 0; }
+  .dog-stride-0 { opacity: 1; }
+  .milestone-dog-marker { transition: none; }
+}

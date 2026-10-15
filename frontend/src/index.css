@@ -1,15 +1,221 @@
 @import "tailwindcss";
 
+/* 파키텍트풍 코지(둥글둥글) 톤 — 카드·버튼에 쓰는 모서리 반경을 앱 전체에서 한 번에
+   키운다. 기존 rounded-lg/xl/2xl/3xl 클래스는 그대로 두고 실제 값만 더 둥글게. */
+@theme {
+  /* docs/design-system.md "형태" — 카드 16 · 버튼/입력 12 · 칩 8. 기존 rounded-* 클래스 값만 바꾼다 */
+  --radius-lg: 0.75rem;   /* 12px 버튼·입력 */
+  --radius-xl: 1rem;      /* 16px 카드 */
+  --radius-2xl: 1rem;     /* 16px 카드 (기존 rounded-2xl 카드들) */
+  --radius-3xl: 1.5rem;   /* 24px 큰 패널 */
+
+  --font-sans: "IBM Plex Sans KR", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-display: "Gowun Dodum", "IBM Plex Sans KR", system-ui, sans-serif;
+}
+
+/* Tailwind 기본 회색·흰색·빨강을 흙/나무 토큰에 연결 — text-neutral-*, bg-white 같은 기존 클래스가
+   라이트/다크 전환을 자동으로 따라온다. inline이라 클래스가 쓰이는 자리에서 var()를 읽는다. */
+@theme inline {
+  --color-white: var(--surface);
+  --color-neutral-50: var(--bg);
+  --color-neutral-100: var(--surface-sunken);
+  --color-neutral-200: var(--line);
+  --color-neutral-300: var(--line-mid);
+  --color-neutral-400: var(--ink-faint);
+  --color-neutral-500: var(--ink-muted);
+  --color-neutral-600: var(--ink-soft);
+  --color-neutral-700: var(--ink-soft);
+  --color-neutral-800: var(--ink);
+  --color-neutral-900: var(--ink);
+  --color-red-50: var(--barn-soft);
+  --color-red-500: var(--barn);
+  --color-red-600: var(--barn);
+}
+
 :root {
-  --cherry: #D4537E;
-  --cherry-bg: #FBEAF0;
+  /* ── docs/design-system.md 토큰 (정식 이름) ── */
+  --bg: #f6f1e7;             /* 페이지 바탕. 순백 금지 */
+  --surface: #fffcf6;        /* 카드·시트 */
+  --surface-sunken: #efe7d8; /* 세그먼트 트랙·입력·추가 바 */
+  --line: #e6dccb;
+  --line-strong: #917e66;    /* 체크 원·입력 테두리 (3:1) */
+  --line-mid: #cdbfa6;       /* neutral-300 자리 — 조금 진한 구분선 */
+
+  --ink: #33271b;
+  --ink-muted: #6e5c47;
+  --ink-faint: #8f7d66;      /* 플레이스홀더·완료 취소선 전용 */
+  --ink-soft: #5a4a38;       /* neutral-600·700 자리 */
+
+  --wood: #8b5a33;           /* 브랜드 주색 */
+  --wood-deep: #5e3b22;
+  --wood-soft: #f1e3d3;
+  --on-wood: #fffaf2;
+
+  --sprout: #4f7d2c;         /* 완료·진행률 */
+  --sprout-soft: #e3ecd3;
+  --on-sprout: #ffffff;
+
+  --coin: #e0a93a;           /* 체리(포인트) 보상 */
+  --coin-soft: #f7e7c2;
+  --coin-ink: #7a5412;
+  --on-coin: #33271b;
+
+  --barn: #a84632;           /* 중요·마감·오류·현재 시각 */
+  --barn-soft: #f4ddd5;
+  --sky: #3f6f7a;            /* 회의·정보 */
+  --sky-soft: #dde8ea;
+
+  /* 농장 그림 전용 */
+  --soil: #d2b384;
+  --soil-deep: #b08d5c;
+  --hay: #e9d6a6;
+  --leaf: #6b9a3a;
+  --farm-barn: #a84632;
+  --farm-roof: #8b5a33;
+  --farm-roof-deep: #5e3b22;
+
+  --shadow-card: 0 1px 2px rgba(74, 47, 30, 0.06);
+  --shadow-pop: 0 8px 24px rgba(74, 47, 30, 0.12);
+
+  /* ── 기존 이름(호환용 별칭) — 새 코드에서는 위 정식 이름을 쓴다 ── */
+  --surface-muted: var(--surface-sunken);
+  --text: var(--ink);
+  --text-muted: var(--ink-muted);
+  --text-faint: var(--ink-faint);
+  --border: var(--line);
+  --border-strong: var(--line-strong);
+  --cherry: var(--wood);           /* 강조색. 상점 THEME 아이템이 이 값을 덮어쓴다 */
+  --cherry-soft: var(--wood-soft);
+  --cherry-bg: var(--wood-soft);
+  --cherry-deep: var(--wood-deep);
+  --done: var(--sprout);
+  --done-soft: var(--sprout-soft);
+  --warn: var(--barn);
+  --warn-soft: var(--barn-soft);
+  --block-rose: var(--barn-soft);
+  --block-sage: var(--sprout-soft);
+  --block-sand: var(--coin-soft);
+  --block-sky: var(--sky-soft);
+  --block-lilac: var(--wood-soft);
+  --meadow: var(--sprout);
+  --meadow-deep: var(--sprout);
+  --meadow-bg: var(--sprout-soft);
+  --gold: var(--coin);
+  --gold-deep: var(--coin-ink);
+  --gold-bg: var(--coin-soft);
+  --cream: var(--surface);
+
+  /* 모션 */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+
+  color-scheme: light;
+}
+
+/* 다크 테마 — docs/design_system.pdf 3쪽 각 칸의 오른쪽 값. 이름은 그대로 두고 값만 바꾼다.
+   농장 그림 토큰(farm-*·soil·hay·leaf)도 같이 어둡게 내려서 밤에 그림만 튀지 않게 한다.
+   data-theme="dark"면 강제, 속성이 없으면 OS 설정을 따른다(lib/colorScheme.ts). */
+:root[data-theme="dark"] {
+  --bg: #1c1712;
+  --surface: #26201a;
+  --surface-sunken: #171310;
+  --line: #3a3128;
+  --line-mid: #54493c;
+  --line-strong: #7d6d59;
+
+  --ink: #f2e9dc;
+  --ink-soft: #d8cab6;
+  --ink-muted: #b9a88f;
+  --ink-faint: #8f7f6a;
+
+  --wood: #d09a67;
+  --wood-deep: #e8c29c;
+  --wood-soft: #3a2a1d;
+  --on-wood: #1c1712;
+
+  --sprout: #8cbf5c;
+  --sprout-soft: #2a3820;
+  --on-sprout: #152010;
+
+  --coin: #e8b44c;
+  --coin-soft: #3d3018;
+  --coin-ink: #f0cd84;
+  --on-coin: #1c1712;
+
+  --barn: #e58a72;
+  --barn-soft: #432621;
+  --sky: #8fc0cb;
+  --sky-soft: #1f3236;
+
+  --soil: #6e5436;
+  --soil-deep: #574128;
+  --hay: #8a7446;
+  --leaf: #7fae4c;
+  --farm-barn: #8f3e2e;
+  --farm-roof: #9a6b43;
+  --farm-roof-deep: #4a301e;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', sans-serif;
-  background: #fff;
-  color: #1f1f1f;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+/* 디자인 시스템 "애니메이션" 규칙 — 모션을 줄여달라는 사용자 설정은 반드시 지킨다 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* 표제용 서체(고운돋움) — 페이지 제목·숫자·카드 제목처럼 짧게 읽는 자리에만 쓴다.
+   굵기가 400 하나뿐이라 font-bold를 겹치지 말고 크기로 위계를 준다. */
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+
+/* 페인터리 톤 — 눌렀을 때 살짝 눌리는 느낌만 앱 전체 버튼에 기본으로 깔아둔다.
+   각 화면에서 이미 transition/active 클래스를 따로 준 버튼은 그쪽이 우선한다. */
+button:not(:disabled) {
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease;
+}
+button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+/* 키보드로 조작할 때도 마우스와 같은 위치를 잃지 않도록, 앱 전체에 토큰 기반 포커스
+   링을 둔다. 개별 입력의 테두리 규칙과 충돌하지 않고 다크 테마에서도 그대로 읽힌다. */
+:where(button, a, input, select, textarea, [role="button"]):focus-visible {
+  outline: 2px solid var(--wood);
+  outline-offset: 2px;
+}
+
+/* 게임 UI에서 흔한 "눌리는 입체 버튼" — 아래쪽에 진한 색 턱을 깔아 두께감을 주고,
+   누르면 그 두께만큼 내려앉는다. 주요 액션 버튼(추가·검색·참여 등)에서 쓴다.
+   색은 --btn-shadow-color로 버튼마다 바꿔 끼운다(기본은 체리). */
+.btn-3d {
+  box-shadow: 0 3px 0 0 var(--btn-shadow-color, var(--cherry-deep));
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.btn-3d:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 0 var(--btn-shadow-color, var(--cherry-deep));
 }
 
 @keyframes fade-in {
@@ -21,4 +227,113 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* 농장(파키텍트풍 코지/페인터리 톤) 진입 애니메이션 — 밭이 하나씩 심기는 느낌 */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.82) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* 나무·작물 아이콘이 바람에 살랑이는 느낌의 은은한 흔들림 */
+@keyframes sway {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+}
+
+/* 착용 중/보유 중 표시에 쓰는 은은한 확산광 펄스 */
+@keyframes glow-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(139, 90, 51, 0.28); }
+  70% { box-shadow: 0 0 0 10px rgba(139, 90, 51, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(139, 90, 51, 0); }
+}
+
+/* 모바일 ≡ 서랍이 왼쪽에서 밀려 들어온다 */
+@keyframes drawer-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-drawer-in {
+  animation: drawer-in var(--dur-base) var(--ease-out);
+}
+
+.animate-pop-in {
+  animation: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+.animate-sway {
+  animation: sway 3.2s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-out infinite;
+}
+
+.collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition: grid-template-rows 260ms ease, opacity 200ms ease, visibility 0s 260ms;
+}
+
+.collapse-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition: grid-template-rows 260ms ease, opacity 200ms ease, visibility 0s;
+}
+
+.collapse:not(.collapse-open) {
+  margin-block: 0 !important;
+}
+
+.calendar-day-dialog {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.calendar-day-dialog[open] {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.calendar-day-dialog::backdrop { background: rgb(0 0 0 / 0.3); }
+.calendar-day-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 640px;
+  max-height: 85dvh;
+  padding-bottom: env(safe-area-inset-bottom);
+  border-radius: 24px 24px 0 0;
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+  animation: calendar-sheet-in 220ms ease-out;
+  transition: transform 220ms ease, opacity 220ms ease;
+}
+.calendar-day-sheet-closing { transform: translateY(100%); opacity: 0; }
+@keyframes calendar-sheet-in {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapse, .collapse-open { transition: none; }
+  .calendar-day-sheet { animation: none; transition: none; }
 }

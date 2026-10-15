@@ -1,18 +1,37 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { DndContext, useDraggable, type DragEndEvent } from '@dnd-kit/core'
-import { IconBell, IconCalendar, IconCheck, IconClock, IconGripVertical, IconNote, IconRepeat } from '@tabler/icons-react'
+import { format } from 'date-fns'
+import { ko } from 'date-fns/locale'
+import {
+  IconBell,
+  IconCalendar,
+  IconChevronDown,
+  IconCheck,
+  IconClock,
+  IconDots,
+  IconGripVertical,
+  IconListCheck,
+  IconNote,
+  IconPlus,
+  IconRepeat,
+  IconTrash,
+} from '@tabler/icons-react'
 import type { Task } from '../types/task'
 import type { Routine, RoutineFreq } from '../types/routine'
 import type { Park } from '../types/park'
 import type { Project } from '../types/project'
 import type { TaskParseResult } from '../types/parse'
 import Timetable from '../components/Timetable'
+import Collapse from '../components/Collapse'
+import { COMPLETION_CHANGED } from '../lib/offlineCompletion'
 import TimeSelect from '../components/TimeSelect'
 import NotifySelect from '../components/NotifySelect'
+import { Card, EmptyState, ErrorBanner, PageHeader, PrimaryButton, ProgressBar, RewardChip, SecondaryButton, Segment } from '../components/ui'
 import { getToday, createTask, completeTask, uncompleteTask, deleteTask, scheduleTask, postponeTask, setTaskReminder, setTaskEffectiveTime, setTaskMemo } from '../api/tasks'
 import { getRoutines, createRoutine } from '../api/routines'
 import { getPark } from '../api/park'
+import { setBalance } from '../lib/balance'
 import { getProjects } from '../api/projects'
 import { parseTask } from '../api/parse'
 import { START_HOUR, END_HOUR, hourDroppableId, type TimetableView } from '../lib/timetable'
@@ -20,6 +39,8 @@ import { routineRuleLabel } from '../lib/routine'
 import { ensurePushSubscription } from '../lib/push'
 import { usePersistedState } from '../lib/persistedState'
 import { getTodayStr } from '../lib/date'
+import { clockLabel } from '../lib/category'
+import { DAILY_POINT_CAP, taskReward } from '../lib/reward'
 
 const WEEKDAY_LABELS = ['월', '화', '수', '목', '금', '토', '일']
 
@@ -75,33 +96,64 @@ function formatSuggestion(s: TaskParseResult): string {
   return parts.join(' ')
 }
 
-function TaskRow({
+// 작은 알약 버튼 — 미루기·완료 시각 같은 빠른 선택지
+function ChipButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="h-8 rounded-lg bg-[var(--surface-sunken)] px-3 text-[13px] font-medium text-[var(--ink)] hover:bg-[var(--line)]"
+    >
+      {children}
+    </button>
+  )
+}
+
+// 카드 아래 메타 줄: 시계 · 시간 · 프로젝트 · 반복 · 알림
+function MetaLine({ children }: { children: ReactNode }) {
+  return (
+    <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] leading-[18px] text-[var(--ink-muted)]">
+      {children}
+    </div>
+  )
+}
+
+function Dot() {
+  return <span aria-hidden="true">·</span>
+}
+
+// design_system.pdf "할 일 카드" — 체크 원 · 제목 · 시간(·프로젝트) · 보상 칩.
+// 시간·알림·미루기·삭제 같은 기존 기능은 카드를 누르면 아래로 열리는 편집 칸에 모았다.
+function TaskCard({
   task,
+  reward,
   routineLabel,
   projectName,
   suggestion,
-  postponeOpen,
+  expanded,
+  onToggleExpand,
   onToggle,
   onSchedule,
+  onScheduleEnd,
   onSetReminder,
   onDelete,
   onApplySuggestion,
   onDismissSuggestion,
-  onTogglePostpone,
   onPostpone,
 }: {
   task: Task
+  reward: number
   routineLabel: string | null
   projectName: string | null
   suggestion: TaskParseResult | null
-  postponeOpen: boolean
+  expanded: boolean
+  onToggleExpand: (id: number) => void
   onToggle: (task: Task) => void
   onSchedule: (task: Task, hour: number | null) => void
+  onScheduleEnd: (task: Task, hour: number | null) => void
   onSetReminder: (task: Task, offset: number | null) => void
   onDelete: (id: number) => void
   onApplySuggestion: (task: Task) => void
   onDismissSuggestion: (id: number) => void
-  onTogglePostpone: (id: number) => void
   onPostpone: (task: Task, taskDate: string | null) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id })
@@ -111,108 +163,111 @@ function TaskRow({
       ref={setNodeRef}
       style={{
         transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
-        opacity: isDragging ? 0.5 : 1,
+        opacity: isDragging ? 0.6 : 1,
+        zIndex: isDragging ? 20 : undefined,
       }}
-      className="border-b border-neutral-100 py-3"
+      className={`group relative rounded-2xl border bg-[var(--surface)] px-4 py-3.5 shadow-[var(--shadow-card)] transition-colors lg:px-5 ${
+        expanded ? 'border-[var(--line-strong)]' : 'border-[var(--line)]'
+      }`}
     >
-      <div className="group flex items-center gap-3">
+      <div className="flex items-center gap-3">
         <button
           onClick={() => onToggle(task)}
-          className="h-4 w-4 flex-none rounded border-[1.5px] border-neutral-300 hover:border-neutral-500"
-          aria-label="완료"
+          className="h-[26px] w-[26px] flex-none rounded-full border-[1.5px] border-[var(--line-strong)] transition-colors hover:border-[var(--sprout)] hover:bg-[var(--sprout-soft)]"
+          aria-label={`${task.title} 완료`}
         />
-        <span
-          {...listeners}
-          {...attributes}
-          className="touch-none select-none text-neutral-300 cursor-grab active:cursor-grabbing"
-          aria-label="드래그해서 시간 배정"
-        >
-          <IconGripVertical size={14} stroke={1.75} />
-        </span>
-        <span className="flex-1 text-sm">
-          {task.title}
-          {projectName && (
-            <span className="ml-2 inline-flex items-center rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500">
-              #{projectName}
-            </span>
-          )}
-          {routineLabel && (
-            <span className="ml-2 inline-flex items-center gap-0.5 text-[11px] text-neutral-400">
-              <IconRepeat size={12} stroke={1.75} />{routineLabel}
-            </span>
-          )}
-          {task.notify_offset_min !== null && (
-            <span className="ml-2 inline-flex text-neutral-400" aria-label="알림 켜짐">
-              <IconBell size={12} stroke={1.75} />
-            </span>
-          )}
-        </span>
-        <TimeSelect value={task.scheduled_start} onChange={(hour) => onSchedule(task, hour)} />
-        {task.scheduled_start && (
-          <NotifySelect value={task.notify_offset_min} onChange={(offset) => onSetReminder(task, offset)} />
-        )}
-        <button
-          onClick={() => onTogglePostpone(task.id)}
-          className="text-neutral-300 opacity-0 transition group-hover:opacity-100"
-          aria-label="미루기"
-        >
-          <IconCalendar size={14} stroke={1.75} />
-        </button>
-        <button
-          onClick={() => onDelete(task.id)}
-          className="text-xs text-neutral-300 opacity-0 transition group-hover:opacity-100"
-        >
-          삭제
-        </button>
-      </div>
 
-      {postponeOpen && (
-        <div className="ml-7 mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="mr-0.5 text-[11px] text-neutral-400">언제로 미룰까요?</span>
-          <button
-            onClick={() => onPostpone(task, tomorrowDate())}
-            className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
+        <button onClick={() => onToggleExpand(task.id)} className="min-w-0 flex-1 text-left" aria-expanded={expanded}>
+          <span className="block truncate text-[15px] leading-[22px] text-[var(--ink)]">{task.title}</span>
+          <MetaLine>
+            <IconClock size={14} stroke={1.8} className="flex-none" />
+            <span className="tabular-nums">
+              {task.scheduled_start
+                ? `${clockLabel(task.scheduled_start)}${task.scheduled_end ? ` – ${clockLabel(task.scheduled_end)}` : ''}`
+                : '시간 미정'}
+            </span>
+            {projectName && (<><Dot /><span className="max-w-[160px] truncate">{projectName}</span></>)}
+            {routineLabel && (<><Dot /><IconRepeat size={13} stroke={1.8} className="flex-none" /><span>{routineLabel}</span></>)}
+            {task.notify_offset_min !== null && <IconBell size={13} stroke={1.8} className="flex-none" aria-label="알림 켜짐" />}
+          </MetaLine>
+        </button>
+
+        <div className="flex flex-none items-center gap-1.5">
+          <RewardChip amount={reward} />
+          <span
+            {...listeners}
+            {...attributes}
+            className="hidden cursor-grab touch-none select-none p-1 text-[var(--ink-faint)] opacity-0 transition-opacity active:cursor-grabbing group-hover:opacity-100 lg:inline-flex"
+            aria-label="시간표로 끌어서 시간 정하기"
           >
-            내일
-          </button>
+            <IconGripVertical size={16} stroke={1.8} />
+          </span>
           <button
-            onClick={() => onPostpone(task, thisWeekendDate())}
-            className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
+            onClick={() => onToggleExpand(task.id)}
+            className="rounded-lg p-1 text-[var(--ink-muted)] hover:bg-[var(--surface-sunken)]"
+            aria-label="편집"
           >
-            이번 주말
-          </button>
-          <input
-            type="date"
-            onChange={(e) => e.target.value && onPostpone(task, e.target.value)}
-            className="rounded-md border border-neutral-200 px-1.5 py-1 text-[11px]"
-          />
-          <button
-            onClick={() => onPostpone(task, null)}
-            className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
-          >
-            이번주로
+            <IconDots size={18} stroke={1.8} />
           </button>
         </div>
-      )}
+      </div>
 
       {suggestion && (
-        <div className="ml-7 mt-2 flex items-center gap-2 text-[11px]">
-          <span className="text-neutral-400">{formatSuggestion(suggestion)}로 예정할까요?</span>
+        <div className="ml-[38px] mt-3 flex flex-wrap items-center gap-2 text-[13px]">
+          <span className="text-[var(--ink-muted)]">{formatSuggestion(suggestion)}로 예정할까요?</span>
           <button
             onClick={() => onApplySuggestion(task)}
-            className="rounded-full px-2 py-0.5 font-medium text-white"
-            style={{ background: 'var(--cherry)' }}
+            className="h-7 rounded-lg bg-[var(--wood)] px-2.5 text-[12px] font-semibold text-[var(--on-wood)]"
           >
             적용
           </button>
           <button
             onClick={() => onDismissSuggestion(task.id)}
-            className="rounded-full bg-neutral-100 px-2 py-0.5 font-medium text-neutral-400"
+            className="h-7 rounded-lg bg-[var(--surface-sunken)] px-2.5 text-[12px] font-medium text-[var(--ink-muted)]"
           >
             무시
           </button>
         </div>
       )}
+
+      <Collapse open={expanded}>
+        <div className="ml-[38px] mt-3 space-y-3 border-t border-[var(--line)] pt-3">
+          <div className="flex flex-wrap items-center gap-2 text-[13px] text-[var(--ink-muted)]">
+            <span className="w-12 flex-none font-medium text-[var(--ink)]">시간</span>
+            <TimeSelect value={task.scheduled_start} onChange={(hour) => onSchedule(task, hour)} />
+            {task.scheduled_start && (
+              <>
+                <span>–</span>
+                <TimeSelect
+                  value={task.scheduled_end}
+                  onChange={(hour) => onScheduleEnd(task, hour)}
+                  minHour={new Date(task.scheduled_start).getHours()}
+                />
+                <IconBell size={14} stroke={1.8} className="ml-1" />
+                <NotifySelect value={task.notify_offset_min} onChange={(offset) => onSetReminder(task, offset)} />
+              </>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-[13px]">
+            <span className="w-12 flex-none font-medium text-[var(--ink)]">미루기</span>
+            <ChipButton onClick={() => onPostpone(task, tomorrowDate())}>내일</ChipButton>
+            <ChipButton onClick={() => onPostpone(task, thisWeekendDate())}>이번 주말</ChipButton>
+            <ChipButton onClick={() => onPostpone(task, null)}>이번주로</ChipButton>
+            <input
+              type="date"
+              aria-label="다른 날로 미루기"
+              onChange={(e) => e.target.value && onPostpone(task, e.target.value)}
+              className="h-8 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2 text-[13px] text-[var(--ink)]"
+            />
+          </div>
+          <button
+            onClick={() => onDelete(task.id)}
+            className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--barn)] hover:underline"
+          >
+            <IconTrash size={14} stroke={1.8} />삭제
+          </button>
+        </div>
+      </Collapse>
     </div>
   )
 }
@@ -222,18 +277,33 @@ export default function TodayPage() {
   const [todo, setTodo] = useState<Task[]>([])
   const [done, setDone] = useState<Task[]>([])
   const [backlog, setBacklog] = useState<Task[]>([])
-  const [showBacklog, setShowBacklog] = useState(false)
   const [postponeMenuTaskId, setPostponeMenuTaskId] = useState<number | null>(null)
   const [input, setInput] = useState('')
+  const [showAddForm, setShowAddForm] = useState(false)
   const [error, setError] = useState('')
-  const [tab, setTab] = useState<'todo' | 'done' | 'timetable'>('todo')
-  const [view, setView] = usePersistedState<TimetableView>('today.view', 'scheduled')
+  const [tab, setTab] = useState<'all' | 'todo' | 'done' | 'schedule'>('all')
+  const [backlogOpen, setBacklogOpen] = useState(false)
+
+  // 모바일 시간표 탭을 열어 둔 상태에서 데스크톱으로 넓히면, 데스크톱에는 탭이 없으므로
+  // 자연스럽게 전체 목록으로 돌린다.
+  useEffect(() => {
+    function resetScheduleTabOnDesktop() {
+      if (window.innerWidth >= 1024) setTab((current) => current === 'schedule' ? 'all' : current)
+    }
+    resetScheduleTabOnDesktop()
+    window.addEventListener('resize', resetScheduleTabOnDesktop)
+    return () => window.removeEventListener('resize', resetScheduleTabOnDesktop)
+  }, [])
+  const [view] = usePersistedState<TimetableView>('schedule.view', 'scheduled')
   const [saving, setSaving] = useState(false)
   const [suggestions, setSuggestions] = useState<Record<number, TaskParseResult>>({})
   const [openChipTaskId, setOpenChipTaskId] = useState<number | null>(null)
   const [editingTimeTaskId, setEditingTimeTaskId] = useState<number | null>(null)
   const [openMemoTaskId, setOpenMemoTaskId] = useState<number | null>(null)
   const [memoDraft, setMemoDraft] = useState('')
+  // 편집 칸(시간·알림·미루기·삭제)이 열린 할 일 카드 — 한 번에 하나만
+  const [expandedTaskId, setExpandedTaskId] = useState<number | null>(null)
+  const addInputRef = useRef<HTMLInputElement>(null)
 
   const [routines, setRoutines] = useState<Routine[]>([])
   const [showRoutineForm, setShowRoutineForm] = useState(false)
@@ -247,7 +317,7 @@ export default function TodayPage() {
 
   const [park, setPark] = useState<Park | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [viewDate, setViewDate] = useState(() => searchParams.get('date') || today)
   const [showDatePicker, setShowDatePicker] = useState(false)
 
@@ -258,6 +328,18 @@ export default function TodayPage() {
     const d = searchParams.get('date')
     if (d && d !== viewDate) setViewDate(d)
   }, [searchParams, viewDate])
+
+  // "오늘로"/날짜 선택으로 직접 옮길 땐 URL의 date 파라미터도 같이 갱신(또는 제거)한다 —
+  // 안 그러면 위 useEffect가 "URL엔 아직 옛날 날짜가 남아있다"며 방금 옮긴 걸 바로
+  // 되돌려버린다(캘린더에서 특정 날짜로 들어온 뒤로는 오늘로도, 다른 날짜로도 못 바뀌던
+  // 버그의 원인).
+  function goToDate(date: string) {
+    setViewDate(date)
+    const next = new URLSearchParams(searchParams)
+    if (date === today) next.delete('date')
+    else next.set('date', date)
+    setSearchParams(next, { replace: true })
+  }
 
   async function load() {
     try {
@@ -281,7 +363,9 @@ export default function TodayPage() {
 
   async function loadPark() {
     try {
-      setPark(await getPark())
+      const next = await getPark()
+      setPark(next)
+      setBalance(next.point_balance)
     } catch (e) {
       setError(e instanceof Error ? e.message : '불러오지 못했습니다')
     }
@@ -297,6 +381,11 @@ export default function TodayPage() {
 
   useEffect(() => { loadRoutines(); loadPark(); loadProjects() }, [])
   useEffect(() => { load() }, [viewDate])
+  useEffect(() => {
+    const refresh = () => { void load(); void loadPark() }
+    window.addEventListener(COMPLETION_CHANGED, refresh)
+    return () => window.removeEventListener(COMPLETION_CHANGED, refresh)
+  }, [viewDate])
 
   // 탭을 자정 넘겨 계속 켜둔 채로 있으면(특히 PWA) "오늘"을 보고 있던 화면이 어제 날짜에
   // 멈춰 있었다 — 1분마다, 그리고 탭이 다시 보일 때마다 날짜가 바뀌었는지 확인해서
@@ -305,7 +394,16 @@ export default function TodayPage() {
   useEffect(() => {
     function syncToday() {
       const fresh = getTodayStr()
-      setViewDate((prev) => (prev === today ? fresh : prev))
+      if (viewDate !== today || fresh === today) return
+      setViewDate(fresh)
+      // 새 "오늘"로 넘어가는 것뿐이니 URL에 남아있을 수 있는 옛 date 파라미터도 지운다 —
+      // 안 지우면 다음 날 자정에도 이 효과가 "특정 날짜를 보는 중"으로 오인해 다시는
+      // 자동으로 안 넘어간다.
+      if (searchParams.get('date')) {
+        const next = new URLSearchParams(searchParams)
+        next.delete('date')
+        setSearchParams(next, { replace: true })
+      }
     }
     const id = setInterval(syncToday, 60_000)
     document.addEventListener('visibilitychange', syncToday)
@@ -313,7 +411,7 @@ export default function TodayPage() {
       clearInterval(id)
       document.removeEventListener('visibilitychange', syncToday)
     }
-  }, [today])
+  }, [today, viewDate, searchParams, setSearchParams])
 
   function toggleWeekday(index: number) {
     setRoutineWeekdays((prev) => {
@@ -427,25 +525,33 @@ export default function TodayPage() {
   }
 
   async function handleToggle(task: Task) {
-    if (task.completed_at) {
-      await uncompleteTask(task.id)
-      if (openChipTaskId === task.id) setOpenChipTaskId(null)
-      if (openMemoTaskId === task.id) setOpenMemoTaskId(null)
-    } else {
-      const updated = await completeTask(task.id)
-      setOpenMemoTaskId(updated.id)
-      setMemoDraft('')
+    try {
+      if (task.completed_at) {
+        await uncompleteTask(task.id)
+        if (openChipTaskId === task.id) setOpenChipTaskId(null)
+        if (openMemoTaskId === task.id) setOpenMemoTaskId(null)
+      } else {
+        const updated = await completeTask(task.id)
+        if (navigator.onLine) setOpenMemoTaskId(updated.id)
+        setMemoDraft('')
+      }
+      void load()
+      void loadPark()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '완료 상태를 저장하지 못했습니다')
     }
-    load()
-    loadPark()
   }
 
   async function saveMemo(task: Task) {
     const memo = memoDraft.trim()
     setOpenMemoTaskId(null)
     if (memo === (task.memo ?? '')) return
-    await setTaskMemo(task.id, memo)
-    load()
+    try {
+      await setTaskMemo(task.id, memo)
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '메모를 저장하지 못했습니다')
+    }
   }
 
   function toggleMemoEditor(task: Task) {
@@ -495,6 +601,14 @@ export default function TodayPage() {
     load()
   }
 
+  async function handleScheduleEnd(task: Task, hour: number | null) {
+    if (!task.scheduled_start) return
+    const datePart = task.scheduled_start.slice(0, 10)
+    const end = hour === null ? null : `${datePart}T${String(hour).padStart(2, '0')}:00:00`
+    await scheduleTask(task.id, task.scheduled_start, end)
+    load()
+  }
+
   async function handleSetReminder(task: Task, offset: number | null) {
     if (offset !== null) {
       const ok = await ensurePushSubscription()
@@ -518,383 +632,432 @@ export default function TodayPage() {
     handleSchedule(task, hour)
   }
 
-  return (
-    <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
+  const population = park?.population ?? 0
+  const rewardOf = (task: Task) => taskReward(task, population)
+  // 오늘 수확: 끝낸 것 / 전체, 받은 체리 / 다 끝내면 받을 체리 (하루 상한 반영)
+  const totalCount = todo.length + done.length
+  const earned = Math.min(done.reduce((sum, t) => sum + rewardOf(t), 0), DAILY_POINT_CAP)
+  const possible = Math.min(earned + todo.reduce((sum, t) => sum + rewardOf(t), 0), DAILY_POINT_CAP)
+  const isToday = viewDate === today
+  const dateLabel = format(new Date(`${viewDate}T00:00:00`), 'yyyy년 M월 d일 EEEE', { locale: ko })
 
-      <header className="mb-6">
-        <h1 className="text-xl font-medium tracking-tight">체리</h1>
-        <div className="mt-1 flex items-center gap-1.5">
-          <p className="text-xs text-neutral-500">{viewDate}</p>
-          <button
-            onClick={() => setShowDatePicker((v) => !v)}
-            className="text-neutral-400"
-            aria-label="날짜 선택"
-          >
-            <IconCalendar size={13} stroke={1.75} />
-          </button>
-          {viewDate !== today && (
-            <button
-              onClick={() => { setViewDate(today); setShowDatePicker(false) }}
-              className="text-[11px] font-medium"
-              style={{ color: 'var(--cherry)' }}
-            >
-              오늘로
-            </button>
+  const harvestCaption =
+    totalCount === 0
+      ? '할 일을 적으면 여기서 수확을 셀게요.'
+      : todo.length === 0
+        ? '다 끝냈어요! 오늘 수확 완료.'
+        : `모두 끝내면 체리 ${possible - earned}개를 더 받아요.`
+
+  function focusAddInput() {
+    setTab('all')
+    setShowAddForm(true)
+    requestAnimationFrame(() => {
+      addInputRef.current?.focus()
+      addInputRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    })
+  }
+
+  function toggleExpanded(id: number) {
+    setExpandedTaskId((prev) => (prev === id ? null : id))
+  }
+
+  const todoCards = todo.map((task) => (
+    <TaskCard
+      key={task.id}
+      task={task}
+      reward={rewardOf(task)}
+      routineLabel={routineLabelFor(task)}
+      projectName={projectNameFor(task)}
+      suggestion={suggestions[task.id] ?? null}
+      expanded={expandedTaskId === task.id}
+      onToggleExpand={toggleExpanded}
+      onToggle={handleToggle}
+      onSchedule={handleSchedule}
+      onScheduleEnd={handleScheduleEnd}
+      onSetReminder={handleSetReminder}
+      onDelete={handleDelete}
+      onApplySuggestion={handleApplySuggestion}
+      onDismissSuggestion={handleDismissSuggestion}
+      onPostpone={handlePostpone}
+    />
+  ))
+
+  const doneCards = done.map((task) => (
+    <div key={task.id} className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3.5 shadow-[var(--shadow-card)] lg:px-5">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => handleToggle(task)}
+          className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full bg-[var(--sprout)] text-[var(--on-sprout)]"
+          aria-label={`${task.title} 완료 취소`}
+        >
+          <IconCheck size={15} stroke={2.6} />
+        </button>
+        <div className="min-w-0 flex-1">
+          <span className="block truncate text-[15px] leading-[22px] text-[var(--ink-faint)] line-through">{task.title}</span>
+          <MetaLine>
+            <IconClock size={14} stroke={1.8} className="flex-none" />
+            <span className="tabular-nums">{clockLabel((task.effective_at ?? task.completed_at)!)}</span>
+            {projectNameFor(task) && (<><Dot /><span className="max-w-[160px] truncate">{projectNameFor(task)}</span></>)}
+            {routineMonthLabelFor(task) && (<><Dot /><IconRepeat size={13} stroke={1.8} className="flex-none" /><span>{routineMonthLabelFor(task)}</span></>)}
+          </MetaLine>
+          {task.memo && openMemoTaskId !== task.id && (
+            <p className="mt-1 flex items-center gap-1 text-[13px] text-[var(--ink-muted)]">
+              <IconNote size={13} stroke={1.8} className="flex-none" />{task.memo}
+            </p>
           )}
         </div>
-        {showDatePicker && (
-          <input
-            type="date"
-            value={viewDate}
-            autoFocus
-            onChange={(e) => {
-              if (e.target.value) {
-                setViewDate(e.target.value)
-                setShowDatePicker(false)
-              }
-            }}
-            className="mt-2 rounded-md border border-neutral-200 px-2 py-1 text-xs"
-          />
-        )}
-        {park && (
-          <p className="mt-1 text-xs text-neutral-400">
-            오늘 방문객 {park.today_visitors} · 체리 {park.point_balance}
-          </p>
-        )}
-        {backlog.length > 0 && (
-          <div className="mt-3">
-            <button
-              onClick={() => setShowBacklog((v) => !v)}
-              className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-600"
-            >
-              이번주에서 당겨오기
-              <span
-                className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold text-white"
-                style={{ background: 'var(--cherry)' }}
+        <div className="flex flex-none items-center gap-1">
+          <RewardChip amount={rewardOf(task)} received />
+          <button
+            onClick={() => toggleMemoEditor(task)}
+            className="rounded-lg p-1 text-[var(--ink-muted)] hover:bg-[var(--surface-sunken)]"
+            aria-label="메모 쓰기"
+          >
+            <IconNote size={17} stroke={1.8} />
+          </button>
+          <button
+            onClick={() => setOpenChipTaskId(openChipTaskId === task.id ? null : task.id)}
+            className="rounded-lg p-1 text-[var(--ink-muted)] hover:bg-[var(--surface-sunken)]"
+            aria-label="완료 시각 고치기"
+          >
+            <IconClock size={17} stroke={1.8} />
+          </button>
+        </div>
+      </div>
+
+      <Collapse open={openMemoTaskId === task.id} focusOnOpen>
+        <input
+          value={memoDraft}
+          onChange={(e) => setMemoDraft(e.target.value)}
+          onBlur={() => saveMemo(task)}
+          onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+          placeholder="한 줄 메모 (선택)"
+          className="ml-[38px] mt-3 h-9 w-[calc(100%-38px)] rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] px-3 text-[13px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
+        />
+      </Collapse>
+
+      <Collapse open={openChipTaskId === task.id}>
+        <div className="ml-[38px] mt-3 flex flex-wrap items-center gap-2 text-[13px]">
+          <span className="text-[var(--ink-muted)]">언제로 기록할까요?</span>
+          {task.scheduled_start && <ChipButton onClick={() => applyEffectiveTime(task, task.scheduled_start!)}>예정대로</ChipButton>}
+          <ChipButton onClick={() => applyEffectiveTime(task, task.completed_at!)}>지금</ChipButton>
+          {editingTimeTaskId === task.id ? (
+            <input
+              type="time"
+              autoFocus
+              onChange={(e) => e.target.value && applyEffectiveTime(task, `${task.task_date ?? viewDate}T${e.target.value}:00`)}
+              className="h-8 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2 text-[13px] text-[var(--ink)]"
+            />
+          ) : (
+            <ChipButton onClick={() => setEditingTimeTaskId(task.id)}>직접 입력</ChipButton>
+          )}
+        </div>
+      </Collapse>
+    </div>
+  ))
+
+  const showTodo = tab === 'all' || tab === 'todo'
+  const showDone = tab === 'all' || tab === 'done'
+
+  return (
+    <div className="mx-auto max-w-6xl px-5 py-6 lg:px-8 lg:py-8">
+      <PageHeader
+        crumb="할 일"
+        title={isToday ? '오늘 할 일' : '할 일'}
+        subtitle={
+          <>
+            <span className="inline-flex flex-wrap items-center gap-1.5">
+              <span>{dateLabel}</span>
+              <button
+                onClick={() => setShowDatePicker((v) => !v)}
+                className="rounded p-0.5 text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                aria-label="날짜 고르기"
               >
-                {backlog.length}
-              </span>
-            </button>
-            {showBacklog && (
-              <div className="mt-2 rounded-lg border border-neutral-200 p-3">
-                {backlog.map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex items-center justify-between gap-2 border-b border-neutral-100 py-2 last:border-0"
-                  >
-                    <span className="flex-1 text-sm">
-                      {task.title}
-                      <span className="ml-2 text-[11px] text-neutral-400">
-                        {task.task_date ? task.task_date.slice(5).replace('-', '/') : '이번주'}
-                      </span>
-                    </span>
-                    <button
-                      onClick={() => handlePullIn(task)}
-                      className="rounded-full px-2.5 py-1 text-[11px] font-medium text-white"
-                      style={{ background: 'var(--cherry)' }}
-                    >
-                      오늘로
-                    </button>
-                  </div>
-                ))}
+                <IconCalendar size={15} stroke={1.8} />
+              </button>
+              {!isToday && (
+                <button
+                  onClick={() => { goToDate(today); setShowDatePicker(false) }}
+                  className="font-semibold text-[var(--wood)] hover:underline"
+                >
+                  오늘로
+                </button>
+              )}
+              <span className="hidden lg:inline">· 할 일을 끝내면 체리가 쌓여요.</span>
+            </span>
+            <Collapse open={showDatePicker} focusOnOpen>
+              <input
+                type="date"
+                value={viewDate}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    goToDate(e.target.value)
+                    setShowDatePicker(false)
+                  }
+                }}
+                className="mt-2 block h-9 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2 text-[13px] text-[var(--ink)]"
+              />
+            </Collapse>
+          </>
+        }
+        action={
+          <PrimaryButton onClick={focusAddInput}>
+            <IconPlus size={18} stroke={2} />새 할 일
+          </PrimaryButton>
+        }
+      />
+
+      {error && <ErrorBanner message={error} />}
+
+      {(tab === 'all' || tab === 'todo') && (
+        <div className="mb-4 max-w-2xl">
+            {(tab === 'all' || tab === 'todo') && (
+              <div className="flex flex-wrap items-center gap-2">
+                <button onClick={() => setShowRoutineForm((v) => !v)} aria-expanded={showRoutineForm} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2.5 text-[12px] font-medium text-[var(--ink)]">
+                  <IconRepeat size={14} stroke={1.8} />반복
+                  <IconChevronDown size={14} className={`transition-transform duration-200 ${showRoutineForm ? 'rotate-180' : ''}`} />
+                </button>
+                {backlog.length > 0 && <button onClick={() => setBacklogOpen((v) => !v)} aria-expanded={backlogOpen} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2.5 text-[12px] font-medium text-[var(--ink)]">
+                  당겨오기 <span className="text-[var(--ink-muted)]">{backlog.length}</span>
+                  <IconChevronDown size={14} className={`transition-transform duration-200 ${backlogOpen ? 'rotate-180' : ''}`} />
+                </button>}
               </div>
             )}
-          </div>
-        )}
-      </header>
-
-      <div className="mb-6 flex gap-2">
-        <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.nativeEvent.isComposing) return
-              if (e.key === 'Enter') handleAdd()
-            }}
-            placeholder="할 일 적기"
-            className="flex-1 rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
-        />
-        <button
-            onClick={handleAdd}
-            disabled={saving}
-            className="rounded-lg px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
-            style={{ background: 'var(--cherry)' }}
-        >
-          추가
-        </button>
-      </div>
-
-      <button
-        onClick={() => setShowRoutineForm((v) => !v)}
-        className="mb-4 text-xs text-neutral-400"
-      >
-        {showRoutineForm ? '반복 만들기 닫기' : '+ 반복 만들기'}
-      </button>
-
-      {showRoutineForm && (
-        <div className="mb-6 rounded-lg border border-neutral-200 p-4">
-          <input
-            value={routineTitle}
-            onChange={(e) => setRoutineTitle(e.target.value)}
-            placeholder="반복할 일 (예: 스트레칭)"
-            className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
-          />
-
-          <div className="mb-3 flex gap-1 rounded-lg bg-neutral-100 p-1">
-            {(['DAILY', 'WEEKLY', 'MONTHLY'] as RoutineFreq[]).map((freq) => (
-              <button
-                key={freq}
-                onClick={() => setRoutineFreq(freq)}
-                className={`flex-1 rounded-md py-2 text-xs font-medium ${routineFreq === freq ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
-              >
-                {freq === 'DAILY' ? '매일' : freq === 'WEEKLY' ? '요일' : '매월'}
-              </button>
-            ))}
-          </div>
-
-          {routineFreq === 'WEEKLY' && (
-            <div className="mb-3 flex gap-1">
-              {WEEKDAY_LABELS.map((label, i) => (
-                <button
-                  key={label}
-                  onClick={() => toggleWeekday(i)}
-                  className="h-8 flex-1 rounded-lg text-xs font-medium"
-                  style={
-                    routineWeekdays.has(i)
-                      ? { background: 'var(--cherry-bg)', color: 'var(--cherry)' }
-                      : { background: '#F5F5F4', color: '#a3a3a3' }
-                  }
-                >
-                  {label}
+            {(tab === 'all' || tab === 'todo') && backlog.length > 0 && (
+              <Collapse open={backlogOpen} className="!mt-0"><div className="pt-4">
+              <Card className="p-3.5">
+                <button onClick={() => setBacklogOpen((v) => !v)} className="flex w-full items-center justify-between text-left">
+                  <span className="text-[14px] font-semibold text-[var(--ink)]">이번 주에서 당겨오기 <span className="ml-1 rounded-full bg-[var(--barn-soft)] px-1.5 py-0.5 text-[11px] tabular-nums">{backlog.length}개</span></span>
+                  <IconChevronDown size={16} className={`text-[var(--ink-muted)] transition-transform ${backlogOpen ? 'rotate-180' : ''}`} />
                 </button>
-              ))}
-            </div>
-          )}
-
-          {routineFreq === 'MONTHLY' && (
-            <input
-              type="number"
-              min={1}
-              max={31}
-              value={routineMonthDay}
-              onChange={(e) => setRoutineMonthDay(e.target.value)}
-              placeholder="매월 며칠 (1~31)"
-              className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
-            />
-          )}
-
-          <input
-            type="time"
-            value={routineDefaultTime}
-            onChange={(e) => setRoutineDefaultTime(e.target.value)}
-            className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
-          />
-
-          {routineDefaultTime && (
-            <div className="mb-3">
-              <p className="mb-1.5 text-[11px] text-neutral-400">완료로 기록할 시각</p>
-              <div className="flex gap-1 rounded-lg bg-neutral-100 p-1">
-                <button
-                  onClick={() => setRoutineTimeBasis('CHECKED')}
-                  className={`flex-1 rounded-md py-2 text-xs font-medium ${routineTimeBasis === 'CHECKED' ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
-                >
-                  체크한 시각
-                </button>
-                <button
-                  onClick={() => setRoutineTimeBasis('SCHEDULED')}
-                  className={`flex-1 rounded-md py-2 text-xs font-medium ${routineTimeBasis === 'SCHEDULED' ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
-                >
-                  예정 시각 ({routineDefaultTime})
-                </button>
+                <ul className="mt-2 divide-y divide-[var(--line)]">
+                  {backlog.map((task) => (
+                    <li key={task.id} className="py-2">
+                      <div className="flex items-center gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[13px] text-[var(--ink)]">{task.title}</p>
+                          <p className="text-[12px] text-[var(--ink-muted)]">
+                            {task.task_date ? task.task_date.slice(5).replace('-', '/') : '이번 주'}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handlePullIn(task)}
+                          className="h-8 flex-none rounded-lg bg-[var(--wood)] px-3 text-[12px] font-semibold text-[var(--on-wood)]"
+                        >
+                          오늘로
+                        </button>
+                        <button
+                          onClick={() => togglePostponeMenu(task.id)}
+                          className="rounded-lg p-1.5 text-[var(--ink-muted)] hover:bg-[var(--surface-sunken)]"
+                          aria-label="다른 날로"
+                        >
+                          <IconCalendar size={16} stroke={1.8} />
+                        </button>
+                        <button onClick={() => handleDelete(task.id)} className="rounded-lg p-1.5 text-[var(--barn)] hover:bg-[var(--barn-soft)]" aria-label={`${task.title} 일정 삭제`}>
+                          <IconTrash size={16} stroke={1.8} />
+                        </button>
+                      </div>
+                      <Collapse open={postponeMenuTaskId === task.id}>
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          <ChipButton onClick={() => handlePostpone(task, tomorrowDate())}>내일</ChipButton>
+                          <ChipButton onClick={() => handlePostpone(task, thisWeekendDate())}>이번 주말</ChipButton>
+                          <input
+                            type="date"
+                            aria-label="다른 날로 가져가기"
+                            onChange={(e) => e.target.value && handlePostpone(task, e.target.value)}
+                            className="h-8 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2 text-[13px] text-[var(--ink)]"
+                          />
+                        </div>
+                      </Collapse>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+              </div></Collapse>
+            )}
+            {(tab === 'all' || tab === 'todo') && <Collapse open={showRoutineForm} className="!mt-0"><div className="pt-4"><Card className="p-3.5">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-[14px] font-semibold text-[var(--ink)]">반복</h2>
+                  <p className="text-[12px] text-[var(--ink-muted)]">매일·요일·매월 돌아오는 할 일</p>
+                </div>
+                <SecondaryButton onClick={() => setShowRoutineForm((v) => !v)} className="!h-8 !rounded-lg !px-2.5 !text-[12px]">
+                  {showRoutineForm ? '닫기' : <><IconRepeat size={14} stroke={1.8} />만들기</>}
+                </SecondaryButton>
               </div>
-            </div>
-          )}
 
-          <button
-            onClick={handleCreateRoutine}
-            disabled={routineSaving}
-            className="w-full rounded-lg py-2.5 text-sm font-medium text-white disabled:opacity-50"
-            style={{ background: 'var(--cherry)' }}
-          >
-            반복 만들기
-          </button>
+              <div className="mt-3 space-y-2.5">
+                  <input
+                    value={routineTitle}
+                    onChange={(e) => setRoutineTitle(e.target.value)}
+                    placeholder="반복할 일 (예: 스트레칭)"
+                    className="h-10 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 text-[15px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)] focus:border-[var(--line-strong)]"
+                  />
+                  <Segment
+                    full
+                    label="반복 주기"
+                    value={routineFreq}
+                    onChange={setRoutineFreq}
+                    options={[
+                      { value: 'DAILY' as RoutineFreq, label: '매일' },
+                      { value: 'WEEKLY' as RoutineFreq, label: '요일' },
+                      { value: 'MONTHLY' as RoutineFreq, label: '매월' },
+                    ]}
+                  />
+                  <Collapse open={routineFreq === 'WEEKLY'}>
+                    <div className="flex gap-1">
+                      {WEEKDAY_LABELS.map((label, i) => (
+                        <button
+                          key={label}
+                          onClick={() => toggleWeekday(i)}
+                          aria-pressed={routineWeekdays.has(i)}
+                          className={`h-8 flex-1 rounded-lg text-[13px] font-medium ${
+                            routineWeekdays.has(i)
+                              ? 'bg-[var(--wood)] text-[var(--on-wood)]'
+                              : 'bg-[var(--surface-sunken)] text-[var(--ink-muted)]'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </Collapse>
+                  <Collapse open={routineFreq === 'MONTHLY'}>
+                    <input
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={routineMonthDay}
+                      onChange={(e) => setRoutineMonthDay(e.target.value)}
+                      placeholder="매월 며칠 (1~31)"
+                      className="h-10 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 text-[15px] text-[var(--ink)] outline-none focus:border-[var(--line-strong)]"
+                    />
+                  </Collapse>
+                  <label className="flex items-center gap-2 text-[13px] text-[var(--ink-muted)]">
+                    기본 시각
+                    <input
+                      type="time"
+                      value={routineDefaultTime}
+                      onChange={(e) => setRoutineDefaultTime(e.target.value)}
+                      className="h-9 flex-1 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 text-[14px] text-[var(--ink)] outline-none focus:border-[var(--line-strong)]"
+                    />
+                  </label>
+                  <Collapse open={Boolean(routineDefaultTime)}>
+                    <div>
+                      <p className="mb-1.5 text-[12px] text-[var(--ink-muted)]">완료로 기록할 시각</p>
+                      <Segment
+                        full
+                        label="완료로 기록할 시각"
+                        value={routineTimeBasis}
+                        onChange={setRoutineTimeBasis}
+                        options={[
+                          { value: 'CHECKED' as const, label: '체크한 시각' },
+                          { value: 'SCHEDULED' as const, label: `예정 시각 (${routineDefaultTime})` },
+                        ]}
+                      />
+                    </div>
+                  </Collapse>
+                  <PrimaryButton onClick={handleCreateRoutine} disabled={routineSaving} className="w-full">
+                    반복 만들기
+                  </PrimaryButton>
+                </div>
+            </Card></div></Collapse>}
+
         </div>
       )}
-
-      {error && (
-        <p className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-xs text-red-600">{error}</p>
-      )}
-
-      <div className="mb-4 flex gap-1 rounded-lg bg-neutral-100 p-1 lg:hidden">
-        <button
-          onClick={() => setTab('todo')}
-          className={`flex-1 rounded-md py-2 text-xs font-medium ${tab === 'todo' ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
-        >
-          할 일 {todo.length}
-        </button>
-        <button
-          onClick={() => setTab('done')}
-          className={`flex-1 rounded-md py-2 text-xs font-medium ${tab === 'done' ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
-        >
-          완료 {done.length}
-        </button>
-        <button
-          onClick={() => setTab('timetable')}
-          className={`flex-1 rounded-md py-2 text-xs font-medium ${tab === 'timetable' ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
-        >
-          시간표
-        </button>
-      </div>
 
       <DndContext onDragEnd={handleDragEnd}>
-        <div className="grid gap-8 lg:grid-cols-3">
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+          {/* ── 왼쪽: 수확(모바일) · 탭 · 할 일 카드 · 추가 바 ── */}
+          <div className="min-w-0 space-y-3">
+            <Card className="p-4 lg:hidden">
+              <div className="mb-2 flex items-center justify-between text-[13px]">
+                <span className="font-semibold text-[var(--ink)] tabular-nums">
+                  {isToday ? '오늘' : '이날'} {done.length} / {totalCount} 완료
+                </span>
+                <span className="font-semibold text-[var(--coin-ink)] tabular-nums">+{earned} / {possible} 체리</span>
+              </div>
+              <ProgressBar value={done.length} max={totalCount} label="오늘 수확 진행률" />
+            </Card>
 
-          <section className={tab === 'todo' ? '' : 'hidden lg:block'}>
-            <p className="mb-3 hidden text-xs text-neutral-500 lg:block">할 일 {todo.length}</p>
-            {todo.length === 0 && (
-              <p className="py-8 text-center text-xs text-neutral-400">할 일이 없어요</p>
-            )}
-            {todo.map((task) => (
-              <TaskRow
-                key={task.id}
-                task={task}
-                routineLabel={routineLabelFor(task)}
-                projectName={projectNameFor(task)}
-                suggestion={suggestions[task.id] ?? null}
-                postponeOpen={postponeMenuTaskId === task.id}
-                onToggle={handleToggle}
-                onSchedule={handleSchedule}
-                onSetReminder={handleSetReminder}
-                onDelete={handleDelete}
-                onApplySuggestion={handleApplySuggestion}
-                onDismissSuggestion={handleDismissSuggestion}
-                onTogglePostpone={togglePostponeMenu}
-                onPostpone={handlePostpone}
-              />
-            ))}
-          </section>
+            <div className="lg:hidden"><Segment full label="할 일 보기" value={tab} onChange={setTab} options={[{ value: 'all', label: '전체' }, { value: 'todo', label: `할 일 ${todo.length}` }, { value: 'done', label: `완료 ${done.length}` }, { value: 'schedule', label: '시간표' }]} /></div>
+            <div className="hidden lg:block"><Segment full label="할 일 보기" value={tab === 'schedule' ? 'all' : tab} onChange={setTab} options={[{ value: 'all', label: '전체' }, { value: 'todo', label: `할 일 ${todo.length}` }, { value: 'done', label: `완료 ${done.length}` }]} /></div>
 
-          <section className={tab === 'done' ? '' : 'hidden lg:block'}>
-            <p className="mb-3 hidden text-xs text-neutral-500 lg:block">완료 {done.length}</p>
-            {done.length === 0 && (
-              <p className="py-8 text-center text-xs text-neutral-400">아직 없어요</p>
+            {tab !== 'done' && tab !== 'schedule' && (
+              <Collapse open={showAddForm} className="!mt-0"><div className="pt-3">
+              <form onSubmit={(e) => { e.preventDefault(); void handleAdd() }} className="flex items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
+                <input
+                  ref={addInputRef}
+                  aria-label="새 할 일"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && e.nativeEvent.isComposing) e.preventDefault() }}
+                  placeholder="새 할 일 추가... (#프로젝트로 묶기)"
+                  className="min-w-0 flex-1 bg-transparent text-[15px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
+                />
+                <PrimaryButton type="submit" disabled={saving || !input.trim()} className="!h-8 !px-3 !text-[13px]">추가</PrimaryButton>
+                <SecondaryButton onClick={() => setShowAddForm(false)} className="!h-8 !px-2">닫기</SecondaryButton>
+              </form>
+              </div></Collapse>
             )}
-            {done.map((task) => (
-              <div key={task.id} className="border-b border-neutral-100 py-3">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => handleToggle(task)}
-                    className="flex h-4 w-4 flex-none items-center justify-center rounded text-white"
-                    style={{ background: 'var(--cherry)' }}
-                    aria-label="완료 취소"
-                  >
-                    <IconCheck size={10} stroke={2.5} />
-                  </button>
-                  <span className="flex-1 text-sm text-neutral-400 line-through">
-                    {task.title}
-                    {projectNameFor(task) && (
-                      <span className="ml-2 inline-flex items-center rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-400">
-                        #{projectNameFor(task)}
-                      </span>
-                    )}
-                    {routineMonthLabelFor(task) && (
-                      <span className="ml-2 inline-flex items-center gap-0.5 text-[11px] text-neutral-300">
-                        <IconRepeat size={11} stroke={1.75} />{routineMonthLabelFor(task)}
-                      </span>
-                    )}
-                  </span>
-                  <span className="text-[11px] text-neutral-300">
-                    {(task.effective_at ?? task.completed_at)?.slice(11, 16)}
-                  </span>
-                  <button
-                    onClick={() => toggleMemoEditor(task)}
-                    className="flex text-neutral-300"
-                    aria-label="메모 수정"
-                  >
-                    <IconNote size={13} stroke={1.75} />
-                  </button>
-                  <button
-                    onClick={() => setOpenChipTaskId(openChipTaskId === task.id ? null : task.id)}
-                    className="flex text-neutral-300"
-                    aria-label="완료 시각 수정"
-                  >
-                    <IconClock size={13} stroke={1.75} />
-                  </button>
+
+            {tab === 'schedule' ? (
+              <Card className="p-4 sm:p-5">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div><h2 className="text-[16px] font-semibold text-[var(--ink)]">{isToday ? '오늘 시간표' : '이날 시간표'}</h2><p className="mt-1 text-[12px] text-[var(--ink-muted)]">할 일을 끌어다 놓으면 시간이 정해져요.</p></div>
+
+                </div>
+                <Timetable tasks={[...todo, ...done]} view={view} onUnschedule={(t) => handleSchedule(t, null)} rewardFor={rewardOf} />
+              </Card>
+            ) : <>{showTodo && todoCards}{showDone && doneCards}</>}
+
+            {tab === 'todo' && todo.length === 0 && (
+              <EmptyState icon={<IconListCheck size={28} stroke={1.6} />} title="아직 없어요" hint="오늘 할 일을 하나 적어보세요" />
+            )}
+            {tab === 'done' && done.length === 0 && (
+              <EmptyState icon={<IconCheck size={28} stroke={1.6} />} title="아직 없어요" hint="할 일을 끝내면 여기 쌓여요" />
+            )}
+            {tab === 'all' && totalCount === 0 && (
+              <EmptyState icon={<IconListCheck size={28} stroke={1.6} />} title="아직 없어요" hint="오늘 할 일을 하나 적어보세요" />
+            )}
+
+
+          </div>
+
+          {/* ── 오른쪽: 오늘 일정 · 오늘 수확 ── */}
+          <aside className="min-w-0 space-y-4">
+            {/* 데스크톱은 캘린더의 ‘일’ 보기처럼 우측 일간 시간축을 항상 함께 본다.
+                모바일에서는 전용 시간표 탭으로만 열어 목록 스크롤을 줄인다. */}
+            <Card className="hidden p-5 lg:block">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-[16px] font-semibold text-[var(--ink)]">{isToday ? '오늘 일정' : '이날 일정'}</h2>
+                  <p className="mt-1 text-[12px] text-[var(--ink-muted)]">하루 일정을 시간순으로 확인하세요.</p>
                 </div>
 
-                {openMemoTaskId === task.id ? (
-                  <input
-                    autoFocus
-                    value={memoDraft}
-                    onChange={(e) => setMemoDraft(e.target.value)}
-                    onBlur={() => saveMemo(task)}
-                    onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-                    placeholder="메모 (선택)"
-                    className="ml-7 mt-2 w-[calc(100%-1.75rem)] rounded-md border border-neutral-200 px-2 py-1 text-[11px] outline-none focus:border-neutral-400"
-                  />
-                ) : task.memo ? (
-                  <p className="ml-7 mt-1 text-[11px] text-neutral-400">{task.memo}</p>
-                ) : null}
-
-                {openChipTaskId === task.id && (
-                  <div className="ml-7 mt-2 flex flex-wrap items-center gap-1.5">
-                    <span className="mr-0.5 text-[11px] text-neutral-400">언제로 기록할까요?</span>
-                    {task.scheduled_start && (
-                      <button
-                        onClick={() => applyEffectiveTime(task, task.scheduled_start!)}
-                        className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
-                      >
-                        예정대로
-                      </button>
-                    )}
-                    <button
-                      onClick={() => applyEffectiveTime(task, task.completed_at!)}
-                      className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
-                    >
-                      지금
-                    </button>
-                    {editingTimeTaskId === task.id ? (
-                      <input
-                        type="time"
-                        autoFocus
-                        onChange={(e) => e.target.value && applyEffectiveTime(task, `${task.task_date ?? viewDate}T${e.target.value}:00`)}
-                        className="rounded-md border border-neutral-200 px-1.5 py-1 text-[11px]"
-                      />
-                    ) : (
-                      <button
-                        onClick={() => setEditingTimeTaskId(task.id)}
-                        className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600"
-                      >
-                        직접입력
-                      </button>
-                    )}
-                  </div>
-                )}
               </div>
-            ))}
-          </section>
+              <Timetable fitViewport tasks={[...todo, ...done]} view={view} onUnschedule={(t) => handleSchedule(t, null)} rewardFor={rewardOf} />
+            </Card>
 
-          <section className={tab === 'timetable' ? '' : 'hidden lg:block'}>
-            <div className="mb-3 flex items-center justify-between">
-              <p className="hidden text-xs text-neutral-500 lg:block">시간표</p>
-              <div className="flex gap-1 rounded-lg bg-neutral-100 p-1 text-xs">
-                <button
-                  onClick={() => setView('scheduled')}
-                  className={`rounded-md px-3 py-1 font-medium ${view === 'scheduled' ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
-                >
-                  예정
-                </button>
-                <button
-                  onClick={() => setView('actual')}
-                  className={`rounded-md px-3 py-1 font-medium ${view === 'actual' ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
-                >
-                  실제
-                </button>
+
+            <Card className="hidden p-5 lg:block">
+              <h2 className="mb-3 text-[16px] font-semibold text-[var(--ink)]">{isToday ? '오늘 수확' : '이날 수확'}</h2>
+              <div className="mb-3 flex items-end justify-between">
+                <span className="font-display text-[28px] leading-[34px] tabular-nums text-[var(--ink)]">
+                  {done.length} / {totalCount}
+                </span>
+                <span className="text-[13px] font-semibold tabular-nums text-[var(--coin-ink)]">+{earned} / {possible} 체리</span>
               </div>
-            </div>
-            <Timetable tasks={[...todo, ...done]} view={view} onUnschedule={(t) => handleSchedule(t, null)} />
-          </section>
+              <ProgressBar value={done.length} max={totalCount} label="오늘 수확 진행률" />
+              <p className="mt-3 text-[12px] text-[var(--ink-muted)]">{harvestCaption}</p>
+            </Card>
 
+
+
+
+
+
+          </aside>
         </div>
       </DndContext>
     </div>

@@ -109,7 +109,7 @@ export default function MarkdownBody({
                 className={`mr-0.5 mt-0.5 inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm ${interactive ? 'cursor-pointer' : ''}`}
                 style={{
                   background: checked ? 'var(--cherry)' : 'white',
-                  border: checked ? 'none' : '1.5px solid #D4D0C4',
+                  border: checked ? 'none' : '1.5px solid var(--line-strong)',
                 }}
               >
                 {checked && <IconCheck size={9} stroke={3} color="white" />}

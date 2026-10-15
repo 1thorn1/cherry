@@ -5,6 +5,7 @@ import com.cherry.common.InvalidProjectException;
 import com.cherry.common.MilestoneNotFoundException;
 import com.cherry.common.NoteNotFoundException;
 import com.cherry.common.ProjectNotFoundException;
+import com.cherry.farm.FarmService;
 import com.cherry.park.ParkService;
 import com.cherry.project.dto.MilestoneCreateRequest;
 import com.cherry.project.dto.MilestoneResponse;
@@ -30,7 +31,6 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.IsoFields;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -44,11 +44,14 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class ProjectService {
 
+    private static final int MAX_EXAM_DAYS = 180;
+
     private final ProjectRepository projectRepository;
     private final MilestoneRepository milestoneRepository;
     private final TaskRepository taskRepository;
     private final ProjectNoteRepository projectNoteRepository;
     private final ParkService parkService;
+    private final FarmService farmService;
 
     @Transactional
     public ProjectResponse create(Long userId, ProjectCreateRequest request) {
@@ -70,6 +73,7 @@ public class ProjectService {
             default -> generateFreeMilestones(project, milestoneTitles);
         };
         milestoneRepository.saveAll(milestones);
+        farmService.plantForProject(userId, project.getId(), project.getType());
 
         return project;
     }
@@ -267,6 +271,7 @@ public class ProjectService {
     public void deleteProject(Long userId, Long projectId) {
         Project project = findOwned(userId, projectId);
         project.delete();
+        farmService.removePlot(userId, projectId);
     }
 
     @Transactional
@@ -305,6 +310,24 @@ public class ProjectService {
         return MilestoneResponse.from(milestone);
     }
 
+    @Transactional
+    public MilestoneResponse updateMilestoneProgress(Long userId, Long projectId, Long milestoneId, boolean inProgress) {
+        Project project = findOwned(userId, projectId);
+        if (!"FREE".equals(project.getType())) {
+            throw new InvalidProjectException("자유형 프로젝트에서만 진행 상태를 변경할 수 있습니다");
+        }
+        Milestone milestone = milestoneRepository.findById(milestoneId)
+                .orElseThrow(MilestoneNotFoundException::new);
+        if (!milestone.getProjectId().equals(projectId)) {
+            throw new InvalidProjectException("다른 프로젝트의 마일스톤입니다");
+        }
+        if (milestone.getCompletedAt() != null) {
+            throw new InvalidProjectException("완료를 취소한 뒤 진행 상태를 변경해주세요");
+        }
+        milestone.setInProgress(inProgress, LocalDateTime.now());
+        return MilestoneResponse.from(milestone);
+    }
+
     // B-11 (2026-09-22): total_units 없이 EXAM/PROGRESS 프로젝트를 만들면 마일스톤 생성 시 NPE로 500이 나던 버그.
     // 타입별 필수값을 요청 단계에서 막는다.
     private void validateTypeFields(String type, Integer totalUnits, LocalDate examDate) {
@@ -313,6 +336,10 @@ public class ProjectService {
         }
         if ("EXAM".equals(type) && examDate == null) {
             throw new InvalidProjectException("시험일을 입력해주세요");
+        }
+        // 시험형은 하루에 마일스톤 하나라, 시험일이 멀면 수백 개가 생기고 나무 승격도 사실상 불가능해진다.
+        if ("EXAM".equals(type) && examDate.isAfter(LocalDate.now().plusDays(MAX_EXAM_DAYS))) {
+            throw new InvalidProjectException("시험일은 오늘부터 " + MAX_EXAM_DAYS + "일 이내로 정해주세요");
         }
     }
 
@@ -335,21 +362,32 @@ public class ProjectService {
         return milestones;
     }
 
-    // 단원 수 없이, 오늘부터 시험일까지 남은 주(week) 수만큼 "N주차 (M/d~M/d)"로 만든다.
-    // 세부 계획은 사용자가 제목을 직접 고쳐 쓰면 된다(마일스톤 제목은 타입 상관없이 수정 가능).
+    // 단원 수 없이, 오늘부터 시험일까지 날짜 하나하나를 마일스톤으로 만든다("1주차
+    // 화요일 (9/29)" 식, 날짜까지 제목에 포함). 예전엔 한 주 전체를 마일스톤
+    // 하나로 묶었는데(2026-09-25), 그러면 "오늘 일정에 추가"를 눌렀을 때 그 주
+    // 전체가 통째로 오늘 할 일 하나로 들어가 버렸다 — 진도형(PROGRESS)은 이미
+    // 회차마다 나뉘어 있는데 시험형만 이 문제가 있다는 리포트로 재조정(2026-09-29).
+    // 프론트(MilestoneChipGrid)에서 제목의 "N주차" 접두어로 다시 주 단위 아코디언
+    // 그룹을 만들어서 보여준다 — 28개가 한 번에 평평하게 나오면 보기 힘들다는
+    // 후속 피드백으로 추가(같은 날). target_week는 일부러 안 채운다: 이제 마일스톤
+    // 자체가 하루 단위라 옛 WeekDayAccordion(마일스톤 하나 안에서 요일별로 메모하던
+    // 용도)과는 다른, 새 주간 그룹 아코디언을 쓴다.
     private List<Milestone> generateExamMilestones(Project project) {
         List<Milestone> milestones = new ArrayList<>();
 
-        LocalDate todayWeekStart = LocalDate.now().with(DayOfWeek.MONDAY);
-        LocalDate examWeekStart = project.getExamDate().with(DayOfWeek.MONDAY);
-        long weeksRemaining = Math.max(1, ChronoUnit.WEEKS.between(todayWeekStart, examWeekStart) + 1);
+        // 주차 번호는 이번 주 월요일 기준이지만, 이미 지난 요일엔 마일스톤을 만들지 않는다.
+        LocalDate today = LocalDate.now();
+        LocalDate todayWeekStart = today.with(DayOfWeek.MONDAY);
+        LocalDate examDate = project.getExamDate();
+        LocalDate end = examDate.isBefore(today) ? today : examDate;
 
-        LocalDate weekCursor = todayWeekStart;
-        for (int seq = 1; seq <= weeksRemaining; seq++) {
-            LocalDate weekEnd = weekCursor.plusDays(6);
-            String title = seq + "주차 (" + formatMonthDay(weekCursor) + "~" + formatMonthDay(weekEnd) + ")";
-            milestones.add(Milestone.create(project.getId(), seq, title, isoWeekString(weekCursor)));
-            weekCursor = weekCursor.plusWeeks(1);
+        int seq = 1;
+        LocalDate cursor = today;
+        while (!cursor.isAfter(end)) {
+            int weekNum = (int) (ChronoUnit.DAYS.between(todayWeekStart, cursor) / 7) + 1;
+            String title = weekNum + "주차 " + weekdayLabel(cursor) + "요일 (" + formatMonthDay(cursor) + ")";
+            milestones.add(Milestone.create(project.getId(), seq++, title, null));
+            cursor = cursor.plusDays(1);
         }
         return milestones;
     }
@@ -358,10 +396,16 @@ public class ProjectService {
         return date.getMonthValue() + "/" + date.getDayOfMonth();
     }
 
-    private String isoWeekString(LocalDate date) {
-        int week = date.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR);
-        int year = date.get(IsoFields.WEEK_BASED_YEAR);
-        return String.format("%d-W%02d", year, week);
+    private String weekdayLabel(LocalDate date) {
+        return switch (date.getDayOfWeek()) {
+            case MONDAY -> "월";
+            case TUESDAY -> "화";
+            case WEDNESDAY -> "수";
+            case THURSDAY -> "목";
+            case FRIDAY -> "금";
+            case SATURDAY -> "토";
+            case SUNDAY -> "일";
+        };
     }
 
     private Project findOwned(Long userId, Long projectId) {

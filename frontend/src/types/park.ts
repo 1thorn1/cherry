@@ -9,5 +9,6 @@ export interface Park {
   population: number
   point_balance: number
   today_visitors: number
+  today_points_earned: number
   slots: ParkSlot[]
 }

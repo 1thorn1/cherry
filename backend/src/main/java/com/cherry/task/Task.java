@@ -1,5 +1,6 @@
 package com.cherry.task;
 
+import com.cherry.common.InvalidTaskException;
 import com.cherry.routine.Routine;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -126,6 +127,9 @@ public class Task {
     }
 
     public void schedule(LocalDateTime start, LocalDateTime end) {
+        if (start != null && end != null && !end.isAfter(start)) {
+            throw new InvalidTaskException("종료 시각은 시작 시각보다 늦어야 합니다");
+        }
         this.scheduledStart = start;
         this.scheduledEnd = end;
     }

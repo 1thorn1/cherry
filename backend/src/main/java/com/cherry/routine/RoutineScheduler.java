@@ -15,7 +15,7 @@ public class RoutineScheduler {
 
     private final RoutineService routineService;
 
-    @Scheduled(cron = "0 0 4 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
     public void generateTodayTasks() {
         routineService.generateDueTasksForAllUsers(LocalDate.now(KST));
     }

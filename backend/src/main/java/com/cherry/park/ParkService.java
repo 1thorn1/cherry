@@ -54,6 +54,11 @@ public class ParkService {
 
     @Transactional
     public void awardForMilestoneCompletion(Long userId, Long milestoneId) {
+        awardForMilestoneCompletion(userId, milestoneId, LocalDate.now());
+    }
+
+    @Transactional
+    public void awardForMilestoneCompletion(Long userId, Long milestoneId, LocalDate date) {
         if (pointLedgerRepository.existsByUserIdAndRefTypeAndRefId(userId, "MILESTONE", milestoneId)) return;
 
         // count+1은 과거에 슬롯이 지워져 번호에 구멍이 생기면(예: 1,2,3,6,7,8) uk_slot(user_id, slot_index)
@@ -68,19 +73,19 @@ public class ParkService {
         user.growPopulation(1);
 
         pointLedgerRepository.save(PointLedger.create(
-                userId, LocalDate.now(), MILESTONE_BONUS, "MILESTONE_COMPLETE", "MILESTONE", milestoneId));
+                userId, date, MILESTONE_BONUS, "MILESTONE_COMPLETE", "MILESTONE", milestoneId));
     }
 
     @Transactional(readOnly = true)
     public ParkResponse getStatus(Long userId) {
         User user = userRepository.findById(userId).orElseThrow();
-        int todayVisitors = dailyStatRepository.findByUserIdAndStatDate(userId, LocalDate.now())
-                .map(DailyStat::getVisitors)
-                .orElse(0);
+        var todayStat = dailyStatRepository.findByUserIdAndStatDate(userId, LocalDate.now());
+        int todayVisitors = todayStat.map(DailyStat::getVisitors).orElse(0);
+        int todayPointsEarned = todayStat.map(DailyStat::getPointsEarned).orElse(0);
         var slots = parkSlotRepository.findByUserIdOrderBySlotIndexAsc(userId)
                 .stream().map(ParkSlotResponse::from).toList();
 
-        return new ParkResponse(user.getPopulation(), user.getPointBalance(), todayVisitors, slots);
+        return new ParkResponse(user.getPopulation(), user.getPointBalance(), todayVisitors, todayPointsEarned, slots);
     }
 
     @Transactional(readOnly = true)

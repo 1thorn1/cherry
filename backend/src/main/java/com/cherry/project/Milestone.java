@@ -33,6 +33,8 @@ public class Milestone {
 
     private LocalDateTime completedAt;
 
+    private LocalDateTime harvestedAt;
+
     @Column(insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -54,7 +56,20 @@ public class Milestone {
         this.completedAt = null;
     }
 
+    // 처음 수확할 때만 true. harvestedAt은 완료 취소로도 지워지지 않는다.
+    public boolean markHarvested(LocalDateTime now) {
+        if (this.harvestedAt != null) return false;
+        this.harvestedAt = now;
+        return true;
+    }
+
     public void updateTitle(String title) {
         this.title = title;
+    }
+
+    public void setInProgress(boolean inProgress, LocalDateTime now) {
+        if (completedAt != null) return;
+        if (inProgress && startedAt == null) startedAt = now;
+        if (!inProgress) startedAt = null;
     }
 }
