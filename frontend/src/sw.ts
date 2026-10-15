@@ -1,9 +1,14 @@
 /// <reference lib="webworker" />
-import { precacheAndRoute } from 'workbox-precaching'
+import { createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
+import { NavigationRoute, registerRoute } from 'workbox-routing'
 
 declare const self: ServiceWorkerGlobalScope
 
 precacheAndRoute(self.__WB_MANIFEST)
+// 조회 캐시는 앱에서 계정별로 관리한다. SW는 오프라인에서도 앱 화면만 열어준다.
+registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html'), {
+  denylist: [/^\/api\//, /^\/oauth2\//, /^\/login\//],
+}))
 
 self.addEventListener('push', (event: PushEvent) => {
   const data = event.data ? event.data.json() : {}

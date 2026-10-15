@@ -6,6 +6,8 @@ import com.cherry.farm.FarmService;
 import com.cherry.park.ParkService;
 import com.cherry.project.Milestone;
 import com.cherry.project.MilestoneRepository;
+import com.cherry.project.ProjectRepository;
+import com.cherry.common.ProjectNotFoundException;
 import com.cherry.push.ReminderService;
 import com.cherry.routine.RoutineRepository;
 import com.cherry.routine.RoutineService;
@@ -34,6 +36,7 @@ public class TaskService {
     private final RoutineService routineService;
     private final RoutineRepository routineRepository;
     private final MilestoneRepository milestoneRepository;
+    private final ProjectRepository projectRepository;
     private final ParkService parkService;
     private final FarmService farmService;
     private final ReminderService reminderService;
@@ -72,6 +75,11 @@ public class TaskService {
 
     @Transactional
     public TaskResponse complete(Long userId, Long taskId) {
+        return complete(userId, taskId, null);
+    }
+
+    @Transactional
+    public TaskResponse complete(Long userId, Long taskId, LocalDateTime completedAt) {
         Task task = findOwned(userId, taskId);
         boolean alreadyCompleted = task.getCompletedAt() != null;
 
@@ -84,17 +92,17 @@ public class TaskService {
                         .map(Milestone::getId)
                         .orElse(null);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = completedAt == null ? LocalDateTime.now() : completedAt;
         task.complete(now, computeEffectiveAt(task, now), milestoneIdToTag);
 
         if (!alreadyCompleted) {
-            parkService.awardForTaskCompletion(userId, taskId, LocalDate.now(), task.getRoutineId() != null);
+            parkService.awardForTaskCompletion(userId, taskId, now.toLocalDate(), task.getRoutineId() != null);
             if (presetMilestoneId != null) {
                 milestoneRepository.findById(presetMilestoneId)
                         .filter(m -> m.getCompletedAt() == null)
                         .ifPresent(m -> {
-                            m.complete(LocalDateTime.now());
-                            parkService.awardForMilestoneCompletion(userId, presetMilestoneId);
+                            m.complete(now);
+                            parkService.awardForMilestoneCompletion(userId, presetMilestoneId, now.toLocalDate());
                             farmService.harvest(userId, m.getProjectId());
                         });
             }
@@ -109,13 +117,20 @@ public class TaskService {
     // 뜨니까, 사용자가 명시적으로 "오늘 일정에 추가"한 것만 오늘 화면에 나타난다.
     @Transactional
     public TaskResponse completeMilestoneNow(Long userId, Long milestoneId) {
+        return completeMilestoneNow(userId, milestoneId, null);
+    }
+
+    @Transactional
+    public TaskResponse completeMilestoneNow(Long userId, Long milestoneId, LocalDateTime completedAt) {
         Milestone milestone = milestoneRepository.findById(milestoneId)
                 .orElseThrow(MilestoneNotFoundException::new);
+        projectRepository.findByIdAndUserIdAndDeletedAtIsNull(milestone.getProjectId(), userId)
+                .orElseThrow(ProjectNotFoundException::new);
         Task task = taskRepository.findFirstByMilestoneIdAndUserIdAndCompletedAtIsNullAndDeletedAtIsNull(milestoneId, userId)
                 .orElseGet(() -> taskRepository.save(
                         Task.create(userId, milestone.getTitle(), null,
                                 milestone.getProjectId(), milestoneId)));
-        return complete(userId, task.getId());
+        return complete(userId, task.getId(), completedAt);
     }
 
     // "오늘 일정에 추가" 버튼. 이 milestone에 이미 미완료 태스크가 있으면(예: 체크박스로
@@ -153,6 +168,8 @@ public class TaskService {
     public void uncompleteMilestoneNow(Long userId, Long milestoneId) {
         Milestone milestone = milestoneRepository.findById(milestoneId)
                 .orElseThrow(MilestoneNotFoundException::new);
+        projectRepository.findByIdAndUserIdAndDeletedAtIsNull(milestone.getProjectId(), userId)
+                .orElseThrow(ProjectNotFoundException::new);
         milestone.uncomplete();
 
         taskRepository

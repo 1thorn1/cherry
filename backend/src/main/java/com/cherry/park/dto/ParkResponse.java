@@ -6,6 +6,7 @@ public record ParkResponse(
         int population,
         int pointBalance,
         int todayVisitors,
+        int todayPointsEarned,
         List<ParkSlotResponse> slots
 ) {
 }
