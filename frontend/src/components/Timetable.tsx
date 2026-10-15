@@ -1,5 +1,5 @@
 import { useDroppable } from '@dnd-kit/core'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { IconCheck } from '@tabler/icons-react'
 import type { Task } from '../types/task'
 import {
@@ -12,9 +12,11 @@ import {
   scrollToCurrentHour,
   type TimetableView,
 } from '../lib/timetable'
+import { categoryOf } from '../lib/category'
 
 const DEFAULT_DURATION_MIN = 30
-const VISIBLE_HEIGHT = 480
+const VISIBLE_HEIGHT = 420
+const LABEL_GUTTER = 56
 
 function toMinutes(iso: string) {
   const d = new Date(iso)
@@ -42,25 +44,22 @@ function range(task: Task, view: TimetableView) {
   return { startMin, endMin: startMin + Math.max(durationMin, 20) }
 }
 
-function HourRow({ hour, disabled, isCurrentHour }: { hour: number; disabled: boolean; isCurrentHour: boolean }) {
+// "오전 9시" — 줄바꿈 금지라 짧게
+function hourLabel(h: number) {
+  return `${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}시`
+}
+
+function HourRow({ hour, disabled }: { hour: number; disabled: boolean }) {
   const { setNodeRef, isOver } = useDroppable({ id: hourDroppableId(hour), disabled })
   return (
     <div
       ref={setNodeRef}
-      className="relative border-t"
-      // 드래그 중 드롭 대상 표시(isOver)가 우선이고, 현재 시간대 표시는 그게 없을 때만
-      // 얹는다 — 둘 다 배경색이라 겹치면 드롭 피드백이 가려진다.
-      style={{
-        height: ROW_HEIGHT,
-        borderColor: 'var(--border)',
-        background: isOver ? 'var(--cherry-soft)' : !isOver && isCurrentHour ? 'var(--surface-muted)' : undefined,
-      }}
+      className="relative border-t border-[var(--line)] transition-colors"
+      // 할 일 카드를 끌어다 놓을 수 있는 칸 — 올려놓은 동안만 wood-soft로 표시
+      style={{ height: ROW_HEIGHT, background: isOver ? 'var(--wood-soft)' : undefined }}
     >
-      <span
-        className="absolute -top-2 left-0 pr-2 text-[11px]"
-        style={{ background: 'var(--surface)', color: 'var(--text-faint)' }}
-      >
-        {hour}
+      <span className="absolute -top-2 left-0 whitespace-nowrap bg-[var(--surface)] pr-2 text-[11px] leading-4 text-[var(--ink-muted)]">
+        {hourLabel(hour)}
       </span>
     </div>
   )
@@ -70,21 +69,44 @@ interface Props {
   tasks: Task[]
   view: TimetableView
   onUnschedule: (task: Task) => void
+  rewardFor?: (task: Task) => number
+  fitViewport?: boolean
 }
 
-export default function Timetable({ tasks, view, onUnschedule }: Props) {
+export default function Timetable({ tasks, view, onUnschedule, rewardFor, fitViewport = false }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [viewportHeight, setViewportHeight] = useState(VISIBLE_HEIGHT)
+  useLayoutEffect(() => {
+    if (!fitViewport) return
+    function resize() {
+      const el = scrollRef.current
+      if (!el || el.getClientRects().length === 0) return
+      // 카드 아래 여백과 바깥 테두리까지 첫 화면 안에 들어오도록 맞춘다.
+      const top = el.getBoundingClientRect().top + window.scrollY
+      setViewportHeight(Math.max(160, Math.floor(window.innerHeight - top - 48)))
+    }
+    resize()
+    window.addEventListener('resize', resize)
+    const observer = new ResizeObserver(resize)
+    const page = scrollRef.current?.closest('aside')?.parentElement?.parentElement
+    if (page) observer.observe(page)
+    return () => {
+      window.removeEventListener('resize', resize)
+      observer.disconnect()
+    }
+  }, [fitViewport])
   const hours = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i)
   const visible = tasks.filter((t) => anchorTime(t, view))
-  const now = new Date()
-  const [currentMin, setCurrentMin] = useState(() => now.getHours() * 60 + now.getMinutes())
+  const [currentMin, setCurrentMin] = useState(() => {
+    const now = new Date()
+    return now.getHours() * 60 + now.getMinutes()
+  })
 
   useEffect(() => {
     scrollToCurrentHour(scrollRef.current)
   }, [])
 
-  // 시간이 지나면(특히 정각을 넘기면) 반투명 표시와 현재 시각선이 같이 옮겨가야 하니
-  // 1분마다, 탭이 다시 보일 때마다 갱신한다 — TodayPage의 날짜 갱신과 같은 패턴.
+  // 시간이 지나면 현재 시각선이 같이 옮겨가야 하니 1분마다, 탭이 다시 보일 때마다 갱신한다
   useEffect(() => {
     function sync() {
       const d = new Date()
@@ -113,20 +135,22 @@ export default function Timetable({ tasks, view, onUnschedule }: Props) {
   const layoutByKey = new Map(layouts.map((l) => [l.key, l]))
 
   return (
-    // pt-2: 0시 줄의 시각 레이블이 -top-2로 줄 위쪽에 떠 있는데, 스크롤 컨테이너 맨 위라
-    // 여백 없이는 그 위로 나갈 자리가 없어 잘려 보였다. 패딩으로 숨 쉴 자리를 준다.
-    <div ref={scrollRef} className="overflow-y-auto pt-2" style={{ maxHeight: VISIBLE_HEIGHT }}>
+    // pt-2: 맨 위 시간 라벨이 -top-2로 줄 위에 떠 있어서 여백 없이는 잘린다
+    <div ref={scrollRef} className="overflow-y-auto pt-2" style={fitViewport ? { height: viewportHeight } : { maxHeight: VISIBLE_HEIGHT }}>
       <div className="relative">
         {hours.map((h) => (
-          <HourRow key={h} hour={h} disabled={view === 'actual'} isCurrentHour={h === currentHour} />
+          <HourRow key={h} hour={h} disabled={view === 'actual'} />
         ))}
 
-        {/* 디자인 시스템 "주간 시간표" 규칙 — 현재 시각에 --cherry 가로선 */}
+        {/* 현재 시각 — barn 2px 선 + 점 */}
         {showCurrentLine && (
           <div
-            className="pointer-events-none absolute left-0 right-0 z-10"
-            style={{ top: currentLineTop, height: 2, background: 'var(--cherry)' }}
-          />
+            className="pointer-events-none absolute right-0 z-10"
+            style={{ top: currentLineTop - 1, left: LABEL_GUTTER - 4 }}
+          >
+            <div className="h-[2px] bg-[var(--barn)]" />
+            <div className="absolute -left-[5px] -top-[4px] h-2.5 w-2.5 rounded-full bg-[var(--barn)]" />
+          </div>
         )}
 
         {visible.map((task) => {
@@ -134,26 +158,40 @@ export default function Timetable({ tasks, view, onUnschedule }: Props) {
           const layout = layoutByKey.get(task.id)
           if (!r || !layout) return null
 
-          const top = ((r.startMin - START_HOUR * 60) / 60) * ROW_HEIGHT
-          const height = Math.max(((r.endMin - r.startMin) / 60) * ROW_HEIGHT, 24)
+          const top = ((r.startMin - START_HOUR * 60) / 60) * ROW_HEIGHT + 2
+          const height = Math.max(((r.endMin - r.startMin) / 60) * ROW_HEIGHT - 4, 24)
+          const cat = categoryOf(task)
+          const done = task.completed_at !== null
           const style = {
-            ...blockPositionStyle(top, height, layout.column, layout.columnCount, { gutter: 28, rightPad: 4 }),
-            background: task.completed_at ? 'var(--done-soft)' : 'var(--cherry-soft)',
-            color: task.completed_at ? 'var(--done)' : 'var(--cherry)',
+            ...blockPositionStyle(top, height, layout.column, layout.columnCount, { gutter: LABEL_GUTTER, rightPad: 0, gap: 4 }),
+            background: cat.soft,
+            opacity: done && view === 'scheduled' ? 0.6 : 1,
           }
 
           // 예정 시간 없이 완료 시각으로만 표시되는 항목 — 실제 일정이 아니므로 해제 불가, 완료 표시만
           const isCompletionMarker = view === 'scheduled' && !task.scheduled_start
+          const reward = rewardFor?.(task)
 
-          if (view === 'actual' || isCompletionMarker) {
-            return (
-              <div
-                key={task.id}
-                className="absolute flex items-center gap-1 overflow-hidden rounded-[6px] px-2 py-1 text-left text-[11px] font-medium leading-tight"
-                style={style}
-              >
-                {isCompletionMarker && <IconCheck size={11} stroke={2.5} className="flex-none" />}
+          const content = (
+            <>
+              <span className={`flex items-center gap-1.5 text-[12px] font-medium leading-4 text-[var(--ink)] ${done ? 'line-through' : ''}`}>
+                {isCompletionMarker ? (
+                  <IconCheck size={11} stroke={2.5} className="flex-none text-[var(--sprout)]" />
+                ) : (
+                  <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: cat.dot }} />
+                )}
                 <span className="truncate">{task.title}</span>
+              </span>
+              {reward !== undefined && height >= 36 && (
+                <span className="mt-0.5 block text-[11px] font-medium leading-4 text-[var(--coin-ink)]">+{reward}</span>
+              )}
+            </>
+          )
+
+          if (view === 'actual' || isCompletionMarker || done) {
+            return (
+              <div key={task.id} className="absolute overflow-hidden rounded-[8px] px-2 py-1 text-left" style={style}>
+                {content}
               </div>
             )
           }
@@ -162,10 +200,11 @@ export default function Timetable({ tasks, view, onUnschedule }: Props) {
             <button
               key={task.id}
               onClick={() => onUnschedule(task)}
-              className="absolute overflow-hidden rounded-[6px] px-2 py-1 text-left text-[11px] font-medium leading-tight"
+              title="누르면 시간 배정을 풀어요"
+              className="absolute overflow-hidden rounded-[8px] px-2 py-1 text-left transition-opacity hover:opacity-80"
               style={style}
             >
-              {task.title}
+              {content}
             </button>
           )
         })}

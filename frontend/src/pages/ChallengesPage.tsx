@@ -1,3 +1,4 @@
+import Collapse from '../components/Collapse'
 import { useEffect, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { createChallenge, getChallengeProjectLinks, joinChallenge, type CreateChallengeInput } from '../api/challenges'
@@ -132,9 +133,9 @@ export default function ChallengesPage() {
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
       <Link to="/projects" className="text-xs text-neutral-400">← 프로젝트</Link>
-      <h1 className="mb-6 mt-2 font-display text-2xl">같이 하기</h1>
+      <h1 className="mb-6 mt-2 font-display text-[34px] leading-[42px]">같이 하기</h1>
 
-      <div className="mb-6 rounded-2xl border border-neutral-100 p-4 shadow-[0_2px_12px_-6px_rgba(0,0,0,0.08)]">
+      <div className="mb-6 rounded-2xl border border-[var(--line)] p-4 shadow-[var(--shadow-card)]">
         <p className="mb-3 text-xs text-neutral-400">초대 코드로 참여</p>
         <div className="flex gap-2">
           <input
@@ -154,7 +155,7 @@ export default function ChallengesPage() {
         </div>
       </div>
 
-      <div className="mb-8 rounded-2xl border border-neutral-100 p-4 shadow-[0_2px_12px_-6px_rgba(0,0,0,0.08)]">
+      <div className="mb-8 rounded-2xl border border-[var(--line)] p-4 shadow-[var(--shadow-card)]">
         <p className="mb-3 text-xs text-neutral-400">방 만들기</p>
         <input
           value={title}
@@ -175,7 +176,7 @@ export default function ChallengesPage() {
           ))}
         </div>
 
-        {mode === 'PROGRESS' && (
+        <Collapse open={mode === 'PROGRESS'}>
           <input
             type="number"
             value={totalUnits}
@@ -183,16 +184,16 @@ export default function ChallengesPage() {
             placeholder="총 회차 수 (예: 20)"
             className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
           />
-        )}
+        </Collapse>
 
-        {mode === 'EXAM' && (
+        <Collapse open={mode === 'EXAM'}>
           <input
             type="date"
             value={targetDate}
             onChange={(e) => setTargetDate(e.target.value)}
             className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm outline-none focus:border-neutral-400"
           />
-        )}
+        </Collapse>
 
         <button
           onClick={handleCreate}

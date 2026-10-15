@@ -1,82 +1,71 @@
 import type { MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { IconStar, IconStarFilled } from '@tabler/icons-react'
+import { IconBook2, IconCalendarDue, IconFolder, IconStar, IconStarFilled } from '@tabler/icons-react'
 import type { OtherProject } from '../types/project'
-import { SelectableCard, SelectableCardHint } from './SelectableCard'
+import { CoinIcon } from './Coin'
+import { ProgressBar } from './ui'
 
-// 프로젝트 목록과 같이 하기 목록이 서로 다른 카드 모양을 쓰고 있어서 "같이 보는" 느낌이
-// 안 났다는 피드백으로, 두 목록이 같은 카드를 공유하게 뺐다. 다른 점은 클릭 시 이동 위치
-// (프로젝트 상세 vs 챌린지 상세)와 secondaryLink(반대쪽으로 가는 작은 배지)뿐이다.
+const categoryStyles = [
+  { bg: 'var(--sprout-soft)', dot: 'var(--sprout)' },
+  { bg: 'var(--coin-soft)', dot: 'var(--coin)' },
+  { bg: 'var(--sky-soft)', dot: 'var(--sky)' },
+  { bg: 'var(--barn-soft)', dot: 'var(--barn)' },
+]
+
+function typeCopy(project: OtherProject) {
+  if (project.type === 'EXAM') return '시험일까지 차근차근 준비해요.'
+  if (project.type === 'PROGRESS') return '정해둔 회차를 하나씩 끝내요.'
+  return '작업을 묶어 흐름을 만들어가요.'
+}
+
 export default function ProjectListItem({
-  project: p,
-  selected,
-  onClick,
-  onToggleStar,
-  secondaryLink,
-  tag,
+  project: p, selected, onClick, onToggleStar, secondaryLink, tag,
 }: {
   project: OtherProject
   selected: boolean
   onClick: () => void
   onToggleStar: (e: MouseEvent) => void
   secondaryLink?: { to: string; label: string }
-  // 나간 같이 하기 방처럼, 어디로도 이동은 안 되지만 출신은 표시해주고 싶을 때 쓰는
-  // 눌리지 않는 정적 라벨 — secondaryLink와 동시에 쓰지 않는다.
   tag?: string
 }) {
+  const style = categoryStyles[(p.project_id - 1) % categoryStyles.length]
+  const pct = p.total_milestones ? Math.round((p.completed_milestones / p.total_milestones) * 100) : 0
+  const Icon = p.type === 'PROGRESS' ? IconBook2 : p.type === 'EXAM' ? IconCalendarDue : IconFolder
+
   return (
-    <SelectableCard selected={selected} onClick={onClick}>
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <button onClick={onToggleStar} aria-label={p.starred ? '즐겨찾기 해제' : '즐겨찾기 추가'} className="shrink-0">
-            {p.starred ? (
-              <IconStarFilled size={16} style={{ color: 'var(--cherry)' }} />
-            ) : (
-              <IconStar size={16} stroke={1.75} className="text-neutral-300" />
-            )}
-          </button>
-          <span className="truncate text-sm">{p.name}</span>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {secondaryLink && (
-            <Link
-              to={secondaryLink.to}
-              onClick={(e) => e.stopPropagation()}
-              className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-              style={{ background: 'var(--cherry-bg)', color: 'var(--cherry)' }}
-            >
-              {secondaryLink.label}
-            </Link>
-          )}
-          {tag && (
-            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-400">
-              {tag}
-            </span>
-          )}
-          <span className="text-[11px] text-neutral-400">{p.key_metric}</span>
+    <article
+      onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
+      role="button"
+      tabIndex={0}
+      className={`cursor-pointer rounded-2xl border bg-[var(--surface)] p-5 shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 ${selected ? 'border-[var(--wood)] ring-1 ring-[var(--wood)]' : 'border-[var(--line)]'}`}
+    >
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl" style={{ background: style.bg, color: style.dot }}>
+          <Icon size={21} stroke={1.8} />
+        </span>
+        <button onClick={onToggleStar} aria-label={p.starred ? '즐겨찾기 해제' : '즐겨찾기 추가'} className="-mr-1 -mt-1 p-1 text-[var(--ink-faint)]">
+          {p.starred ? <IconStarFilled size={18} color="var(--coin)" /> : <IconStar size={18} stroke={1.75} />}
+        </button>
+      </div>
+
+      <h2 className="truncate font-display text-[20px] leading-7 text-[var(--ink)]">{p.name}</h2>
+      <p className="mt-1 h-10 text-[13px] leading-5 text-[var(--ink-muted)]">{typeCopy(p)}</p>
+
+      <div className="mt-4">
+        <ProgressBar value={p.completed_milestones} max={p.total_milestones || 1} label={`${p.name} 진행률`} />
+        <div className="mt-2 flex items-center justify-between text-[12px]">
+          <span className="text-[var(--ink-muted)]">{p.total_milestones ? `${p.completed_milestones} / ${p.total_milestones} 완료 · ${pct}%` : '할 일을 추가해보세요'}</span>
+          <span className="inline-flex items-center gap-1 font-medium text-[var(--coin-ink)]"><CoinIcon size={13} />{p.completed_milestones * 10}</span>
         </div>
       </div>
-      {p.total_milestones > 0 && (
-        p.total_milestones <= 20 ? (
-          <div className="flex gap-1">
-            {Array.from({ length: p.total_milestones }).map((_, i) => (
-              <span
-                key={i}
-                className="h-1.5 w-1.5 rounded-full"
-                style={{ background: i < p.completed_milestones ? 'var(--cherry)' : '#E5E5E5' }}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
-            <div
-              className="h-full rounded-full"
-              style={{ width: `${(p.completed_milestones / p.total_milestones) * 100}%`, background: 'var(--cherry)' }}
-            />
-          </div>
-        )
-      )}
-      <SelectableCardHint selected={selected} />
-    </SelectableCard>
+
+      <footer className="mt-4 flex min-h-5 items-center justify-between border-t border-[var(--line)] pt-3 text-[12px] text-[var(--ink-muted)]">
+        <span>{p.key_metric}</span>
+        {secondaryLink && <Link to={secondaryLink.to} onClick={(e) => e.stopPropagation()} className="rounded-lg bg-[var(--wood-soft)] px-2 py-1 font-medium text-[var(--wood-deep)]">{secondaryLink.label}</Link>}
+        {tag && <span className="rounded-lg bg-[var(--surface-sunken)] px-2 py-1">{tag}</span>}
+      </footer>
+      {selected && <p className="mt-3 text-right text-[11px] font-medium text-[var(--wood)]">한 번 더 누르면 들어가요</p>}
+    </article>
   )
 }

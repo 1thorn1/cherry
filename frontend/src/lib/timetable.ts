@@ -14,6 +14,12 @@ export interface TimedBlock {
   endMin: number
 }
 
+/** 일정 하나당 최소 144px을 확보해 겹침이 많아져도 제목 폭을 유지한다. */
+export function calendarColumnWidth(blocks: TimedBlock[]): number {
+  const columns = Math.max(1, ...layoutOverlaps(blocks).map((block) => block.columnCount))
+  return columns * 144 + 8
+}
+
 export interface BlockLayout {
   key: string | number
   column: number

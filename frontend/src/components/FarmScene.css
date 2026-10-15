@@ -1,0 +1,38 @@
+.farm-scene {
+  position: relative;
+  isolation: isolate;
+  border-radius: 20px;
+  background: radial-gradient(ellipse at 50% 65%, var(--sprout-soft), transparent 68%);
+}
+.farm-scene svg { overflow: visible; }
+.farm-scene-caption { margin: -12px 0 12px; text-align: center; font-size: 12px; color: var(--ink-muted); }
+.farm-crop, .farm-canopy { transform-box: fill-box; transform-origin: 50% 100%; animation: farm-sway 4.2s ease-in-out var(--delay, 0s) infinite; }
+.farm-plot { cursor: pointer; outline: none; }
+.farm-plot-focus { opacity: 0; transition: opacity .2s; }
+.farm-plot:hover .farm-plot-focus, .farm-plot:focus-visible .farm-plot-focus { opacity: 1; }
+.farm-plot:hover .farm-crop { filter: brightness(1.08); }
+.farm-crop-bounce { animation: farm-bounce .65s ease-out, farm-sway 4.2s ease-in-out .65s infinite; }
+.farm-tap-spark { pointer-events: none; animation: farm-spark .75s ease-out both; }
+.farm-cloud { animation: farm-drift 18s ease-in-out infinite alternate; }
+.farm-cloud-two { animation-duration: 24s; animation-delay: -8s; }
+.farm-sun-halo { transform-box: fill-box; transform-origin: center; animation: farm-halo 6s ease-in-out infinite; }
+.farm-water-ripple { transform-box: fill-box; transform-origin: center; animation: farm-ripple 3.8s ease-out infinite; }
+.farm-water-ripple-late { animation-delay: -1.9s; }
+.farm-chicken { animation: farm-walk 15s ease-in-out var(--delay) infinite; }
+.farm-chicken-body { transform-origin: 0 10px; animation: farm-peck 2.5s ease-in-out var(--delay) infinite; }
+.farm-smoke { animation: farm-smoke 3.3s ease-out infinite both; }
+.farm-season-particle { animation: farm-fall var(--duration) linear var(--delay) infinite; pointer-events: none; }
+@keyframes farm-sway { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(3deg); } }
+@keyframes farm-bounce { 0%, 100% { transform: scale(1) rotate(0); } 25% { transform: scale(.92, 1.12) rotate(-9deg); } 55% { transform: scale(1.07, .94) rotate(7deg); } 80% { transform: rotate(-3deg); } }
+@keyframes farm-spark { 0% { opacity: 0; transform: translateY(4px) scale(.8); } 25% { opacity: 1; } 100% { opacity: 0; transform: translateY(-16px) scale(1.15); } }
+@keyframes farm-drift { from { transform: translateX(-12px); } to { transform: translateX(18px); } }
+@keyframes farm-halo { 0%, 100% { transform: scale(.96); opacity: .15; } 50% { transform: scale(1.1); opacity: .3; } }
+@keyframes farm-ripple { from { transform: scale(.5); opacity: .65; } to { transform: scale(1.5); opacity: 0; } }
+@keyframes farm-walk { 0%, 12%, 100% { transform: translate(0, 0); } 35%, 55% { transform: translate(28px, 9px); } 72%, 85% { transform: translate(10px, 3px); } }
+@keyframes farm-peck { 0%, 35%, 65%, 100% { transform: rotate(0); } 40%, 50% { transform: rotate(12deg) translateY(2px); } 45%, 55% { transform: rotate(-3deg); } }
+@keyframes farm-smoke { from { transform: translate(0, 0) scale(.6); opacity: .6; } to { transform: translate(16px, -38px) scale(1.8); opacity: 0; } }
+@keyframes farm-fall { 0% { transform: translate(0, -20px) rotate(0); opacity: 0; } 15%, 70% { opacity: .6; } 100% { transform: translate(35px, 95px) rotate(160deg); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .farm-scene *, .farm-scene *::before, .farm-scene *::after { animation: none !important; transition: none !important; }
+  .farm-tap-spark, .farm-smoke, .farm-season-particle { display: none; }
+}

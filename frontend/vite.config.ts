@@ -24,7 +24,7 @@ export default defineConfig({
         short_name: '체리',
         description: '오늘 할 일을 체크하면 내 공원이 지어지는 생산성 앱',
         lang: 'ko',
-        theme_color: '#D4537E',
+        theme_color: '#f6f1e7',
         background_color: '#FBEAF0',
         display: 'standalone',
         start_url: '/',

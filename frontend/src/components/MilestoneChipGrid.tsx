@@ -3,6 +3,7 @@ import { IconCheck, IconChevronDown, IconChevronLeft, IconChevronRight, IconChev
 import type { Milestone, TimelineEntry } from '../types/project'
 import AutoGrowTextarea from './AutoGrowTextarea'
 import NoteEntry from './NoteEntry'
+import Collapse from './Collapse'
 
 const ROW_SIZE = 5
 
@@ -71,7 +72,7 @@ function MilestoneDetail({
   }
 
   return (
-    <div className="mt-1.5 rounded-lg border border-neutral-200 p-3 animate-[fade-in_0.25s_ease-out]">
+    <div className="mt-3 rounded-2xl border border-[var(--line)] bg-[var(--surface-sunken)] p-4">
       <div className="mb-2 flex items-center justify-between gap-2">
         {editingTitle ? (
           <div className="flex flex-1 items-center gap-1.5">
@@ -87,27 +88,27 @@ function MilestoneDetail({
               }}
               autoFocus
               placeholder="예: 1강 - 미분 기초"
-              className="flex-1 rounded-lg border border-neutral-200 px-2 py-1 text-sm outline-none focus:border-neutral-400"
+              className="flex-1 rounded-lg border border-[var(--line)] px-2 py-1 text-sm outline-none focus:border-[var(--line-strong)]"
             />
             <button
               onClick={handleSaveTitle}
               disabled={renamingId === milestone.id}
               className="text-xs font-medium disabled:opacity-50"
-              style={{ color: 'var(--cherry)' }}
+              style={{ color: 'var(--sprout)' }}
             >
               저장
             </button>
-            <button onClick={() => setEditingTitle(false)} className="text-xs text-neutral-400">취소</button>
+            <button onClick={() => setEditingTitle(false)} className="text-xs text-[var(--ink-muted)]">취소</button>
           </div>
         ) : (
           <div className="flex flex-1 items-center gap-1.5">
             <p className="text-sm font-medium">{milestone.title}</p>
-            <button onClick={startEditTitle} className="text-[11px] text-neutral-300 hover:text-neutral-500">
+            <button onClick={startEditTitle} className="text-[11px] text-[var(--ink-faint)] hover:text-[var(--ink-muted)]">
               수정
             </button>
           </div>
         )}
-        <button onClick={onClose} className="text-xs text-neutral-300">닫기</button>
+        <button onClick={onClose} className="text-xs text-[var(--ink-faint)]">닫기</button>
       </div>
 
       {!milestone.completed ? (
@@ -115,14 +116,14 @@ function MilestoneDetail({
           onClick={() => onSendToday(milestone)}
           disabled={sendingId === milestone.id}
           className={`mb-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium disabled:opacity-50 ${
-            milestone.scheduled_today ? 'bg-neutral-100 text-neutral-400' : 'bg-neutral-100 text-neutral-500'
+            milestone.scheduled_today ? 'bg-[var(--surface-sunken)] text-[var(--ink-muted)]' : 'bg-[var(--surface-sunken)] text-[var(--ink-muted)]'
           }`}
-          style={milestone.scheduled_today ? { color: 'var(--cherry)', background: 'var(--cherry-bg)' } : undefined}
+          style={milestone.scheduled_today ? { color: 'var(--sprout)', background: 'var(--sprout-soft)' } : undefined}
         >
           {milestone.scheduled_today ? '오늘 일정에서 빼기' : '오늘 일정에 추가'}
         </button>
       ) : (
-        <p className="mb-3 text-xs text-neutral-400">
+        <p className="mb-3 text-xs text-[var(--ink-muted)]">
           완료됨{milestone.completed_at ? ` · ${milestone.completed_at.slice(0, 10)}` : ''}
         </p>
       )}
@@ -140,14 +141,14 @@ function MilestoneDetail({
           }}
           placeholder="이 구간 메모 (마크다운 지원)"
           rows={3}
-          className="mb-1.5 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none transition-shadow focus:border-[var(--cherry)] focus:ring-2 focus:ring-[var(--cherry-bg)]"
+          className="mb-1.5 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm outline-none transition-shadow focus:border-[var(--sprout)] focus:ring-2 focus:ring-[var(--sprout-soft)]"
         />
         <div className="flex items-center justify-between">
-          <span className="text-[10px] text-neutral-300">⌘/Ctrl + Enter로 저장</span>
+          <span className="text-[10px] text-[var(--ink-faint)]">⌘/Ctrl + Enter로 저장</span>
           <button
             onClick={handleSubmitNote}
             disabled={savingNoteId === milestone.id}
-            className="rounded-lg border border-neutral-200 px-3 py-1 text-xs font-medium text-neutral-500 disabled:opacity-50"
+            className="rounded-lg border border-[var(--line)] px-3 py-1 text-xs font-medium text-[var(--ink-muted)] disabled:opacity-50"
           >
             {savingNoteId === milestone.id ? '저장 중...' : '기록'}
           </button>
@@ -160,15 +161,15 @@ function MilestoneDetail({
             <div className="mb-1.5 flex justify-end">
               <button
                 onClick={() => setNoteSort((s) => (s === 'newest' ? 'oldest' : 'newest'))}
-                className="text-[10px] text-neutral-400 hover:text-neutral-600"
+                className="text-[10px] text-[var(--ink-muted)] hover:text-[var(--ink)]"
               >
                 {noteSort === 'newest' ? '최신순' : '오래된순'}
               </button>
             </div>
           )}
-          <ul className="space-y-1.5">
+          <ul className="space-y-3">
             {sortedNotes.map((entry) => (
-              <li key={`${entry.kind}-${entry.ref_id}`} className="rounded-lg bg-neutral-50 px-3 py-2">
+              <li key={`${entry.kind}-${entry.ref_id}`} className="rounded-lg bg-[var(--surface-sunken)] px-3 py-2">
                 <NoteEntry entry={entry} onUpdate={onUpdateNote} onDelete={onDeleteNote} hideKindLabel showDate />
               </li>
             ))}
@@ -194,6 +195,9 @@ export default function MilestoneChipGrid({
   sendingId,
   savingNoteId,
   groupByWeek,
+  groupByStatus,
+  onChangeProgress,
+  progressingId,
 }: {
   milestones: Milestone[]
   notesByMilestone: Map<number, TimelineEntry[]>
@@ -210,6 +214,9 @@ export default function MilestoneChipGrid({
   savingNoteId: number | null
   // 시험형처럼 날짜 단위로 쪼개져 개수가 많은 마일스톤을 주 단위 아코디언으로 묶어 보여준다.
   groupByWeek?: boolean
+  groupByStatus?: boolean
+  onChangeProgress?: (m: Milestone, inProgress: boolean) => void
+  progressingId?: number | null
 }) {
   // 칩을 누른 자리 바로 아래에 상세를 끼워 넣고, 여러 개를 동시에 열어둘 수
   // 있어야 한다는 요청(2026-09-29)으로 단일 선택(expandedId)에서 Set으로 바꿨다 —
@@ -219,8 +226,8 @@ export default function MilestoneChipGrid({
   const [pageByWeek, setPageByWeek] = useState<Record<number, number>>({})
   const [openWeeks, setOpenWeeks] = useState<Set<number>>(() => new Set([1]))
 
-  if (milestones.length === 0) {
-    return <p className="py-4 text-center text-xs text-neutral-400">마일스톤이 없어요</p>
+  if (milestones.length === 0 && !groupByStatus) {
+    return <p className="py-4 text-center text-xs text-[var(--ink-muted)]">마일스톤이 없어요</p>
   }
 
   // 칩을 누르면 내용(메모·완료 여부)만 보여주고, 완료/취소는 칩 왼쪽 위의 작은 체크
@@ -255,10 +262,9 @@ export default function MilestoneChipGrid({
   // 안)에서만 그린다. 여러 주차에 걸쳐 열어도 각자 자기 주차 아코디언 밑에 뜬다.
   function renderOpenDetails(items: Milestone[]) {
     return items
-      .filter((m) => expandedIds.has(m.id))
       .map((m) => (
+        <Collapse key={m.id} open={expandedIds.has(m.id)}>
         <MilestoneDetail
-          key={m.id}
           milestone={m}
           notes={notesByMilestone.get(m.id) ?? []}
           onAddNote={onAddNote}
@@ -271,6 +277,7 @@ export default function MilestoneChipGrid({
           sendingId={sendingId}
           savingNoteId={savingNoteId}
         />
+        </Collapse>
       ))
   }
 
@@ -294,7 +301,7 @@ export default function MilestoneChipGrid({
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={!hasPages || currentPage === 0}
             aria-label="이전"
-            className="flex h-7 w-5 shrink-0 items-center justify-center text-neutral-300 disabled:opacity-0"
+            className="flex h-7 w-5 shrink-0 items-center justify-center text-[var(--ink-faint)] disabled:opacity-0"
           >
             <IconChevronLeft size={16} stroke={2} />
           </button>
@@ -305,7 +312,7 @@ export default function MilestoneChipGrid({
               style={{ transform: `translateX(-${currentPage * 100}%)` }}
             >
               {Array.from({ length: pageCount }).map((_, pageIndex) => (
-                <div key={pageIndex} className="grid w-full shrink-0 grid-cols-5 gap-1.5">
+                <div key={pageIndex} className="grid w-full shrink-0 grid-cols-5 gap-2">
                   {items.slice(pageIndex * ROW_SIZE, pageIndex * ROW_SIZE + ROW_SIZE).map((m) => (
                     <div
                       key={m.id}
@@ -318,32 +325,32 @@ export default function MilestoneChipGrid({
                           toggleExpanded(m.id)
                         }
                       }}
-                      className="relative flex h-12 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-transparent p-1 pt-2.5 text-center transition-colors"
+                      className="relative flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-[var(--line)] px-1.5 pb-3 pt-7 text-center transition-colors hover:border-[var(--line-strong)]"
                       style={{
                         // 완료 여부는 채우기 색으로만 표시한다(테두리색으로 구분하지 않는다) — 완료
                         // 안 됐다고 흰 배경에 옅은 테두리만 두면 눈에 잘 안 띄어서, 명확한 회색
                         // 채우기를 기본값으로 준다. 선택(패널 열림) 표시만 링(box-shadow)으로 얹는다.
                         // inset을 써서 칩 박스 안쪽으로만 그린다 — 바깥쪽 링은 페이지 캐러셀의
                         // overflow-hidden에 가장자리 칩(첫/끝 칸)의 테두리가 잘려 보이는 문제가 있었다.
-                        background: m.completed ? 'var(--cherry-bg)' : '#F1EFE8',
-                        boxShadow: expandedIds.has(m.id) ? 'inset 0 0 0 2px var(--cherry)' : 'none',
+                        background: m.completed ? 'var(--sprout-soft)' : 'var(--surface-sunken)',
+                        boxShadow: expandedIds.has(m.id) ? 'inset 0 0 0 2px var(--sprout)' : 'none',
                       }}
                     >
                       <button
                         onClick={(e) => handleToggleComplete(e, m)}
                         disabled={completingId === m.id}
-                        aria-label={m.completed ? '완료 취소' : '완료 처리'}
-                        className={`absolute left-1 top-1 flex h-3.5 w-3.5 items-center justify-center text-white disabled:opacity-50 ${
-                          m.completed ? 'rounded-sm' : 'rounded-sm border-[1.5px] border-neutral-300 bg-white'
+                        aria-label={`${m.title} ${m.completed ? '완료 취소' : '완료 처리'}`}
+                        className={`absolute left-2 top-2 flex h-5 w-5 items-center justify-center text-white disabled:opacity-50 ${
+                          m.completed ? 'rounded-sm' : 'rounded-sm border-[1.5px] border-[var(--line-strong)] bg-[var(--surface)]'
                         }`}
-                        style={m.completed ? { background: 'var(--cherry)' } : undefined}
+                        style={m.completed ? { background: 'var(--sprout)' } : undefined}
                       >
-                        {m.completed && <IconCheck size={8} stroke={3} />}
+                        {m.completed && <IconCheck size={12} stroke={3} />}
                       </button>
-                      <span className="text-[9px] font-medium" style={{ color: m.completed ? 'var(--cherry)' : '#999' }}>
+                      <span className="text-[13px] font-semibold tabular-nums" style={{ color: m.completed ? 'var(--sprout)' : 'var(--ink-faint)' }}>
                         {m.seq}
                       </span>
-                      <span className="line-clamp-1 w-full truncate text-[8px] leading-tight text-neutral-500">
+                      <span className="line-clamp-2 w-full text-[11px] leading-snug text-[var(--ink-muted)]">
                         {stripWeekPrefix ? m.title.replace(/^\d+주차\s*/, '') : m.title}
                       </span>
                     </div>
@@ -357,7 +364,7 @@ export default function MilestoneChipGrid({
             onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
             disabled={!hasPages || currentPage === pageCount - 1}
             aria-label="다음"
-            className="flex h-7 w-5 shrink-0 items-center justify-center text-neutral-300 disabled:opacity-0"
+            className="flex h-7 w-5 shrink-0 items-center justify-center text-[var(--ink-faint)] disabled:opacity-0"
           >
             <IconChevronRight size={16} stroke={2} />
           </button>
@@ -371,7 +378,7 @@ export default function MilestoneChipGrid({
                 onClick={() => setPage(() => i)}
                 aria-label={`${i + 1}페이지`}
                 className="h-1.5 w-1.5 rounded-full transition-colors"
-                style={{ background: i === currentPage ? 'var(--cherry)' : '#E5E1D8' }}
+                style={{ background: i === currentPage ? 'var(--sprout)' : 'var(--line)' }}
               />
             ))}
           </div>
@@ -390,6 +397,65 @@ export default function MilestoneChipGrid({
     for (const [week, items] of byWeek) weekGroups.push({ week, items })
   }
 
+  if (groupByStatus) {
+    const sections = [
+      { key: 'ready', title: '시작 전', color: 'var(--ink-muted)', soft: 'var(--surface-sunken)', empty: '새로 추가한 항목이 여기에 표시돼요.', items: milestones.filter((m) => !m.completed && !m.started_at) },
+      { key: 'active', title: '진행 중', color: 'var(--wood)', soft: 'var(--wood-soft)', empty: '시작한 항목이 여기에 표시돼요.', items: milestones.filter((m) => !m.completed && m.started_at) },
+      { key: 'done', title: '완료', color: 'var(--sprout)', soft: 'var(--sprout-soft)', empty: '완료한 항목이 여기에 표시돼요.', items: milestones.filter((m) => m.completed) },
+    ]
+    return (
+      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-3">
+        {sections.map((section) => (
+          <section key={section.key} aria-label={section.title} className="min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--surface-sunken)] p-3 lg:min-h-64">
+            <div className="mb-3 flex items-center gap-2 px-1 py-1">
+              <span className="h-2 w-2 rounded-full" style={{ background: section.color }} />
+              <h3 className="text-[14px] font-semibold text-[var(--ink)]">{section.title}</h3>
+              <span className="rounded-full px-2 py-0.5 text-[12px] tabular-nums" style={{ color: section.color, background: section.soft }}>{section.items.length}</span>
+            </div>
+            {section.items.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-[var(--line-strong)] px-4 py-5 text-[12px] leading-relaxed text-[var(--ink-muted)]">{section.empty}</p>
+            ) : (
+              <div className="space-y-2">
+                {section.items.map((m) => (
+                  <div key={m.id} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
+                    <div className="flex items-start gap-3">
+                      <button
+                        onClick={(e) => handleToggleComplete(e, m)}
+                        disabled={completingId !== null || progressingId != null}
+                        aria-label={`${m.title} ${m.completed ? '완료 취소' : '완료 처리'}`}
+                        aria-pressed={m.completed}
+                        className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-md border border-[var(--line-strong)] disabled:opacity-50"
+                        style={m.completed ? { background: 'var(--sprout)', borderColor: 'var(--sprout)', color: 'white' } : undefined}
+                      >{m.completed && <IconCheck size={13} stroke={2.5} />}</button>
+                      <div className="min-w-0 flex-1">
+                        <button onClick={() => toggleExpanded(m.id)} aria-expanded={expandedIds.has(m.id)} className="flex w-full items-start justify-between gap-2 text-left">
+                          <span className={`break-words text-[14px] font-medium ${m.completed ? 'text-[var(--ink-muted)] line-through' : 'text-[var(--ink)]'}`}>{m.title}</span>
+                          <IconChevronDown size={16} className={`mt-0.5 flex-none text-[var(--ink-muted)] transition-transform ${expandedIds.has(m.id) ? 'rotate-180' : ''}`} />
+                        </button>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          {m.scheduled_today && !m.completed && <span className="rounded-md bg-[var(--wood-soft)] px-2 py-0.5 text-[11px] text-[var(--wood)]">오늘 할 일</span>}
+                          {(notesByMilestone.get(m.id)?.length ?? 0) > 0 && <span className="text-[11px] text-[var(--ink-muted)]">기록 {notesByMilestone.get(m.id)?.length}개</span>}
+                          {!m.completed && <button
+                            onClick={() => onChangeProgress?.(m, !m.started_at)}
+                            disabled={progressingId != null || completingId !== null}
+                            className="rounded-lg bg-[var(--surface-sunken)] px-2.5 py-1 text-[12px] font-medium text-[var(--wood)] disabled:opacity-50"
+                          >{progressingId === m.id ? '변경 중...' : m.started_at ? '시작 전으로' : '시작'}</button>}
+                          {!m.completed && <button onClick={() => onSendToday(m)} disabled={sendingId !== null} className="text-[12px] text-[var(--ink-muted)] hover:text-[var(--ink)] disabled:opacity-50">{m.scheduled_today ? '오늘 일정에서 빼기' : '오늘 일정에 추가'}</button>}
+                          {m.completed_at && <span className="text-[11px] text-[var(--ink-muted)]">{m.completed_at.slice(0, 10)} 완료</span>}
+                        </div>
+                      </div>
+                    </div>
+                    {renderOpenDetails([m])}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <div>
       {!groupByWeek && (
@@ -405,20 +471,21 @@ export default function MilestoneChipGrid({
             const doneCount = items.filter((m) => m.completed).length
             const isOpen = openWeeks.has(week)
             return (
-              <div key={week} className="overflow-hidden rounded-lg border border-neutral-200">
+              <div key={week} className="overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)]">
                 <button
                   onClick={() => toggleWeek(week)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left"
+                  aria-expanded={isOpen}
+                  className="flex w-full items-center gap-2 px-4 py-3 text-left"
                 >
-                  <span className="text-xs font-medium text-neutral-600">{week > 0 ? `${week}주차` : '기타'}</span>
-                  <span className="text-[11px] text-neutral-400">{doneCount}/{items.length} 완료</span>
-                  <span className="ml-auto text-neutral-300">
+                  <span className="text-[14px] font-semibold text-[var(--ink)]">{week > 0 ? `${week}주차` : '기타'}</span>
+                  <span className="text-[11px] text-[var(--ink-muted)]">{doneCount}/{items.length} 완료</span>
+                  <span className="ml-auto text-[var(--ink-faint)]">
                     {isOpen ? <IconChevronUp size={14} stroke={1.75} /> : <IconChevronDown size={14} stroke={1.75} />}
                   </span>
                 </button>
 
-                {isOpen && (
-                  <div className="border-t border-neutral-100 p-2">
+                <Collapse open={isOpen}>
+                  <div className="border-t border-[var(--line)] p-3">
                     {renderCarousel(
                       items,
                       pageByWeek[week] ?? 0,
@@ -427,7 +494,7 @@ export default function MilestoneChipGrid({
                     )}
                     {renderOpenDetails(items)}
                   </div>
-                )}
+                </Collapse>
               </div>
             )
           })}
